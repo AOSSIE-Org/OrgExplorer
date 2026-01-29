@@ -102,23 +102,17 @@ The application is designed to be fully client-side, with no backend dependency,
 
 ## 🏗️ Architecture Diagram
 
-TODO: Add your system architecture diagram here
-```
 
-<img width="1801" height="1730" alt="image" src="https://github.com/user-attachments/assets/40b1d108-5698-4945-9662-99369f25e8ee" />
-```
+<img  height="620" alt="image" src="https://github.com/user-attachments/assets/40b1d108-5698-4945-9662-99369f25e8ee" />
+
 
 ---
 
 
 ## 🔄 User Flow
 
+<img height="1020" alt="image" src="https://github.com/user-attachments/assets/8480c706-0a7d-4cda-bcb5-f9d61bfc4df5" />
 
-```
-
-<img width="1842" height="4420" alt="image" src="https://github.com/user-attachments/assets/5cbd668f-41d6-4717-8143-8b130cdcae2a" />
-
-```
 
 ### Key User Journeys
 1. ###  Explore an Organization (Default Flow)
