@@ -48,133 +48,100 @@
 ---
 
 <div align="center">
-<h1>TODO: Project Name</h1>
+<h1> OrgExplorer</h1>
 </div>
 
-[TODO](https://TODO.stability.nexus/) is a ... TODO: Project Description.
+ OrgExplorer is a lightweight, browser-based web application that helps visualize and understand activity within a GitHub organization.  
+It fetches publicly available data from the GitHub API and presents it in a summarized and structured way, making it easier to track repositories, contributors, and overall organizational activity beyond what GitHub’s default UI provides.
+
+The application is designed to be fully client-side, with no backend dependency, and uses local caching to efficiently manage GitHub API rate limits.
+
 
 ---
 
-## 🚀 Features
 
-TODO: List your main features here:
+### 🚀 Features
 
-- **Feature 1**: Description
-- **Feature 2**: Description
-- **Feature 3**: Description
-- **Feature 4**: Description
+- **Organization-level insights**  
+  View high-level information about a GitHub organization, including repository activity and overall growth indicators.
+
+- **Repository-level analytics**  
+  Analyze repositories within an organization, such as activity status, update frequency, issues, pull requests, and language usage.
+
+- **Contributor summaries**  
+  Identify and rank contributors based on their activity across repositories using aggregated contribution data.
+
+- **Client-side caching**  
+  Uses IndexedDB (via a lightweight wrapper) to cache fetched data locally, reducing redundant API calls and helping avoid rate limits.
+
+- **Optional GitHub authentication**  
+  Works with unauthenticated GitHub API calls by default, with optional support for a user-provided GitHub Personal Access Token (PAT) for higher rate limits when needed.
 
 ---
 
 ## 💻 Tech Stack
 
-TODO: Update based on your project
 
 ### Frontend
-- React / Next.js / Flutter / React Native
+- React 
 - TypeScript
 - TailwindCSS
 
 ### Backend
-- Flask / FastAPI / Node.js / Supabase
-- Database: PostgreSQL / SQLite / MongoDB
+- Github REST API
+- Database: idb(for browser indexed db)
 
-### AI/ML (if applicable)
-- LangChain / LangGraph / LlamaIndex
-- Google Gemini / OpenAI / Anthropic Claude
-- Vector Database: Weaviate / Pinecone / Chroma
-- RAG / Prompt Engineering / Agent Frameworks
-
-### Blockchain (if applicable)
-- Solidity / solana / cardano / ergo Smart Contracts
-- Hardhat / Truffle / foundry
-- Web3.js / Ethers.js / Wagmi
-- OpenZeppelin / alchemy / Infura
-
----
-
-## ✅ Project Checklist
-
-TODO: Complete applicable items based on your project type
-
-- [ ] **The protocol** (if applicable):
-   - [ ] has been described and formally specified in a paper.
-   - [ ] has had its main properties mathematically proven.
-   - [ ] has been formally verified.
-- [ ] **The smart contracts** (if applicable):
-   - [ ] were thoroughly reviewed by at least two knights of The Stable Order.
-   - [ ] were deployed to: [Add deployment details]
-- [ ] **The mobile app** (if applicable):
-   - [ ] has an _About_ page containing the Stability Nexus's logo and pointing to the social media accounts of the Stability Nexus.
-   - [ ] is available for download as a release in this repo.
-   - [ ] is available in the relevant app stores.
-- [ ] **The AI/ML components** (if applicable):
-   - [ ] LLM/model selection and configuration are documented.
-   - [ ] Prompts and system instructions are version-controlled.
-   - [ ] Content safety and moderation mechanisms are implemented.
-   - [ ] API keys and rate limits are properly managed.
-
----
 
 ## 🔗 Repository Links
 
-TODO: Update with your repository structure
 
-1. [Main Repository](https://github.com/AOSSIE-Org/TODO)
-2. [Frontend](https://github.com/AOSSIE-Org/TODO/tree/main/frontend) (if separate)
-3. [Backend](https://github.com/AOSSIE-Org/TODO/tree/main/backend) (if separate)
+[Main Repository](https://github.com/AOSSIE-Org/OrgExplorer)
+
 
 ---
 
 ## 🏗️ Architecture Diagram
 
 TODO: Add your system architecture diagram here
-
-```
-[Architecture Diagram Placeholder]
 ```
 
-You can create architecture diagrams using:
-- [Draw.io](https://draw.io)
-- [Excalidraw](https://excalidraw.com)
-- [Lucidchart](https://lucidchart.com)
-- [Mermaid](https://mermaid.js.org) (for code-based diagrams)
-
-Example structure to include:
-- Frontend components
-- Backend services
-- Database architecture
-- External APIs/services
-- Data flow between components
+<img width="1801" height="1730" alt="image" src="https://github.com/user-attachments/assets/40b1d108-5698-4945-9662-99369f25e8ee" />
+```
 
 ---
 
+
 ## 🔄 User Flow
 
-TODO: Add user flow diagrams showing how users interact with your application
 
 ```
-[User Flow Diagram Placeholder]
+
+<img width="1842" height="4420" alt="image" src="https://github.com/user-attachments/assets/5cbd668f-41d6-4717-8143-8b130cdcae2a" />
+
 ```
 
 ### Key User Journeys
+1. ###  Explore an Organization (Default Flow)
+- User opens the application
+- User enters a GitHub organization name
+- Application checks IndexedDB for cached data
+- If cached data exists, it is loaded immediately
+- Otherwise, data is fetched from the GitHub API and cached locally
+- Organization and repository insights are displayed
 
-TODO: Document main user flows:
+2. ###  Optional Authentication for Higher Rate Limits
+- User optionally provides a GitHub Personal Access Token (PAT)
+- Token is stored locally in the browser
+- Subsequent API requests use authenticated GitHub requests
+- Enables higher rate limits and deeper data access
 
-1. **User Journey 1**: Description
-   - Step 1
-   - Step 2
-   - Step 3
+3. ### Refresh Organization Data
+- User manually refreshes organization data
+- Cached data is invalidated or updated
+- Latest data is fetched from the GitHub API
+- Updated insights are stored back in IndexedDB
 
-2. **User Journey 2**: Description
-   - Step 1
-   - Step 2
-   - Step 3
-
-3. **User Journey 3**: Description
-   - Step 1
-   - Step 2
-   - Step 3
+> Note: Diagrams and flows will evolve as features and UI components are finalized.
 
 ---
 
@@ -184,22 +151,20 @@ TODO: Document main user flows:
 
 TODO: List what developers need installed
 
-- Node.js 18+ / Python 3.9+ / Flutter SDK
+- Node.js 18+ 
 - npm / yarn / pnpm
-- [Any specific tools or accounts needed]
+
 
 ### Installation
-
-TODO: Provide detailed setup instructions
 
 #### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/AOSSIE-Org/TODO.git
-cd TODO
+git clone https://github.com/AOSSIE-Org/OrgExplorer.git
+cd OrgExplorer
 ```
 
-#### 2. Install Dependencies
+#### 3. Install Dependencies
 
 ```bash
 npm install
@@ -209,15 +174,7 @@ yarn install
 pnpm install
 ```
 
-#### 3. Configure Environment Variables(.env.example)
 
-Create a `.env` file in the root directory:
-
-```env
-# Add your environment variables here
-API_KEY=your_api_key
-DATABASE_URL=your_database_url
-```
 
 #### 4. Run the Development Server
 
@@ -231,19 +188,15 @@ pnpm dev
 
 #### 5. Open your Browser
 
-Navigate to [http://localhost:3000](http://localhost:3000) to see the application.
+Navigate to [http://localhost:5173/](http://localhost:5173) to see the application.
 
-For detailed setup instructions, please refer to our [Installation Guide](./docs/INSTALL_GUIDE.md) (if you have one).
 
 ---
 
 ## 📱 App Screenshots
 
-TODO: Add screenshots showcasing your application
 
-|  |  |  |
-|---|---|---|
-| Screenshot 1 | Screenshot 2 | Screenshot 3 |
+> Screenshots will be added once the initial UI and data visualizations are implemented.
 
 ---
 
@@ -257,10 +210,8 @@ Thank you for considering contributing to this project! Contributions are highly
 
 ## ✨ Maintainers
 
-TODO: Add maintainer information
 
-- [Maintainer Name](https://github.com/username)
-- [Maintainer Name](https://github.com/username)
+- [Bruno](https://github.com/Zahnentferner)
 
 ---
 
