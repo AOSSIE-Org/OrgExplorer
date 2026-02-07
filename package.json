@@ -1,0 +1,21 @@
+{
+  "name": "orgexplorer",
+  "version": "1.0.0",
+  "description": "<!-- Don't delete it -->\r <div name=\"readme-top\"></div>",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AOSSIE-Org/OrgExplorer.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/AOSSIE-Org/OrgExplorer/issues"
+  },
+  "homepage": "https://github.com/AOSSIE-Org/OrgExplorer#readme"
+}
