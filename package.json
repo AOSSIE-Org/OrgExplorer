@@ -1,21 +1,26 @@
 {
   "name": "orgexplorer",
-  "version": "1.0.0",
-  "description": "<!-- Don't delete it -->\r <div name=\"readme-top\"></div>",
-  "main": "index.js",
+  "version": "0.1.0",
+  "private": true,
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/AOSSIE-Org/OrgExplorer.git"
+  "dependencies": {
+    "next": "15.x",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
-  "bugs": {
-    "url": "https://github.com/AOSSIE-Org/OrgExplorer/issues"
-  },
-  "homepage": "https://github.com/AOSSIE-Org/OrgExplorer#readme"
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.0.0",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "15.x",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5"
+  }
 }
