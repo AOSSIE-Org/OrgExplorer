@@ -1,4 +1,4 @@
-# Contributing to TODO: Project Name
+# Contributing to OrgExplorer
 
 ⭐ First off, thank you for considering contributing to this project! ⭐
 
@@ -56,7 +56,10 @@ Feature suggestions are welcome! Please:
 
 ### Prerequisites
 
-TODO: List prerequisites specific to your project
+- Node.js 18+ and npm/yarn/pnpm
+- Git installed and configured
+- GitHub account
+- Discord account (for communication)
 
 ### Setup
 
@@ -67,13 +70,13 @@ TODO: List prerequisites specific to your project
 
 2. **Clone Your Fork**
    ```bash
-   git clone https://github.com/YOUR_USERNAME/TODO.git
-   cd TODO
+   git clone https://github.com/YOUR_USERNAME/OrgExplorer.git
+   cd OrgExplorer
    ```
 
 3. **Add Upstream Remote**
    ```bash
-   git remote add upstream https://github.com/AOSSIE-Org/TODO.git
+   git remote add upstream https://github.com/AOSSIE-Org/OrgExplorer.git
    ```
 
 4. **Install Dependencies**
@@ -109,12 +112,17 @@ git checkout -b fix/your-bug-fix
 
 ### 3. Test Your Changes
 
-TODO: Add project-specific testing instructions
+Run the development server and check for any issues:
 
 ```bash
-npm test
-# or
+npm run dev
+# Start the development server
+
 npm run lint
+# Check for linting issues
+
+npm run build
+# Test production build
 ```
 
 ### 4. Commit Your Changes
@@ -204,7 +212,7 @@ Steps to test the changes
 
 ## 📝 Code Style Guidelines
 
-TODO: Add project-specific code style guidelines
+This project uses ESLint and TypeScript for code quality. The configuration is defined in `eslint.config.js` and `tsconfig.json`.
 
 ### General Guidelines
 
@@ -214,16 +222,13 @@ TODO: Add project-specific code style guidelines
 - Remove console.logs before committing
 - Avoid code duplication
 
-### JavaScript/TypeScript
-- Use ES6+ syntax
+### React/TypeScript Specific
+- Use functional components with hooks
+- Follow React best practices
+- Use TypeScript interfaces for props
 - Prefer `const` over `let`, avoid `var`
 - Use arrow functions where appropriate
-- Follow ESLint rules
-
-### Python
-- Follow PEP 8 style guide
-- Use type hints where applicable
-- Write docstrings for functions/classes
+- Follow ESLint rules defined in the project
 
 ## 🌟 Community Guidelines
 
@@ -255,4 +260,4 @@ TODO: Add project-specific code style guidelines
 - Check for existing PRs before starting to avoid duplication
 
 
-Thank you for contributing to TODO! Your efforts help make this project better for everyone. 🚀
+Thank you for contributing to OrgExplorer! Your efforts help make this project better for everyone. 🚀
