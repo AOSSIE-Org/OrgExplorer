@@ -72,7 +72,6 @@ reviews:
 
   path_filters:
     - "!**/node_modules/**"
-    - "!**/.next/**"
     - "!**/dist/**"
     - "!**/build/**"
     - "!**/.expo/**"
@@ -131,12 +130,6 @@ reviews:
 
     - path: "**/*.{ts,tsx}"
       instructions: |
-        NextJS:
-        - Ensure "use client" is used only when necessary.
-        - Prefer Server Components when possible.
-        - Avoid unnecessary client-side API calls.
-        - Follow NextJS app router best practices.
-        - Ensure dynamic routes are optimized.
 
         TypeScript:
         - No usage of 'any'.
