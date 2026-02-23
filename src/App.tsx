@@ -4,7 +4,7 @@ function App() {
 
   return (
     <>
-      <h1>Hello, OrgExplorer!</h1>
+      <h1 className="text-3xl text-blue-600 font-bold">Org Explorer</h1>
     </>
   )
 }
