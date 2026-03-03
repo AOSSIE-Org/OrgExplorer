@@ -1,5 +1,5 @@
 
-// export default cacheService;
+
 import { saveToIDB, getFromIDB } from "./idbService"
 
 /**
@@ -34,7 +34,7 @@ const cacheService = {
       ? { data, savedAt: Date.now() }
       : data
 
-    console.log(`Saving ${org} repos to IDB`)
+
     await saveToIDB(org, entry)
   },
 // repos are fetched from cache if they are in cache already

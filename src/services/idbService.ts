@@ -40,17 +40,22 @@ function openDB(): Promise<IDBDatabase> {
  * @param key Unique identifier (e.g., organization name)
  * @param value Data to store (e.g., repos array with metadata)
  */
-export async function saveToIDB(key: string, value: any) {
-  const db = await openDB();
+ export async function saveToIDB<T>(
+  key: string,
+  value: T
+): Promise<void> {
+  const db = await openDB()
 
-  // Create a read-write transaction
-  const tx = db.transaction(STORE_NAME, "readwrite");
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, "readwrite")
+    const store = tx.objectStore(STORE_NAME)
 
-  // Access the object store
-  const store = tx.objectStore(STORE_NAME);
+    store.put(value, key)
 
-  // Insert or update value using the provided key
-  store.put(value, key);
+    tx.oncomplete = () => resolve()
+    tx.onerror = () => reject(tx.error)
+    tx.onabort = () => reject(tx.error)
+  })
 }
 
 /**
@@ -58,19 +63,20 @@ export async function saveToIDB(key: string, value: any) {
  * @param key Unique identifier (e.g., organization name)
  * @returns Stored value or null if not found
  */
-export async function getFromIDB(key: string): Promise<any | null> {
-  const db = await openDB();
+export async function getFromIDB<T>(
+  key: string
+): Promise<T | null> {
+  const db = await openDB()
 
-  // Create a read-only transaction
-  const tx = db.transaction(STORE_NAME, "readonly");
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, "readonly")
+    const store = tx.objectStore(STORE_NAME)
+    const req = store.get(key)
 
-  // Access the object store
-  const store = tx.objectStore(STORE_NAME);
+    req.onsuccess = () => resolve(req.result ?? null)
+    req.onerror = () => reject(req.error)
 
-  return new Promise((resolve) => {
-    const req = store.get(key);
-
-    // Resolve with stored result or null if not found
-    req.onsuccess = () => resolve(req.result || null);
-  });
+    tx.onerror = () => reject(tx.error)
+    tx.onabort = () => reject(tx.error)
+  })
 }

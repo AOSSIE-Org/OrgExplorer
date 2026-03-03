@@ -39,36 +39,47 @@ const githubService = {
       return await response.json();
 
     } catch (error) {
-      console.error(`Error fetching repositories for organization ${org}:`, error);
-       if (error instanceof Error) {
-    alert(error.message)
-      } else {
-        alert("Something went wrong")
-      }
-      throw error;
-     
-    }
+  console.error(
+    `Error fetching repositories for organization ${org}:`,
+    error
+  )
+
+  // Re-throw so UI layer can handle it
+  throw error instanceof Error
+    ? error
+    : new Error("Something went wrong")
+}
   },
 
   async fetchOrgReposWithCache(org: string, token: string): Promise<GitHubRepo[]> {
 
     // Step 1: Check IDB cache
-    const cachedRepos = await cacheService.getRepos(org);
+  let cachedRepos = null
 
-    if (cachedRepos) {
-      console.log("Using cached repos");
-      return cachedRepos;
-    }
+  try {
+    cachedRepos = await cacheService.getRepos(org)
+  } catch (err) {
+    console.warn("Cache read failed. Falling back to network.", err)
+    cachedRepos = null
+  }
+
+  if (cachedRepos) {
+    console.log("Using cached repos")
+    return cachedRepos
+  }
 
     // Step 2: Fetch from GitHub
     const repos = await this.fetchOrgRepos(org, token);
 
     // Step 3: Save structured cache
-    await cacheService.saveRepos(org, {
-      data: repos,
-      savedAt: Date.now()
-    });
-
+    cacheService
+  .saveRepos(org, {
+    data: repos,
+    savedAt: Date.now()
+  })
+  .catch((err) => {
+    console.warn("Cache save failed:", err)
+  })
     return repos;
   }
 

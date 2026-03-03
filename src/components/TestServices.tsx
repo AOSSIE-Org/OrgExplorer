@@ -29,10 +29,14 @@ export default function TestServices() {
       repos.forEach(repo => console.log(repo.name))
 
     } catch (error) {
-      console.error("Error:", error)
-      alert("Failed to fetch repositories");
-      
-    }
+  console.error("Error:", error)
+
+  if (error instanceof Error) {
+    alert(error.message)
+  } else {
+    alert("Failed to fetch repositories")
+  }
+}
   }
 // input fileds to enter PAT and org name
   return (
@@ -52,7 +56,7 @@ export default function TestServices() {
         style={{ marginLeft: "10px" }}
       />
 
-      <button onClick={testFlow} style={{ marginLeft: "10px" }}>
+      <button type='button' onClick={testFlow} style={{ marginLeft: "10px" }}>
         Test Services
       </button>
     </div>
