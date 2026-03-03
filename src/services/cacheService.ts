@@ -65,12 +65,12 @@ const cacheService = {
     }
 
     //  Handle structured format
-    if (
-      typeof entry === "object" &&
-      entry !== null &&
-      "data" in entry &&
-      "savedAt" in entry
-    ) {
+   if (
+  typeof entry === "object" &&
+  entry !== null &&
+  Array.isArray((entry as any).data) &&
+  typeof (entry as any).savedAt === "number"
+) {
       const typedEntry = entry as RepoCacheEntry
 
       //  TTL CHECK

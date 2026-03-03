@@ -6,22 +6,26 @@ export default function TestServices() {
   const [orgInput, setOrgInput] = useState("")
 
   const testFlow = async () => {
-    if (!tokenInput) {
-      alert("Please enter GitHub token")
-      return
-    }
 
-    if (!orgInput) {
-      alert("Please enter organization name")
-      return
-    }
+    const trimmedToken = tokenInput.trim()
+const trimmedOrg = orgInput.trim()
 
-    tokenService.setToken(tokenInput)
+if (!trimmedToken) {
+  alert("Please enter GitHub token")
+  return
+}
+
+if (!trimmedOrg) {
+  alert("Please enter organization name")
+  return
+}
+
+tokenService.setToken(trimmedToken)
 // funtion which fetches org repos is called
     try {
       const repos = await githubService.fetchOrgReposWithCache(
-        orgInput,
-        tokenInput
+        trimmedOrg,
+        trimmedToken
       )
 
       console.log("Repos count:", repos.length)
