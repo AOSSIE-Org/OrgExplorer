@@ -1,56 +1,92 @@
-import { saveToIDB, getFromIDB } from "./idbService";
 
+// export default cacheService;
+import { saveToIDB, getFromIDB } from "./idbService"
+
+/**
+ * Minimal GitHub Repo Type
+ * (Extend later if needed)
+ */
+export interface GitHubRepo {
+  id: number
+  name: string
+  stargazers_count: number
+  forks_count: number
+  language: string | null
+  updated_at: string
+}
+
+/**
+ * Structured cache entry format
+ */
 type RepoCacheEntry = {
-  data: any[];
-  savedAt: number;
-};
+  data: GitHubRepo[]
+  savedAt: number
+}
+
+/**
+ * Cache expiry time (10 minutes)
+ */
+const MAX_CACHE_AGE = 1000 * 60 * 10
 
 const cacheService = {
 
-  async saveRepos(org: string, data: any[] | RepoCacheEntry): Promise<void> {
+  async saveRepos(org: string, data: GitHubRepo[] | RepoCacheEntry): Promise<void> {
     const entry: RepoCacheEntry = Array.isArray(data)
       ? { data, savedAt: Date.now() }
-      : data;
+      : data
 
-    console.log(`Saving ${org} repos to IDB`);
-    await saveToIDB(org, entry);
+    console.log(`Saving ${org} repos to IDB`)
+    await saveToIDB(org, entry)
   },
 
-  async getRepos(org: string): Promise<any[] | null> {
-    const entry = await getFromIDB(org);
+  async getRepos(org: string): Promise<GitHubRepo[] | null> {
+    const entry = await getFromIDB(org)
 
     if (!entry) {
-      console.log("No cache found");
-      return null;
+      console.log("No cache found")
+      return null
     }
 
-    console.log("Cache found");
+    console.log("Cache found")
 
-    // Handle old format (raw array)
+    //  Handle old format (raw array)
     if (Array.isArray(entry)) {
-      console.log("Detected old cache format, migrating...");
+      console.log("Detected old cache format, migrating...")
+
       const migratedEntry: RepoCacheEntry = {
         data: entry,
         savedAt: Date.now()
-      };
-      // Migrate to new format in background
-      cacheService.saveRepos(org, migratedEntry).catch(err => 
+      }
+
+      cacheService.saveRepos(org, migratedEntry).catch(err =>
         console.error("Migration failed:", err)
-      );
-      return entry;
+      )
+
+      return entry
     }
 
-    // Handle new format (structured object)
-    if (entry && typeof entry === 'object' && 'data' in entry) {
-      return entry.data;
+    //  Handle structured format
+    if (
+      typeof entry === "object" &&
+      entry !== null &&
+      "data" in entry &&
+      "savedAt" in entry
+    ) {
+      const typedEntry = entry as RepoCacheEntry
+
+      //  TTL CHECK
+      if (Date.now() - typedEntry.savedAt > MAX_CACHE_AGE) {
+        console.log("Cache expired")
+        return null
+      }
+
+      return typedEntry.data
     }
 
-    // Unrecognized format
-    console.warn(`Cache for ${org} is in an unrecognized format. Clearing it.`);
-    // Optionally clear cache here if it's corrupted, but for now just return null
-    return null;
+    console.warn(`Cache for ${org} is in an unrecognized format.`)
+    return null
   }
 
-};
+}
 
-export default cacheService;
+export default cacheService

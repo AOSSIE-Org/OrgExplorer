@@ -1,32 +1,59 @@
-import React from "react";
-import { tokenService, githubService } from "../services";
+import React, { useState } from "react"
+import { tokenService, githubService } from "../services"
 
 export default function TestServices() {
+  const [tokenInput, setTokenInput] = useState("")
+  const [orgInput, setOrgInput] = useState("")
 
   const testFlow = async () => {
-    tokenService.setToken("GITHUB-TOKEN");
-
-    const token = tokenService.getToken();
-
-    if (!token) {
-      console.error("Token is not set!");
-      return;
+    if (!tokenInput) {
+      alert("Please enter GitHub token")
+      return
     }
 
-    const org = prompt("Enter org name:");
+    if (!orgInput) {
+      alert("Please enter organization name")
+      return
+    }
 
-      if (!org) return;
+    tokenService.setToken(tokenInput)
 
-      const repos = await githubService.fetchOrgReposWithCache(org, token);
+    try {
+      const repos = await githubService.fetchOrgReposWithCache(
+        orgInput,
+        tokenInput
+      )
 
-    console.log("Repos count:", repos.length);
-    console.log("Repo names:");
-    repos.forEach(repo => console.log(repo.name));
-  };
+      console.log("Repos count:", repos.length)
+      console.log("Repo names:")
+      repos.forEach(repo => console.log(repo.name))
+
+    } catch (error) {
+      console.error("Error:", error)
+      alert("Failed to fetch repositories")
+    }
+  }
 
   return (
-    <button onClick={testFlow}>
-      Test Services
-    </button>
-  );
+    <div style={{ padding: "1rem" }}>
+      <input
+        type="password"
+        placeholder="Enter GitHub PAT"
+        value={tokenInput}
+        onChange={(e) => setTokenInput(e.target.value)}
+      />
+
+      <input
+        type="text"
+        placeholder="Enter organization name"
+        value={orgInput}
+        onChange={(e) => setOrgInput(e.target.value)}
+        style={{ marginLeft: "10px" }}
+      />
+
+      <button onClick={testFlow} style={{ marginLeft: "10px" }}>
+        Test Services
+      </button>
+    </div>
+  )
 }

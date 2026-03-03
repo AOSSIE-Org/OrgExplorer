@@ -1,23 +1,19 @@
-/**
- * Service for interacting with the GitHub API.
- * 
- * TODO: Mentors are discussing future service improvements.
- */
 import cacheService from "./cacheService";
-
+import type { GitHubRepo } from "./cacheService"
 const GITHUB_API_URL = 'https://api.github.com';
 
 const githubService = {
 
-  async fetchOrgRepos(org: string, token: string): Promise<any[]> {
+  async fetchOrgRepos(org: string, token: string): Promise<GitHubRepo[]> {
     try {
-      console.log("Fetching from:", `${GITHUB_API_URL}/orgs/${org}/repos`);
+      const url = `${GITHUB_API_URL}/orgs/${org}/repos`;
+      console.log("Fetching from:", url);
 
-      const response = await fetch(`${GITHUB_API_URL}/orgs/${org}/repos`, {
+      const response = await fetch(url, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/vnd.github+json',
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/vnd.github+json',
         }
       });
 
@@ -34,7 +30,8 @@ const githubService = {
   },
 
   async fetchOrgReposWithCache(org: string, token: string): Promise<any[]> {
-    // Step 1: Check cache
+
+    // Step 1: Check IDB cache
     const cachedRepos = await cacheService.getRepos(org);
 
     if (cachedRepos) {
@@ -45,11 +42,15 @@ const githubService = {
     // Step 2: Fetch from GitHub
     const repos = await this.fetchOrgRepos(org, token);
 
-    // Step 3: Save to cache
-    await cacheService.saveRepos(org, repos);
+    // Step 3: Save structured cache
+    await cacheService.saveRepos(org, {
+      data: repos,
+      savedAt: Date.now()
+    });
 
     return repos;
   }
 
-}
+};
+
 export default githubService;
