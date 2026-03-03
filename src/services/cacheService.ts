@@ -4,7 +4,6 @@ import { saveToIDB, getFromIDB } from "./idbService"
 
 /**
  * Minimal GitHub Repo Type
- * (Extend later if needed)
  */
 export interface GitHubRepo {
   id: number
@@ -29,7 +28,7 @@ type RepoCacheEntry = {
 const MAX_CACHE_AGE = 1000 * 60 * 10
 
 const cacheService = {
-
+// repos of an org are saved in cache
   async saveRepos(org: string, data: GitHubRepo[] | RepoCacheEntry): Promise<void> {
     const entry: RepoCacheEntry = Array.isArray(data)
       ? { data, savedAt: Date.now() }
@@ -38,7 +37,7 @@ const cacheService = {
     console.log(`Saving ${org} repos to IDB`)
     await saveToIDB(org, entry)
   },
-
+// repos are fetched from cache if they are in cache already
   async getRepos(org: string): Promise<GitHubRepo[] | null> {
     const entry = await getFromIDB(org)
 
@@ -51,8 +50,8 @@ const cacheService = {
 
     //  Handle old format (raw array)
     if (Array.isArray(entry)) {
-      console.log("Detected old cache format, migrating...")
 
+      console.log("Detected old cache format, migrating...");
       const migratedEntry: RepoCacheEntry = {
         data: entry,
         savedAt: Date.now()

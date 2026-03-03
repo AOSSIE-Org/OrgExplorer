@@ -1,6 +1,6 @@
 import React, { useState } from "react"
 import { tokenService, githubService } from "../services"
-
+// funtion to accept PAT and organisation name
 export default function TestServices() {
   const [tokenInput, setTokenInput] = useState("")
   const [orgInput, setOrgInput] = useState("")
@@ -17,7 +17,7 @@ export default function TestServices() {
     }
 
     tokenService.setToken(tokenInput)
-
+// funtion which fetches org repos is called
     try {
       const repos = await githubService.fetchOrgReposWithCache(
         orgInput,
@@ -30,10 +30,11 @@ export default function TestServices() {
 
     } catch (error) {
       console.error("Error:", error)
-      alert("Failed to fetch repositories")
+      alert("Failed to fetch repositories");
+      
     }
   }
-
+// input fileds to enter PAT and org name
   return (
     <div style={{ padding: "1rem" }}>
       <input
@@ -56,4 +57,4 @@ export default function TestServices() {
       </button>
     </div>
   )
-}
+} 

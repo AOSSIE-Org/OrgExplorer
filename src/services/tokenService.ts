@@ -2,7 +2,7 @@
  * Service for managing the GitHub Personal Access Token (PAT).
  * Currently stores the token in memory for security and as a temporary measure.
  * 
- * TODO: Mentors are discussing future persistence options (IndexedDB, encrypted storage).
+ *
  */
 
 let _token: string | null = null;
