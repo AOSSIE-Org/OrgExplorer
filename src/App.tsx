@@ -1,12 +1,8 @@
-import './App.css'
-import TestServices from "./components/TestServices";
-function App() {
+import Dashboard from './components/Dashboard/Dashboard'
 
+function App() {
   return (
-    <>
-      <h1>Hello, OrgExplorer!</h1>
-      <TestServices />
-    </>
+    <Dashboard />
   )
 }
 

@@ -1,4 +1,4 @@
-import React, { useState } from "react"
+import { useState } from "react"
 import { tokenService, githubService } from "../services"
 // funtion to accept PAT and organisation name
 export default function TestServices() {
