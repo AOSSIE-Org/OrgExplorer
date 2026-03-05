@@ -5,16 +5,14 @@ import {
   RefreshCw, 
   Clock, 
   Database, 
-  Globe, 
   Users, 
   LayoutDashboard,
   TrendingUp,
-  Mail,
   ExternalLink,
   ChevronLeft,
   Info
 } from 'lucide-react';
-import { githubService, tokenService, cacheService } from '../../services';
+import { tokenService } from '../../services';
 import { StatsCards } from './StatsCards';
 import { LanguagePieChart } from './LanguagePieChart';
 import { RepoPopularityChart } from './RepoPopularityChart';
@@ -64,7 +62,6 @@ export default function Dashboard() {
       return false;
     }
 
-    // Token is now optional. If provided, we do a basic length check.
     if (trimmedToken && trimmedToken.length < 20) {
         setError('The provided token seems too short. Please use a valid GitHub PAT or leave it empty.');
         return false;
@@ -87,7 +84,6 @@ export default function Dashboard() {
     try {
       const headers: HeadersInit = finalToken ? { Authorization: `Bearer ${finalToken}` } : {};
       
-      // 1. Fetch Org Metadata for correct public_repos count
       const orgRes = await fetch(`https://api.github.com/orgs/${org}`, { headers });
       if (!orgRes.ok) {
           if (orgRes.status === 404) throw new Error('Organization not found.');
@@ -96,7 +92,6 @@ export default function Dashboard() {
       const orgData = await orgRes.json();
       const actualRepoCount = orgData.public_repos;
 
-      // 2. Fetch All Repositories (handling pagination)
       let allRepos: Repository[] = [];
       let page = 1;
       let hasMore = true;

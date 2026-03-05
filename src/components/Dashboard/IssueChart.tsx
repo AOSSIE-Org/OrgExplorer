@@ -41,7 +41,6 @@ export const IssueChart: React.FC<IssueChartProps> = ({ data }) => {
             verticalAlign="bottom" 
             align="center"
             wrapperStyle={{ paddingTop: '20px' }}
-            tick={{ fill: '#9ca3af' }}
           />
         </PieChart>
       </ResponsiveContainer>

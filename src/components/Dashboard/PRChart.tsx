@@ -41,7 +41,6 @@ export const PRChart: React.FC<PRChartProps> = ({ data }) => {
             verticalAlign="bottom" 
             align="center"
             wrapperStyle={{ paddingTop: '20px' }}
-            tick={{ fill: '#9ca3af' }}
           />
         </PieChart>
       </ResponsiveContainer>

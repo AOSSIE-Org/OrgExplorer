@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Mail, ExternalLink, User } from 'lucide-react';
+import { X, Mail, ExternalLink } from 'lucide-react';
 import type { ContributorData } from './types';
 
 interface ContributorModalProps {
