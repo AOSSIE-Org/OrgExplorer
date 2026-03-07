@@ -10,6 +10,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   # Job 1: Build & Type Check
   build:
@@ -80,10 +83,12 @@ jobs:
         env:
           BUNDLE_SIZE_THRESHOLD: 500
         run: |
-          BUNDLE_SIZE=$(du -sk dist/ | cut -f1)
-          echo "Bundle size: ${BUNDLE_SIZE}KB"
-          if [ "$BUNDLE_SIZE" -gt "$BUNDLE_SIZE_THRESHOLD" ]; then
-            echo "::warning::Bundle size ${BUNDLE_SIZE}KB exceeds ${BUNDLE_SIZE_THRESHOLD}KB threshold."
+          BUNDLE_SIZE_BYTES=$(find dist -type f -printf '%s\n' | awk '{sum += $1} END {print sum + 0}')
+          BUNDLE_SIZE_KB=$(( (BUNDLE_SIZE_BYTES + 1023) / 1024 ))
+          THRESHOLD_BYTES=$(( BUNDLE_SIZE_THRESHOLD * 1024 ))
+          echo "Bundle size: ${BUNDLE_SIZE_KB}KB (${BUNDLE_SIZE_BYTES} bytes)"
+          if [ "$BUNDLE_SIZE_BYTES" -gt "$THRESHOLD_BYTES" ]; then
+            echo "::warning::Bundle size ${BUNDLE_SIZE_KB}KB exceeds ${BUNDLE_SIZE_THRESHOLD}KB threshold."
           else
-            echo "✅ Bundle size ${BUNDLE_SIZE}KB is within threshold"
+            echo "✅ Bundle size ${BUNDLE_SIZE_KB}KB is within threshold"
           fi
