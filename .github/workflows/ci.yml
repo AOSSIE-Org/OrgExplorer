@@ -6,11 +6,16 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   # Job 1: Build & Type Check
   build:
     name: Build & Type Check
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Checkout code
@@ -39,6 +44,7 @@ jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Checkout code
@@ -61,6 +67,7 @@ jobs:
     name: Bundle Size Check
     runs-on: ubuntu-latest
     needs: build
+    timeout-minutes: 10
 
     steps:
       - name: Download build artifact
@@ -70,13 +77,13 @@ jobs:
           path: dist/
 
       - name: Check bundle size
+        env:
+          BUNDLE_SIZE_THRESHOLD: 500
         run: |
           BUNDLE_SIZE=$(du -sk dist/ | cut -f1)
           echo "Bundle size: ${BUNDLE_SIZE}KB"
-          # Warn if bundle exceeds 500KB (keeping it lean per project constraints)
-          if [ "$BUNDLE_SIZE" -gt 500 ]; then
-            echo "⚠️  Warning: Bundle size ${BUNDLE_SIZE}KB exceeds 500KB threshold"
-            echo "Consider lazy loading or removing unused dependencies"
+          if [ "$BUNDLE_SIZE" -gt "$BUNDLE_SIZE_THRESHOLD" ]; then
+            echo "::warning::Bundle size ${BUNDLE_SIZE}KB exceeds ${BUNDLE_SIZE_THRESHOLD}KB threshold."
           else
             echo "✅ Bundle size ${BUNDLE_SIZE}KB is within threshold"
           fi
