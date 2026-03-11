@@ -67,8 +67,6 @@ visualize repository statistics such as stars, forks, and contributors.
 
 ## 💻 Tech Stack
 
-OrgExplorer: Update based on your project
-
 ### Frontend
 - React / Next.js / Flutter / React Native
 - TypeScript
