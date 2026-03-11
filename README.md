@@ -92,8 +92,6 @@ visualize repository statistics such as stars, forks, and contributors.
 
 ## ✅ Project Checklist
 
-OrgExplorer: Complete applicable items based on your project type
-
 - [ ] **The protocol** (if applicable):
    - [ ] has been described and formally specified in a paper.
    - [ ] has had its main properties mathematically proven.
@@ -115,8 +113,6 @@ OrgExplorer: Complete applicable items based on your project type
 
 ## 🔗 Repository Links
 
-OrgExplorer: Update with your repository structure
-
 1. [Main Repository](https://github.com/AOSSIE-Org/OrgExplorer)
 2. [Frontend](https://github.com/AOSSIE-Org/OrgExplorer/tree/main/frontend) (if separate)
 3. [Backend](https://github.com/AOSSIE-Org/OrgExplorer/tree/main/backend) (if separate)
@@ -124,8 +120,6 @@ OrgExplorer: Update with your repository structure
 ---
 
 ## 🏗️ Architecture Diagram
-
-OrgExplorer: Add your system architecture diagram here
 
 ```
 [Architecture Diagram Placeholder]
@@ -148,15 +142,11 @@ Example structure to include:
 
 ## 🔄 User Flow
 
-OrgExplorer: Add user flow diagrams showing how users interact with your application
-
 ```
 [User Flow Diagram Placeholder]
 ```
 
 ### Key User Journeys
-
-OrgExplorer: Document main user flows:
 
 1. **User Journey 1**: Description
    - Step 1
@@ -179,15 +169,12 @@ OrgExplorer: Document main user flows:
 
 ### Prerequisites
 
-OrgExplorer: List what developers need installed
-
 - Node.js 18+ / Python 3.9+ / Flutter SDK
 - npm / yarn / pnpm
 - [Any specific tools or accounts needed]
 
 ### Installation
 
-OrgExplorer: Provide detailed setup instructions
 
 #### 1. Clone the Repository
 
@@ -236,7 +223,6 @@ For detailed setup instructions, please refer to our [Installation Guide](./docs
 
 ## 📱 App Screenshots
 
-OrgExplorer: Add screenshots showcasing your application
 
 |  |  |  |
 |---|---|---|
@@ -254,7 +240,6 @@ Thank you for considering contributing to this project! Contributions are highly
 
 ## ✨ Maintainers
 
-OrgExplorer: Add maintainer information
 
 - [Maintainer Name](https://github.com/username)
 - [Maintainer Name](https://github.com/username)
