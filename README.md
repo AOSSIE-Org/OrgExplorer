@@ -4,7 +4,7 @@
 <!-- Organization Logo -->
 <div align="center" style="display: flex; align-items: center; justify-content: center; gap: 16px;">
   <img alt="AOSSIE" src="public/aossie-logo.svg" width="175">
-  <img src="public/todo-project-logo.svg" width="175" />
+  <img src="public/org-explorer-logo.svg" width="175" />
 </div>
 
 &nbsp;
@@ -12,7 +12,7 @@
 <!-- Organization Name -->
 <div align="center">
 
-[![Static Badge](https://img.shields.io/badge/aossie.org/TODO-228B22?style=for-the-badge&labelColor=FFC517)](https://TODO.aossie.org/)
+[![Static Badge](https://img.shields.io/badge/aossie.org/OrgExplorer-228B22?style=for-the-badge&labelColor=FFC517)](https://OrgExplorer.aossie.org/)
 
 <!-- Correct deployed url to be added -->
 
@@ -68,25 +68,10 @@ visualize repository statistics such as stars, forks, and contributors.
 ## 💻 Tech Stack
 
 ### Frontend
-- React / Next.js / Flutter / React Native
+- React
+- Vite
 - TypeScript
 - TailwindCSS
-
-### Backend
-- Flask / FastAPI / Node.js / Supabase
-- Database: PostgreSQL / SQLite / MongoDB
-
-### AI/ML (if applicable)
-- LangChain / LangGraph / LlamaIndex
-- Google Gemini / OpenAI / Anthropic Claude
-- Vector Database: Weaviate / Pinecone / Chroma
-- RAG / Prompt Engineering / Agent Frameworks
-
-### Blockchain (if applicable)
-- Solidity / solana / cardano / ergo Smart Contracts
-- Hardhat / Truffle / foundry
-- Web3.js / Ethers.js / Wagmi
-- OpenZeppelin / alchemy / Infura
 
 ---
 
