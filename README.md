@@ -48,27 +48,26 @@
 ---
 
 <div align="center">
-<h1>TODO: Project Name</h1>
+<h1>OrgExplorer</h1>
 </div>
 
-[TODO](https://TODO.stability.nexus/) is a ... TODO: Project Description.
-
+OrgExplorer is a web application that allows users to explore GitHub organizations,
+their repositories, and contributor insights. It provides an interactive way to
+visualize repository statistics such as stars, forks, and contributors.
 ---
 
 ## 🚀 Features
 
-TODO: List your main features here:
-
-- **Feature 1**: Description
-- **Feature 2**: Description
-- **Feature 3**: Description
-- **Feature 4**: Description
+- Explore repositories of a GitHub organization
+- View repository statistics (stars, forks, issues)
+- Analyze contributor activity
+- Interactive charts and insights for repositories
 
 ---
 
 ## 💻 Tech Stack
 
-TODO: Update based on your project
+OrgExplorer: Update based on your project
 
 ### Frontend
 - React / Next.js / Flutter / React Native
@@ -95,7 +94,7 @@ TODO: Update based on your project
 
 ## ✅ Project Checklist
 
-TODO: Complete applicable items based on your project type
+OrgExplorer: Complete applicable items based on your project type
 
 - [ ] **The protocol** (if applicable):
    - [ ] has been described and formally specified in a paper.
@@ -118,17 +117,17 @@ TODO: Complete applicable items based on your project type
 
 ## 🔗 Repository Links
 
-TODO: Update with your repository structure
+OrgExplorer: Update with your repository structure
 
-1. [Main Repository](https://github.com/AOSSIE-Org/TODO)
-2. [Frontend](https://github.com/AOSSIE-Org/TODO/tree/main/frontend) (if separate)
-3. [Backend](https://github.com/AOSSIE-Org/TODO/tree/main/backend) (if separate)
+1. [Main Repository](https://github.com/AOSSIE-Org/OrgExplorer)
+2. [Frontend](https://github.com/AOSSIE-Org/OrgExplorer/tree/main/frontend) (if separate)
+3. [Backend](https://github.com/AOSSIE-Org/OrgExplorer/tree/main/backend) (if separate)
 
 ---
 
 ## 🏗️ Architecture Diagram
 
-TODO: Add your system architecture diagram here
+OrgExplorer: Add your system architecture diagram here
 
 ```
 [Architecture Diagram Placeholder]
@@ -151,7 +150,7 @@ Example structure to include:
 
 ## 🔄 User Flow
 
-TODO: Add user flow diagrams showing how users interact with your application
+OrgExplorer: Add user flow diagrams showing how users interact with your application
 
 ```
 [User Flow Diagram Placeholder]
@@ -159,7 +158,7 @@ TODO: Add user flow diagrams showing how users interact with your application
 
 ### Key User Journeys
 
-TODO: Document main user flows:
+OrgExplorer: Document main user flows:
 
 1. **User Journey 1**: Description
    - Step 1
@@ -182,7 +181,7 @@ TODO: Document main user flows:
 
 ### Prerequisites
 
-TODO: List what developers need installed
+OrgExplorer: List what developers need installed
 
 - Node.js 18+ / Python 3.9+ / Flutter SDK
 - npm / yarn / pnpm
@@ -190,13 +189,13 @@ TODO: List what developers need installed
 
 ### Installation
 
-TODO: Provide detailed setup instructions
+OrgExplorer: Provide detailed setup instructions
 
 #### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/AOSSIE-Org/TODO.git
-cd TODO
+git clone https://github.com/AOSSIE-Org/OrgExplorer.git
+cd OrgExplorer
 ```
 
 #### 2. Install Dependencies
@@ -239,7 +238,7 @@ For detailed setup instructions, please refer to our [Installation Guide](./docs
 
 ## 📱 App Screenshots
 
-TODO: Add screenshots showcasing your application
+OrgExplorer: Add screenshots showcasing your application
 
 |  |  |  |
 |---|---|---|
@@ -257,7 +256,7 @@ Thank you for considering contributing to this project! Contributions are highly
 
 ## ✨ Maintainers
 
-TODO: Add maintainer information
+OrgExplorer: Add maintainer information
 
 - [Maintainer Name](https://github.com/username)
 - [Maintainer Name](https://github.com/username)
@@ -273,8 +272,8 @@ See the [LICENSE](LICENSE) file for details.
 
 ## 💪 Thanks To All Contributors
 
-Thanks a lot for spending your time helping TODO grow. Keep rocking 🥂
+Thanks a lot for spending your time helping OrgExplorer grow. Keep rocking 🥂
 
-[![Contributors](https://contrib.rocks/image?repo=AOSSIE-Org/TODO)](https://github.com/AOSSIE-Org/TODO/graphs/contributors)
+[![Contributors](https://contrib.rocks/image?repo=AOSSIE-Org/OrgExplorer)](https://github.com/AOSSIE-Org/OrgExplorer/graphs/contributors)
 
 © 2025 AOSSIE 
