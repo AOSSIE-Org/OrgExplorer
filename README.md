@@ -86,8 +86,6 @@ visualize repository statistics such as stars, forks, and contributors.
 ## 🔗 Repository Links
 
 1. [Main Repository](https://github.com/AOSSIE-Org/OrgExplorer)
-2. [Frontend](https://github.com/AOSSIE-Org/OrgExplorer/tree/main/frontend) (if separate)
-3. [Backend](https://github.com/AOSSIE-Org/OrgExplorer/tree/main/backend) (if separate)
 
 ---
 
@@ -146,7 +144,6 @@ Example structure to include:
 - Node.js 18+ installed
 - npm or yarn or pnpm
 - Git installed
-- Vite, React, TypeScript
 - Optional: Node version manager (nvm)
 - GitHub account for API access (if needed)
 
