@@ -4,7 +4,7 @@
 <!-- Organization Logo -->
 <div align="center" style="display: flex; align-items: center; justify-content: center; gap: 16px;">
   <img alt="AOSSIE" src="public/aossie-logo.svg" width="175">
-  <img src="public/org-explorer-logo.svg" width="175" />
+  <img src="public/org-explorer-logo.svg" width="175" alt="OrgExplorer logo" />
 </div>
 
 &nbsp;
@@ -77,23 +77,10 @@ visualize repository statistics such as stars, forks, and contributors.
 
 ## ✅ Project Checklist
 
-- [ ] **The protocol** (if applicable):
-   - [ ] has been described and formally specified in a paper.
-   - [ ] has had its main properties mathematically proven.
-   - [ ] has been formally verified.
-- [ ] **The smart contracts** (if applicable):
-   - [ ] were thoroughly reviewed by at least two knights of The Stable Order.
-   - [ ] were deployed to: [Add deployment details]
-- [ ] **The mobile app** (if applicable):
-   - [ ] has an _About_ page containing the Stability Nexus's logo and pointing to the social media accounts of the Stability Nexus.
-   - [ ] is available for download as a release in this repo.
-   - [ ] is available in the relevant app stores.
-- [ ] **The AI/ML components** (if applicable):
-   - [ ] LLM/model selection and configuration are documented.
-   - [ ] Prompts and system instructions are version-controlled.
-   - [ ] Content safety and moderation mechanisms are implemented.
-   - [ ] API keys and rate limits are properly managed.
-
+- [ ] Frontend deployment configured
+- [ ] GitHub API integration tested
+- [ ] Repository analytics working
+- [ ] CI/CD pipeline passing
 ---
 
 ## 🔗 Repository Links
@@ -107,7 +94,8 @@ visualize repository statistics such as stars, forks, and contributors.
 ## 🏗️ Architecture Diagram
 
 ```
-[Architecture Diagram Placeholder]
+[Architecture Diagram]
+[Placeholder – actual diagram will be added once project setup is complete]
 ```
 
 You can create architecture diagrams using:
@@ -129,6 +117,7 @@ Example structure to include:
 
 ```
 [User Flow Diagram Placeholder]
+[Placeholder – real user flows will be documented later]
 ```
 
 ### Key User Journeys
@@ -154,9 +143,12 @@ Example structure to include:
 
 ### Prerequisites
 
-- Node.js 18+ / Python 3.9+ / Flutter SDK
-- npm / yarn / pnpm
-- [Any specific tools or accounts needed]
+- Node.js 18+ installed
+- npm or yarn or pnpm
+- Git installed
+- Vite, React, TypeScript
+- Optional: Node version manager (nvm)
+- GitHub account for API access (if needed)
 
 ### Installation
 
@@ -223,13 +215,6 @@ Thank you for considering contributing to this project! Contributions are highly
 
 ---
 
-## ✨ Maintainers
-
-
-- [Maintainer Name](https://github.com/username)
-- [Maintainer Name](https://github.com/username)
-
----
 
 ## 📍 License
 
