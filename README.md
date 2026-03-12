@@ -93,49 +93,18 @@ visualize repository statistics such as stars, forks, and contributors.
 
 ```
 [Architecture Diagram]
-[Placeholder – actual diagram will be added once project setup is complete]
-```
+[actual diagram will be added once project setup is complete]
 
-You can create architecture diagrams using:
-- [Draw.io](https://draw.io)
-- [Excalidraw](https://excalidraw.com)
-- [Lucidchart](https://lucidchart.com)
-- [Mermaid](https://mermaid.js.org) (for code-based diagrams)
-
-Example structure to include:
-- Frontend components
-- Backend services
-- Database architecture
-- External APIs/services
-- Data flow between components
-
+The architecture diagram will be added once the project structure is finalized.  
+Currently the project follows a simple structure where the frontend interacts with the GitHub API to fetch repository data and display analytics.
 ---
 
 ## 🔄 User Flow
 
 ```
-[User Flow Diagram Placeholder]
-[Placeholder – real user flows will be documented later]
-```
-
-### Key User Journeys
-
-1. **User Journey 1**: Description
-   - Step 1
-   - Step 2
-   - Step 3
-
-2. **User Journey 2**: Description
-   - Step 1
-   - Step 2
-   - Step 3
-
-3. **User Journey 3**: Description
-   - Step 1
-   - Step 2
-   - Step 3
-
----
+[User Flow Diagram]
+## User Flow
+User flow diagram will be added in future updates.
 
 ## �🍀 Getting Started
 
@@ -169,13 +138,7 @@ pnpm install
 
 #### 3. Configure Environment Variables(.env.example)
 
-Create a `.env` file in the root directory:
-
-```env
-# Add your environment variables here
-API_KEY=your_api_key
-DATABASE_URL=your_database_url
-```
+This project currently does not require any environment variables.
 
 #### 4. Run the Development Server
 
@@ -189,7 +152,7 @@ pnpm dev
 
 #### 5. Open your Browser
 
-Navigate to [http://localhost:3000](http://localhost:3000) to see the application.
+Navigate to [http://localhost:5173](http://localhost:5173) to see the application.
 
 For detailed setup instructions, please refer to our [Installation Guide](./docs/INSTALL_GUIDE.md) (if you have one).
 
@@ -198,9 +161,8 @@ For detailed setup instructions, please refer to our [Installation Guide](./docs
 ## 📱 App Screenshots
 
 
-|  |  |  |
-|---|---|---|
 | Screenshot 1 | Screenshot 2 | Screenshot 3 |
+- Screenshots will be added once the application UI is finalized.
 
 ---
 
