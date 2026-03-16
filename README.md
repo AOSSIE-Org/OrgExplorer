@@ -4,7 +4,7 @@
 <!-- Organization Logo -->
 <div align="center" style="display: flex; align-items: center; justify-content: center; gap: 16px;">
   <img alt="AOSSIE" src="public/aossie-logo.svg" width="175">
-  <img src="public/todo-project-logo.svg" width="175" />
+  <img src="public/org-explorer-logo.svg" width="175" alt="Org Explorer" />
 </div>
 
 &nbsp;
@@ -12,18 +12,12 @@
 <!-- Organization Name -->
 <div align="center">
 
-[![Static Badge](https://img.shields.io/badge/aossie.org/TODO-228B22?style=for-the-badge&labelColor=FFC517)](https://TODO.aossie.org/)
-
-<!-- Correct deployed url to be added -->
+[![Static Badge](https://img.shields.io/badge/aossie.org%2FOrgExplorer-228B22?style=for-the-badge&labelColor=FFC517)](https://github.com/AOSSIE-Org/OrgExplorer)
 
 </div>
 
 <!-- Organization/Project Social Handles -->
 <p align="center">
-<!-- Telegram -->
-<a href="https://t.me/StabilityNexus">
-<img src="https://img.shields.io/badge/Telegram-black?style=flat&logo=telegram&logoColor=white&logoSize=auto&color=24A1DE" alt="Telegram Badge"/></a>
-&nbsp;&nbsp;
 <!-- X (formerly Twitter) -->
 <a href="https://x.com/aossie_org">
 <img src="https://img.shields.io/twitter/follow/aossie_org" alt="X (formerly Twitter) Badge"/></a>
@@ -32,171 +26,77 @@
 <a href="https://discord.gg/hjUhu33uAn">
 <img src="https://img.shields.io/discord/1022871757289422898?style=flat&logo=discord&logoColor=white&logoSize=auto&label=Discord&labelColor=5865F2&color=57F287" alt="Discord Badge"/></a>
 &nbsp;&nbsp;
-<!-- Medium -->
-<a href="https://news.stability.nexus/">
-  <img src="https://img.shields.io/badge/Medium-black?style=flat&logo=medium&logoColor=black&logoSize=auto&color=white" alt="Medium Badge"></a>
-&nbsp;&nbsp;
 <!-- LinkedIn -->
 <a href="https://www.linkedin.com/company/aossie/">
   <img src="https://img.shields.io/badge/LinkedIn-black?style=flat&logo=LinkedIn&logoColor=white&logoSize=auto&color=0A66C2" alt="LinkedIn Badge"></a>
-&nbsp;&nbsp;
-<!-- Youtube -->
-<a href="https://www.youtube.com/@StabilityNexus">
-  <img src="https://img.shields.io/youtube/channel/subscribers/UCZOG4YhFQdlGaLugr_e5BKw?style=flat&logo=youtube&logoColor=white&logoSize=auto&labelColor=FF0000&color=FF0000" alt="Youtube Badge"></a>
 </p>
 
 ---
 
 <div align="center">
-<h1>TODO: Project Name</h1>
+<h1>Org Explorer</h1>
 </div>
 
-[TODO](https://TODO.stability.nexus/) is a ... TODO: Project Description.
+**Org Explorer** is a lightweight web application that analyzes data from the **GitHub API** and presents it in a clear, interactive dashboard. Users can understand the activity of any GitHub organization in one place—repositories, contributors, commits, issues, and programming languages—through visual charts, summaries, and statistics.
+
+The app provides **advanced analytics and tracking** that GitHub’s native UI doesn’t offer, helping maintainers spot trends, inactive projects, and overall organization growth.
+
+**Theme:** Governance and Management  
+**Goal:** Make it easier to track and govern distributed open organizations (e.g. AOSSIE).
 
 ---
 
 ## 🚀 Features
 
-TODO: List your main features here:
-
-- **Feature 1**: Description
-- **Feature 2**: Description
-- **Feature 3**: Description
-- **Feature 4**: Description
+- **Organization health score** — A single computed score (e.g. 0–100) for overall org health: activity, issue closure rate, contributor engagement, repo freshness.
+- **Inactive repository detection** — Flag repos with no commits/issues/PRs for a chosen period (e.g. 90 days).
+- **Contributor activity ranking** — Rank contributors by commits, PRs, or issues in a chosen time window.
+- **Activity heatmaps** — GitHub-style contribution heatmaps at org or repo level.
+- **Single org-wide dashboard** — One place for repos, contributors, and stats.
+- **Repo comparison** — Sort/filter repos by stars, forks, PR count, last activity.
+- **Time-based views** — Activity in last 7 / 30 / 90 days.
+- **Language breakdown** — Charts for programming languages across the org.
+- **Shareable links** — Open a specific org view via URL (e.g. `?org=AOSSIE-Org`); no login required (public API only).
+- **Offline / cached** — Data cached in IndexedDB for faster repeat visits and fewer API calls.
 
 ---
 
 ## 💻 Tech Stack
 
-TODO: Update based on your project
-
 ### Frontend
-- React / Next.js / Flutter / React Native
-- TypeScript
-- TailwindCSS
+- **React** (with React Router)
+- **TypeScript**
+- **Vite** (build tooling)
 
-### Backend
-- Flask / FastAPI / Node.js / Supabase
-- Database: PostgreSQL / SQLite / MongoDB
+### Data & storage
+- **GitHub REST API** — Fetched from the browser (no backend).
+- **IndexedDB** — Cache for repos, contributors, commits, issues.
+- **localStorage** — Last org name, theme, preferences.
 
-### AI/ML (if applicable)
-- LangChain / LangGraph / LlamaIndex
-- Google Gemini / OpenAI / Anthropic Claude
-- Vector Database: Weaviate / Pinecone / Chroma
-- RAG / Prompt Engineering / Agent Frameworks
-
-### Blockchain (if applicable)
-- Solidity / solana / cardano / ergo Smart Contracts
-- Hardhat / Truffle / foundry
-- Web3.js / Ethers.js / Wagmi
-- OpenZeppelin / alchemy / Infura
+The app runs entirely in the browser; there is no backend server.
 
 ---
 
-## ✅ Project Checklist
+## 🔗 Repository
 
-TODO: Complete applicable items based on your project type
-
-- [ ] **The protocol** (if applicable):
-   - [ ] has been described and formally specified in a paper.
-   - [ ] has had its main properties mathematically proven.
-   - [ ] has been formally verified.
-- [ ] **The smart contracts** (if applicable):
-   - [ ] were thoroughly reviewed by at least two knights of The Stable Order.
-   - [ ] were deployed to: [Add deployment details]
-- [ ] **The mobile app** (if applicable):
-   - [ ] has an _About_ page containing the Stability Nexus's logo and pointing to the social media accounts of the Stability Nexus.
-   - [ ] is available for download as a release in this repo.
-   - [ ] is available in the relevant app stores.
-- [ ] **The AI/ML components** (if applicable):
-   - [ ] LLM/model selection and configuration are documented.
-   - [ ] Prompts and system instructions are version-controlled.
-   - [ ] Content safety and moderation mechanisms are implemented.
-   - [ ] API keys and rate limits are properly managed.
+- [Main Repository](https://github.com/AOSSIE-Org/OrgExplorer)
 
 ---
 
-## 🔗 Repository Links
-
-TODO: Update with your repository structure
-
-1. [Main Repository](https://github.com/AOSSIE-Org/TODO)
-2. [Frontend](https://github.com/AOSSIE-Org/TODO/tree/main/frontend) (if separate)
-3. [Backend](https://github.com/AOSSIE-Org/TODO/tree/main/backend) (if separate)
-
----
-
-## 🏗️ Architecture Diagram
-
-TODO: Add your system architecture diagram here
-
-```
-[Architecture Diagram Placeholder]
-```
-
-You can create architecture diagrams using:
-- [Draw.io](https://draw.io)
-- [Excalidraw](https://excalidraw.com)
-- [Lucidchart](https://lucidchart.com)
-- [Mermaid](https://mermaid.js.org) (for code-based diagrams)
-
-Example structure to include:
-- Frontend components
-- Backend services
-- Database architecture
-- External APIs/services
-- Data flow between components
-
----
-
-## 🔄 User Flow
-
-TODO: Add user flow diagrams showing how users interact with your application
-
-```
-[User Flow Diagram Placeholder]
-```
-
-### Key User Journeys
-
-TODO: Document main user flows:
-
-1. **User Journey 1**: Description
-   - Step 1
-   - Step 2
-   - Step 3
-
-2. **User Journey 2**: Description
-   - Step 1
-   - Step 2
-   - Step 3
-
-3. **User Journey 3**: Description
-   - Step 1
-   - Step 2
-   - Step 3
-
----
-
-## �🍀 Getting Started
+## 🚀 Getting Started
 
 ### Prerequisites
 
-TODO: List what developers need installed
-
-- Node.js 18+ / Python 3.9+ / Flutter SDK
-- npm / yarn / pnpm
-- [Any specific tools or accounts needed]
+- **Node.js** 18 or later
+- **npm**, **yarn**, or **pnpm**
 
 ### Installation
-
-TODO: Provide detailed setup instructions
 
 #### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/AOSSIE-Org/TODO.git
-cd TODO
+git clone https://github.com/AOSSIE-Org/OrgExplorer.git
+cd OrgExplorer
 ```
 
 #### 2. Install Dependencies
@@ -209,15 +109,15 @@ yarn install
 pnpm install
 ```
 
-#### 3. Configure Environment Variables(.env.example)
+#### 3. (Optional) Environment Variables
 
-Create a `.env` file in the root directory:
+For higher GitHub API rate limits, you can use a personal access token. Copy `.env.example` to `.env` and set:
 
 ```env
-# Add your environment variables here
-API_KEY=your_api_key
-DATABASE_URL=your_database_url
+VITE_GITHUB_TOKEN=your_github_token_here
 ```
+
+If not set, the app uses unauthenticated requests (lower rate limits).
 
 #### 4. Run the Development Server
 
@@ -229,52 +129,43 @@ yarn dev
 pnpm dev
 ```
 
-#### 5. Open your Browser
+#### 5. Open in Browser
 
-Navigate to [http://localhost:3000](http://localhost:3000) to see the application.
+Navigate to [http://localhost:5173](http://localhost:5173) (or the URL shown in the terminal) to use the application.
 
-For detailed setup instructions, please refer to our [Installation Guide](./docs/INSTALL_GUIDE.md) (if you have one).
+### Other scripts
+
+- `npm run build` — Production build
+- `npm run preview` — Preview production build locally
+- `npm run lint` — Run ESLint
 
 ---
 
 ## 📱 App Screenshots
 
-TODO: Add screenshots showcasing your application
-
-|  |  |  |
-|---|---|---|
-| Screenshot 1 | Screenshot 2 | Screenshot 3 |
+_Screenshots will be added as the UI is built._
 
 ---
 
 ## 🙌 Contributing
 
-⭐ Don't forget to star this repository if you find it useful! ⭐
+⭐ Star this repository if you find it useful! ⭐
 
-Thank you for considering contributing to this project! Contributions are highly appreciated and welcomed. To ensure smooth collaboration, please refer to our [Contribution Guidelines](./CONTRIBUTING.md).
-
----
-
-## ✨ Maintainers
-
-TODO: Add maintainer information
-
-- [Maintainer Name](https://github.com/username)
-- [Maintainer Name](https://github.com/username)
+Contributions are welcome. Please read our [Contribution Guidelines](./CONTRIBUTING.md) before submitting a PR or issue.
 
 ---
 
 ## 📍 License
 
-This project is licensed under the GNU General Public License v3.0.
+This project is licensed under the GNU General Public License v3.0.  
 See the [LICENSE](LICENSE) file for details.
 
 ---
 
 ## 💪 Thanks To All Contributors
 
-Thanks a lot for spending your time helping TODO grow. Keep rocking 🥂
+Thanks for helping Org Explorer grow. 🥂
 
-[![Contributors](https://contrib.rocks/image?repo=AOSSIE-Org/TODO)](https://github.com/AOSSIE-Org/TODO/graphs/contributors)
+[![Contributors](https://contrib.rocks/image?repo=AOSSIE-Org/OrgExplorer)](https://github.com/AOSSIE-Org/OrgExplorer/graphs/contributors)
 
-© 2025 AOSSIE 
+© 2025 AOSSIE
