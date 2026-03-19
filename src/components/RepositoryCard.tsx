@@ -1,4 +1,5 @@
 import type { Repository } from '../types/github';
+import { UI_STRINGS } from '../constants/strings';
 
 interface Props {
   repo: Repository;
@@ -25,7 +26,7 @@ export const RepositoryCard = ({ repo }: Props) => {
           </a>
         </h3>
         <p style={{ fontSize: '0.9rem', color: '#ccc', height: '45px', overflow: 'hidden' }}>
-          {repo.description || "No description provided."}
+          {repo.description || UI_STRINGS.NO_DESCRIPTION}
         </p>
       </div>
       
@@ -34,7 +35,7 @@ export const RepositoryCard = ({ repo }: Props) => {
           <span style={{ marginRight: '10px' }}>⭐ {repo.stargazers_count}</span>
           <span>🍴 {repo.forks_count}</span>
         </div>
-        <span style={{ fontWeight: 'bold' }}>{repo.language || 'Docs'}</span>
+        <span style={{ fontWeight: 'bold' }}>{repo.language || UI_STRINGS.FALLBACK_LANGUAGE}</span>
       </div>
     </div>
   );
