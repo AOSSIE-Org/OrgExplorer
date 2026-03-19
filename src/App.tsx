@@ -1,16 +1,11 @@
 import { useEffect, useState } from 'react';
-import type { Repository } from './types/github';
+import { type Repository } from './types/github';
 import { RepositoryCard } from './components/RepositoryCard';
 import { UI_STRINGS } from './constants/strings';
 
 const ORGS = ['AOSSIE-Org', 'StabilityNexus', 'DjedAlliance'];
 
-/**
- * SECURITY NOTE: In a standard app, tokens should not be on the client.
- * However, to fulfill AOSSIE's "Sunny" (Cloud-less/No-Backend) requirement, 
- * this app is designed to be user-operated where the user provides their own 
- * Personal Access Token (PAT) stored only in the browser context.
- */
+
 const GITHUB_TOKEN = import.meta.env.VITE_GITHUB_TOKEN;
 
 function App() {
@@ -19,21 +14,40 @@ function App() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchOrgRepos = async (org: string, page = 1): Promise<Repository[]> => {
-      const response = await fetch(
-        `https://api.github.com/orgs/${org}/repos?per_page=100&page=${page}`,
-        {
-          headers: GITHUB_TOKEN ? { Authorization: `token ${GITHUB_TOKEN}` } : {},
+
+    const fetchOrgRepos = async (org: string): Promise<Repository[]> => {
+      let allOrgRepos: Repository[] = [];
+      let page = 1;
+      let hasNextPage = true;
+
+      while (hasNextPage) {
+        const response = await fetch(
+          `https://api.github.com/orgs/${org}/repos?per_page=100&page=${page}`,
+          {
+            headers: GITHUB_TOKEN ? { Authorization: `token ${GITHUB_TOKEN}` } : {},
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(`${response.status} while fetching ${org}`);
         }
-      );
-      if (!response.ok) throw new Error(`${response.status} while fetching ${org}`);
-      return response.json();
+
+        const data: Repository[] = await response.json();
+        allOrgRepos = [...allOrgRepos, ...data];
+
+        if (data.length === 100) {
+          page++;
+        } else {
+          hasNextPage = false;
+        }
+      }
+      return allOrgRepos;
     };
 
     const fetchAllData = async () => {
       try {
         setLoading(true);
-        // Using allSettled so that if one Org fails, the others still display
+     
         const results = await Promise.allSettled(ORGS.map(org => fetchOrgRepos(org)));
         
         const successfulRepos = results
@@ -43,9 +57,12 @@ function App() {
           .sort((a, b) => b.stargazers_count - a.stargazers_count);
 
         setRepos(successfulRepos);
-
+        
         if (successfulRepos.length === 0) {
-          setError("No data could be retrieved from GitHub.");
+           const failureReasons = results
+             .filter((r): r is PromiseRejectedResult => r.status === 'rejected')
+             .map(r => r.reason.message).join(', ');
+           setError(`Failed to fetch data: ${failureReasons}`);
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : UI_STRINGS.UNKNOWN_ERROR);
@@ -58,27 +75,27 @@ function App() {
   }, []);
 
   if (loading) return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#242424', color: 'white' }}>
+    <div style={styles.centerContainer}>
       <h2>{UI_STRINGS.LOADING}</h2>
     </div>
   );
 
   if (error) return (
-    <div style={{ color: 'red', textAlign: 'center', padding: '50px', backgroundColor: '#242424', minHeight: '100vh' }}>
+    <div style={styles.errorText}>
       {UI_STRINGS.ERROR_PREFIX} {error}
     </div>
   );
 
   return (
-    <div style={{ padding: '40px', backgroundColor: '#242424', color: 'white', minHeight: '100vh' }}>
-      <header style={{ marginBottom: '40px', borderBottom: '1px solid #444', paddingBottom: '20px' }}>
+    <div style={styles.pageContainer}>
+      <header style={styles.header}>
         <h1 style={{ fontSize: '2.5rem', margin: '0' }}>{UI_STRINGS.DASHBOARD_TITLE}</h1>
         <p style={{ color: '#aaa' }}>
           {UI_STRINGS.SUBTITLE_PREFIX} {repos.length} {UI_STRINGS.SUBTITLE_SUFFIX}
         </p>
       </header>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '25px' }}>
+      <div style={styles.grid}>
         {repos.map(repo => (
           <RepositoryCard key={repo.id} repo={repo} />
         ))}
@@ -86,5 +103,14 @@ function App() {
     </div>
   );
 }
+
+
+const styles = {
+  centerContainer: { display: 'flex' as const, justifyContent: 'center' as const, alignItems: 'center' as const, height: '100vh', backgroundColor: '#242424', color: 'white' },
+  errorText: { color: 'red', textAlign: 'center' as const, padding: '50px', backgroundColor: '#242424', minHeight: '100vh' },
+  pageContainer: { padding: '40px', backgroundColor: '#242424', color: 'white', minHeight: '100vh' },
+  header: { marginBottom: '40px', borderBottom: '1px solid #444', paddingBottom: '20px' },
+  grid: { display: 'grid' as const, gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '25px' }
+};
 
 export default App;
