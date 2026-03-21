@@ -27,7 +27,7 @@
 OrgExplorer is a web-based frontend project under AOSSIE.  
 It provides a simple and clean interface to explore GitHub organization data.
 
----
+
 > 🚀 This project is actively maintained under AOSSIE and open for contributions.
 
 ## 🚀 Features
