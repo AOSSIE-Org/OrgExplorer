@@ -1,4 +1,3 @@
-
 <!-- Don't delete it -->
 <div name="readme-top"></div>
 
@@ -20,7 +19,6 @@
   </a>
 </p>
 
----
 
 <div align="center">
   <h1>OrgExplorer</h1>
@@ -39,7 +37,7 @@ It provides a simple and clean interface to explore GitHub organization data.
 - 🧩 Beginner-friendly structure
 - 🔗 Ready for GitHub API integration
 
----
+
 
 ## 💻 Tech Stack
 
@@ -47,7 +45,7 @@ It provides a simple and clean interface to explore GitHub organization data.
 - TypeScript
 - Vite
 
----
+
 
 ## 📦 Getting Started
 
@@ -56,7 +54,7 @@ It provides a simple and clean interface to explore GitHub organization data.
 - Node.js (v18 or above)
 - npm
 
----
+
 
 ### Installation
 
@@ -65,5 +63,6 @@ git clone https://github.com/AOSSIE-Org/OrgExplorer.git
 cd OrgExplorer
 npm install
 npm run dev
->> 🚀 This project is actively being developed under AOSSIE.
+🚀 This project is actively being developed under AOSSIE.
+
 
