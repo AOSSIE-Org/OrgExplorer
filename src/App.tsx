@@ -42,9 +42,15 @@ function App() {
         { signal: controller.signal }
       );
 
-      if (!res.ok) {
-        throw new Error("Organization not found");
-      }
+     if (!res.ok) {
+  if (res.status === 404) {
+    throw new Error("Organization not found");
+  } else if (res.status === 403) {
+    throw new Error("Rate limit exceeded. Please try again later.");
+  } else {
+    throw new Error(`Request failed (${res.status})`);
+  }
+}
 
       const data = await res.json();
       setOrgData(data as GitHubOrg);
