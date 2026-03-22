@@ -14,13 +14,21 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 
 const abortRef = useRef<AbortController | null>(null);
 
 const fetchOrg = async () => {
   const orgName = org.trim();
-  if (!orgName) return;
+  const orgName = org.trim();
+
+if (!orgName) {
+  abortRef.current?.abort();   // cancel previous request
+  setLoading(false);
+  setError("");
+  setOrgData(null);
+  return;
+}
 
   abortRef.current?.abort();
   const controller = new AbortController();
@@ -60,14 +68,15 @@ const fetchOrg = async () => {
 </label>
 
 <input
-         id="org-input"
-         type="text"
-         placeholder="Enter GitHub org (e.g. google)"
-         value={org}
-         onChange={(e) => setOrg(e.target.value)}
-        style={{ padding: "10px", width: "250px", marginRight: "10px" }}
-      />
+  id="org-input"
+  type="text"
+  placeholder="Enter GitHub org (e.g. google)"
+  value={org}
+  onChange={(e) => setOrg(e.target.value)}
+  style={{ padding: "10px", width: "250px", marginRight: "10px" }}
+/>
 
+      
       <button onClick={fetchOrg} style={{ padding: "10px" }}>
         Search
       </button>
@@ -77,14 +86,17 @@ const fetchOrg = async () => {
 
       {orgData && (
         <div style={{ marginTop: "20px" }}>
-         <img
-          src={orgData.avatar_url}
-          width="100"
-          alt={`${orgData.login} avatar`} 
-          <h2>{orgData.login}</h2>
-          <p>{orgData.description}</p>
-          <p>Followers: {orgData.followers}</p>
-          <p>Public Repos: {orgData.public_repos}</p>
+       <img
+  src={orgData.avatar_url}
+  width="100"
+  alt={`${orgData.login} avatar`}
+/>
+
+<h2>{orgData.login}</h2>
+<p>{orgData.description}</p>
+<p>Followers: {orgData.followers}</p>
+<p>Public Repos: {orgData.public_repos}</p>
+          
         </div>
       )}
     </div>
