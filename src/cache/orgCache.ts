@@ -69,11 +69,20 @@ async function readCached(login: string): Promise<CachedOrgRecord | null> {
     const tx = db.transaction(STORE_NAME, "readonly");
     const store = tx.objectStore(STORE_NAME);
     const request = store.get(login.toLowerCase());
+    let result: CachedOrgRecord | null = null;
     request.onsuccess = () => {
-      resolve((request.result as CachedOrgRecord | undefined) ?? null);
+      result = (request.result as CachedOrgRecord | undefined) ?? null;
     };
     request.onerror = () =>
       reject(request.error ?? new Error("Failed to read cached organization"));
+    tx.oncomplete = () => {
+      db.close();
+      resolve(result);
+    };
+    tx.onerror = () => {
+      db.close();
+      reject(tx.error ?? new Error("Failed to read cached organization"));
+    };
   });
 }
 
@@ -81,9 +90,14 @@ async function writeCached(record: CachedOrgRecord): Promise<void> {
   const db = await openDatabase();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readwrite");
-    tx.oncomplete = () => resolve();
-    tx.onerror = () =>
+    tx.oncomplete = () => {
+      db.close();
+      resolve();
+    };
+    tx.onerror = () => {
+      db.close();
       reject(tx.error ?? new Error("Failed to write cached organization"));
+    };
     tx.objectStore(STORE_NAME).put(record);
   });
 }
@@ -92,9 +106,14 @@ async function removeCached(login: string): Promise<void> {
   const db = await openDatabase();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readwrite");
-    tx.oncomplete = () => resolve();
-    tx.onerror = () =>
+    tx.oncomplete = () => {
+      db.close();
+      resolve();
+    };
+    tx.onerror = () => {
+      db.close();
       reject(tx.error ?? new Error("Failed to clear cached organization"));
+    };
     tx.objectStore(STORE_NAME).delete(login.toLowerCase());
   });
 }

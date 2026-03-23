@@ -1,5 +1,6 @@
 const API_BASE = "https://api.github.com";
 const RATE_LIMIT_KEY = "org-explorer:rate-limit";
+const REQUEST_TIMEOUT_MS = 15_000;
 
 export interface GitHubOrg {
   login: string;
@@ -84,11 +85,24 @@ export async function getOrganizationFromGitHub(
   const rateLimitError = getRateLimitGuardError();
   if (rateLimitError) throw new Error(rateLimitError);
 
-  const response = await fetch(`${API_BASE}/orgs/${encodeURIComponent(login)}`, {
-    headers: {
-      Accept: "application/vnd.github+json",
-    },
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}/orgs/${encodeURIComponent(login)}`, {
+      headers: {
+        Accept: "application/vnd.github+json",
+      },
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new Error("Request timed out. Please try again.");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   setRateLimitWindow(response.headers);
 
