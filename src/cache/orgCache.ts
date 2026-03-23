@@ -33,11 +33,19 @@ function getMeta(login: string): CachedMeta | null {
 }
 
 function setMeta(login: string, meta: CachedMeta): void {
-  localStorage.setItem(metaKey(login), JSON.stringify(meta));
+  try {
+    localStorage.setItem(metaKey(login), JSON.stringify(meta));
+  } catch {
+    // Best-effort only.
+  }
 }
 
 function clearMeta(login: string): void {
-  localStorage.removeItem(metaKey(login));
+  try {
+    localStorage.removeItem(metaKey(login));
+  } catch {
+    // Best-effort only.
+  }
 }
 
 function openDatabase(): Promise<IDBDatabase> {
@@ -104,13 +112,17 @@ export async function getOrganization(
   if (!forceRefresh) {
     const meta = getMeta(login);
     if (meta && Date.now() <= meta.expiresAt) {
-      const cached = await readCached(login);
-      if (cached) {
-        return {
-          org: cached.data,
-          source: "cache",
-          cachedAt: cached.cachedAt,
-        };
+      try {
+        const cached = await readCached(login);
+        if (cached) {
+          return {
+            org: cached.data,
+            source: "cache",
+            cachedAt: cached.cachedAt,
+          };
+        }
+      } catch {
+        // Cache read failure should never block network fallback.
       }
     }
   }
@@ -124,7 +136,11 @@ export async function getOrganization(
     cachedAt,
     expiresAt,
   };
-  await writeCached(record);
+  try {
+    await writeCached(record);
+  } catch {
+    // Ignore cache write errors; return fresh data anyway.
+  }
   setMeta(login, { cachedAt, expiresAt });
 
   return { org, source: "network", cachedAt };
@@ -138,5 +154,9 @@ export async function clearOrganizationCache(login: string): Promise<void> {
   const cleaned = login.trim().toLowerCase();
   if (!cleaned) return;
   clearMeta(cleaned);
-  await removeCached(cleaned);
+  try {
+    await removeCached(cleaned);
+  } catch {
+    // Best-effort only.
+  }
 }

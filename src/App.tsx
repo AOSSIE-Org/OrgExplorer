@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import "./App.css";
 import { getOrganization, refreshOrganization } from "./cache/orgCache";
 import type { OrgResult } from "./api/github";
+import { uiText } from "./i18n/strings";
 
 function formatDate(iso: string): string {
   try {
@@ -32,7 +33,7 @@ function App() {
       setResult(org);
     } catch (err) {
       setResult(null);
-      setError(err instanceof Error ? err.message : "Failed to fetch organization.");
+      setError(err instanceof Error ? err.message : uiText.fetchErrorFallback);
     } finally {
       setLoading(false);
     }
@@ -46,7 +47,7 @@ function App() {
       const refreshed = await refreshOrganization(result.org.login);
       setResult(refreshed);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to refresh organization.");
+      setError(err instanceof Error ? err.message : uiText.refreshErrorFallback);
     } finally {
       setRefreshing(false);
     }
@@ -55,21 +56,23 @@ function App() {
   return (
     <main className="app">
       <section className="panel">
-        <h1 className="title">Org Explorer</h1>
-        <p className="subtitle">
-          Search a GitHub organization and cache results with TTL + IndexedDB.
-        </p>
+        <h1 className="title">{uiText.appTitle}</h1>
+        <p className="subtitle">{uiText.appSubtitle}</p>
 
         <form className="searchForm" onSubmit={handleSearch}>
+          <label htmlFor="org-login" className="srOnly">
+            {uiText.searchLabel}
+          </label>
           <input
+            id="org-login"
             className="searchInput"
-            placeholder="Enter organization login, e.g. github"
+            placeholder={uiText.searchPlaceholder}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             disabled={loading || refreshing}
           />
           <button className="button primary" type="submit" disabled={loading || refreshing}>
-            {loading ? "Searching..." : "Search"}
+            {loading ? uiText.searchLoading : uiText.searchIdle}
           </button>
         </form>
 
@@ -89,30 +92,30 @@ function App() {
 
             <dl className="stats">
               <div>
-                <dt>Public repos</dt>
+                <dt>{uiText.publicRepos}</dt>
                 <dd>{result.org.public_repos.toLocaleString()}</dd>
               </div>
               <div>
-                <dt>Followers</dt>
+                <dt>{uiText.followers}</dt>
                 <dd>{result.org.followers.toLocaleString()}</dd>
               </div>
               <div>
-                <dt>Created</dt>
+                <dt>{uiText.created}</dt>
                 <dd>{formatDate(result.org.created_at)}</dd>
               </div>
               <div>
-                <dt>Source</dt>
-                <dd>{result.source === "cache" ? "Cache (IndexedDB)" : "GitHub API"}</dd>
+                <dt>{uiText.source}</dt>
+                <dd>{result.source === "cache" ? uiText.sourceCache : uiText.sourceApi}</dd>
               </div>
             </dl>
 
             <p className="meta">
-              Last fetched: {new Date(result.cachedAt).toLocaleTimeString()}
+              {uiText.lastFetched}: {new Date(result.cachedAt).toLocaleTimeString()}
             </p>
 
             <div className="actions">
               <a className="button ghost" href={result.org.html_url} target="_blank" rel="noreferrer">
-                Open on GitHub
+                {uiText.openGitHub}
               </a>
               <button
                 className="button primary"
@@ -120,7 +123,7 @@ function App() {
                 onClick={handleRefresh}
                 disabled={loading || refreshing}
               >
-                {refreshing ? "Refreshing..." : "Refresh data"}
+                {refreshing ? uiText.refreshLoading : uiText.refreshIdle}
               </button>
             </div>
           </article>

@@ -49,7 +49,11 @@ function setRateLimitWindow(headers: Headers) {
     remaining: remainingNum,
     blockedUntil: remainingNum <= 0 ? resetEpochMs : 0,
   };
-  localStorage.setItem(RATE_LIMIT_KEY, JSON.stringify(value));
+  try {
+    localStorage.setItem(RATE_LIMIT_KEY, JSON.stringify(value));
+  } catch {
+    // Best-effort only: cache persistence must never break API flow.
+  }
 }
 
 async function parseError(response: Response): Promise<string> {
