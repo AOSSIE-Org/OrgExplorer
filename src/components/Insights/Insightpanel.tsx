@@ -1,4 +1,4 @@
-import type { Insight } from "../../types/github";
+
 import StatCard from "../Cards/statCard";
 
 export default function InsightPanel({ data }: { data: any }) {

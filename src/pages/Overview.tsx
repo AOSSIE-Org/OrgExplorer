@@ -5,7 +5,6 @@ import ActivityChart from "../components/Charts/ActivityChart";
 import { fetchOrgRepos } from "../services/githubService";
 import { mergeRepos } from "../utils/mergeOrgs";
 import { getInsights } from "../utils/insightEngine";
-import { exportCSV } from "../utils/exportCSV";
 import HealthScore from "../components/HealthScore";
 import { calculateOrgHealthScore } from "../utils/calculateScore";
 import type { Repo, Insight } from "../types/github";
@@ -99,7 +98,7 @@ export default function Overview({ orgInput, setOrgInput }: Props) {
         </ul>
       </div>
 
-      <div className="mb-10 mt=24">
+      <div className="mb-10 mt-24">
         <HealthScore score={score} label={label} />
       </div>
 

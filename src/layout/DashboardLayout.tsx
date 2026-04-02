@@ -13,7 +13,7 @@ export default function DashboardLayout({ children, orgInput }: any) {
         
         <Topbar orgInput={orgInput}/>
 
-        <div className="p-6  overflow-y-auto">
+        <div className="flex-1 overflow-hidden p-4">
           {children}
         </div>
 

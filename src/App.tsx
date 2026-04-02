@@ -1,12 +1,30 @@
-import './App.css'
+import { useState } from "react";
+import { Routes, Route } from "react-router-dom";
 
-function App() {
+import DashboardLayout from "./layout/DashboardLayout";
+import Overview from "./pages/Overview";
+import Repositories from "./pages/Repositories";
+import GraphPage from "./pages/GraphPage";
+
+export default function App() {
+  const [orgInput, setOrgInput] = useState("");
 
   return (
-    <>
-      <h1>Hello, OrgExplorer!</h1>
-    </>
-  )
-}
+    <DashboardLayout orgInput={orgInput}>
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <Overview
+              orgInput={orgInput}
+              setOrgInput={setOrgInput}
+            />
+          }
+        />
 
-export default App
+        <Route path="/repositories" element={<Repositories />} />
+        <Route path="/graph" element={<GraphPage />} />
+      </Routes>
+    </DashboardLayout>
+  );
+}

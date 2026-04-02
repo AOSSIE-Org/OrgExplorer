@@ -14,11 +14,8 @@ export default function GraphPage() {
 
   return (
     <div>
-      {/* <h2 className="text-2xl font-bold mb-6 text-white">
-        Contributor Network Graph
-      </h2> */}
 
-      <h2 className="text-2xl font-bold mb-5 text-green-400">
+      <h2 className="text-xl font-semibold mb-3 text-green-400">
         Contributor Collaboration Network 🌐
       </h2>
 
