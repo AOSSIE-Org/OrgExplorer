@@ -49,9 +49,6 @@ export default function Sidebar() {
         </nav>
       </div>
 
-      <div className="p-2 hover:bg-gray-800 rounded cursor-pointer">
-        ⚙ Settings
-      </div>
 
     </div>
   );
