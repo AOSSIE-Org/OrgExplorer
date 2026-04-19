@@ -40,9 +40,9 @@ export const calculateOrgHealthScore = (repos: any[]) => {
   score = Math.round(score);
 
   let label = "Poor";
-  if (score > 75) label = "Excellent 🚀";
-  else if (score > 50) label = "Good 👍";
-  else if (score > 30) label = "Average ⚠️";
+  if (score > 75) label = "Excellent ";
+  else if (score > 50) label = "Good ";
+  else if (score > 30) label = "Average ";
 
   return { score, label };
 };

@@ -1,0 +1,2836 @@
+components/Cards/statCard.tsx =
+interface Props {
+  title: string;
+  value: string | number;
+}
+
+export default function StatCard({ title, value }: Props) {
+  return (
+    <div className="bg-[#1F2937] p-4 rounded-xl  h-32">
+      <p className="text-gray-400 text-sm">{title}</p>
+      <h2 className="text-2xl font-bold text-green-400">{value}</h2>
+    </div>
+  );
+}
+components/Charts/ActivityChart.tsx =
+
+
+import { useEffect, useState } from "react";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  CartesianGrid,
+} from "recharts";
+
+let timeout: any;
+const TOKEN = import.meta.env.VITE_GITHUB_TOKEN;
+
+export default function ActivityChart({ orgs }: { orgs: string[] }) {
+  const [data, setData] = useState<any[]>([]);
+  const [filter, setFilter] = useState("30");
+
+  const getDays = () => {
+    return filter === "7" ? 7 : 30;
+  };
+
+  // useEffect(() => {
+  //   if (!orgs || orgs.length === 0) return;
+  //   fetchData();
+  // }, [orgs, filter]);
+  useEffect(() => {
+    if (!orgs || orgs.length === 0) return;
+
+    clearTimeout(timeout);
+
+    timeout = setTimeout(() => {
+      fetchData();
+    }, 800); // wait 0.8 sec
+
+  }, [filter, orgs]);
+
+  const fetchData = async () => {
+    try {
+      const days = getDays();
+      const now = new Date();
+
+      // 🔥 PARALLEL FETCH (FAST)
+      const requests = orgs.flatMap(org => [
+        fetch(`https://api.github.com/search/issues?q=org:${org}+type:pr&per_page=100`, {
+          headers: { Authorization: `token ${TOKEN}` }
+        }).then(res => res.json()),
+
+        fetch(`https://api.github.com/search/issues?q=org:${org}+type:issue&per_page=100`, {
+          headers: { Authorization: `token ${TOKEN}` }
+        }).then(res => res.json())
+      ]);
+
+      const results = await Promise.all(requests);
+
+      let allPRs: any[] = [];
+      let allIssues: any[] = [];
+
+      // 🔥 SPLIT RESULTS
+      // results.forEach((res, i) => {
+      //   if (i % 2 === 0) {
+      //     if (Array.isArray(res.items)) allPRs.push(...res.items);
+      //   } else {
+      //     if (Array.isArray(res.items)) allIssues.push(...res.items);
+      //   }
+      // });
+      results.forEach((res, i) => {
+        if (res && res.items && Array.isArray(res.items)) {
+          if (i % 2 === 0) {
+            allPRs.push(...res.items);
+          } else {
+            allIssues.push(...res.items);
+          }
+        } else {
+          console.warn("Invalid org or API error", res);
+        }
+      });
+      const chartMap: any = {};
+
+      // PRs
+      allPRs.forEach((pr: any) => {
+        const date = new Date(pr.created_at);
+        const diff = (now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24);
+
+        if (diff <= days) {
+          const key = date.toLocaleDateString("en-CA"); // YYYY-MM-DD format
+
+          if (!chartMap[key]) {
+            chartMap[key] = {
+              date: key,
+              prCreated: 0,
+              prMerged: 0,
+              issuesCreated: 0,
+              issuesClosed: 0
+            };
+          }
+
+          chartMap[key].prCreated++;
+
+          if (pr.state === "closed") {
+            chartMap[key].prMerged++;
+          }
+        }
+      });
+
+      // Issues
+      allIssues.forEach((issue: any) => {
+        const date = new Date(issue.created_at);
+        const diff = (now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24);
+
+        if (diff <= days) {
+          // const key = date.toISOString().split("T")[0];
+          const key = date.toLocaleDateString("en-CA");
+
+          if (!chartMap[key]) {
+            chartMap[key] = {
+              date: key,
+              prCreated: 0,
+              prMerged: 0,
+              issuesCreated: 0,
+              issuesClosed: 0
+            };
+          }
+
+          chartMap[key].issuesCreated++;
+
+          if (issue.state === "closed") {
+            chartMap[key].issuesClosed++;
+          }
+        }
+      });
+
+      // const finalData = Object.values(chartMap).sort(
+      //   (a: any, b: any) =>
+      //     new Date(a.date).getTime() - new Date(b.date).getTime()
+      // );
+
+      // setData(finalData);
+      const result: any[] = [];
+
+      for (let i = days; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+
+        // const key = d.toISOString().split("T")[0];
+        const key = d.toLocaleDateString("en-CA");
+
+        result.push({
+          date: key,
+          prCreated: chartMap[key]?.prCreated || 0,
+          prMerged: chartMap[key]?.prMerged || 0,
+          issuesCreated: chartMap[key]?.issuesCreated || 0,
+          issuesClosed: chartMap[key]?.issuesClosed || 0
+        });
+      }
+
+      setData(result);
+
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const formatDate = (date: string) => {
+    const d = new Date(date);
+    return d.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    });
+  };
+  const orgCount = orgs.length;
+  return (
+    <div className="mt-6 bg-[#111827] p-4 rounded-xl">
+
+      {/* FILTER */}
+      <div className="flex gap-2 mb-4">
+        {/* <button
+          onClick={() => setFilter("7")}
+          className="bg-gray-700 px-3 py-1 rounded"
+        >
+          7D
+        </button>
+        <button
+          onClick={() => setFilter("30")}
+          className="bg-gray-700 px-3 py-1 rounded"
+        >
+          30D
+        </button>
+        <button
+          onClick={() => setFilter("180")}
+          className="bg-gray-700 px-3 py-1 rounded"
+        >
+          6M
+        </button> */}
+        <button
+          onClick={() => setFilter("7")}
+          className={`px-3 py-1 rounded ${filter === "7" ? "bg-green-500" : "bg-gray-700"
+            }`}
+        >
+          7 Days
+        </button>
+
+        <button
+          onClick={() => setFilter("30")}
+          className={`px-3 py-1 rounded ${filter === "30" ? "bg-green-500" : "bg-gray-700"
+            }`}
+        >
+          30 Days
+        </button>
+
+        {/* <button
+          onClick={() => setFilter("180")}
+          className={`px-3 py-1 rounded ${filter === "180" ? "bg-green-500" : "bg-gray-700"
+            }`}
+        >
+          6M
+        </button> */}
+      </div>
+
+      {/* CHART TITLE */}
+      {/* <h3 className="text-green-400 mb-3 text-lg">
+        📊 Combined Activity (All Organizations)
+      </h3> */}
+      <h3 className="text-green-400 mb-3 text-lg">
+        {orgCount > 1
+          ? `📊 Combined Activity (${orgCount} Organizations)`
+          : `📊 Activity (${orgs[0] || "Organization"})`}
+      </h3>
+      {/* AREA CHART */}
+      <ResponsiveContainer width="100%" height={300}>
+        <LineChart data={data}>
+          <defs>
+            <filter id="glow">
+              <feGaussianBlur stdDeviation="3.5" result="coloredBlur" />
+              <feMerge>
+                <feMergeNode in="coloredBlur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
+          <CartesianGrid strokeDasharray="4 4" stroke="#374151"  />
+
+          <XAxis
+            dataKey="date"
+            stroke="#9CA3AF"
+            tickFormatter={formatDate}
+            // tick={{ fontSize: 12 }}
+            // interval="preserveStartEnd"
+          />
+
+          <YAxis stroke="#9CA3AF" />
+
+          {/* <Tooltip /> */}
+          <Tooltip
+            contentStyle={{
+              backgroundColor: "#111827",
+              border: "none",
+              borderRadius: "10px",
+              color: "#fff"
+            }}
+          />
+
+          <Legend />
+
+          {/* SIMPLE CLEAN LINES */}
+
+          <Line
+            type="monotone"
+            dataKey="prCreated"
+            stroke="#3b82f6"
+            strokeWidth={3}
+            dot={false}
+            connectNulls
+            name="PR Created"
+          />
+
+          <Line
+            type="monotone"
+            dataKey="prMerged"
+            stroke="#22c55e"
+            strokeWidth={3}
+             dot={false}
+            connectNulls
+            name="PR Merged"
+          />
+
+          <Line
+            type="monotone"
+            dataKey="issuesCreated"
+            stroke="#facc15"
+            strokeWidth={3}
+             dot={false}
+            connectNulls
+            name="Issues Created"
+          />
+
+          <Line
+            type="monotone"
+            dataKey="issuesClosed"
+            stroke="#ef4444"
+            strokeWidth={3}
+             dot={false}
+            connectNulls
+            name="Issues Closed"
+          />
+
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+=============================================================================================
+components/Graph/NetworkGraph.tsx =
+import ForceGraph2D from "react-force-graph-2d";
+import { useEffect, useRef, useState } from "react";
+import { fetchRepoContributors } from "../../services/githubService";
+import { exportCSV } from "../../utils/exportCSV";
+import { GoPeople, GoRepo, GoGitBranch, GoLink } from "react-icons/go";
+import { FaLink } from "react-icons/fa";
+import { IoPeople } from "react-icons/io5";
+
+
+type NodeType = {
+  id: string;
+  type: "repo" | "user";
+  label: string;
+  img?: string;
+
+  stars?: number;
+  forks?: number;
+  issues?: number;
+
+  contributions?: number;
+  activity?: number;
+
+  size?: number;
+  org?: string;
+};
+
+type LinkType = {
+  source: string;
+  target: string;
+  weight: number;
+};
+
+export default function NetworkGraph({ repos }: any) {
+  const fgRef = useRef<any>(null);
+
+  const [graphData, setGraphData] = useState<{
+    nodes: NodeType[];
+    links: LinkType[];
+  }>({ nodes: [], links: [] });
+
+  const [selectedNode, setSelectedNode] = useState<NodeType | null>(null);
+  const [stats, setStats] = useState({
+    users: 0,
+    repos: 0,
+    edges: 0,
+  });
+  const [hoverNode, setHoverNode] = useState<any>(null);
+  const [focusNode, setFocusNode] = useState<NodeType | null>(null);
+
+  /* ───────── BUILD GRAPH (MULTI ORG FIX) ───────── */
+  useEffect(() => {
+    if (!repos?.length) return;
+
+    const build = async () => {
+      const nodes: NodeType[] = [];
+      const links: LinkType[] = [];
+      const userMap = new Map();
+
+      //  GROUP BY ORG
+      const orgGrouped: Record<string, any[]> = {};
+
+      repos.forEach((repo: any) => {
+        const org = repo.full_name.split("/")[0];
+        if (!orgGrouped[org]) orgGrouped[org] = [];
+        orgGrouped[org].push(repo);
+      });
+
+      //  TAKE 4 REPOS PER ORG
+      const selectedRepos: any[] = [];
+      Object.values(orgGrouped).forEach((list: any[]) => {
+        selectedRepos.push(...list.slice(0, 4));
+      });
+
+      for (const repo of selectedRepos) {
+        const org = repo.full_name.split("/")[0];
+
+        //  REPO NODE
+        nodes.push({
+          id: repo.full_name,
+          type: "repo",
+          label: repo.name,
+          org,
+          stars: repo.stargazers_count,
+          forks: repo.forks_count,
+          issues: repo.open_issues_count,
+          activity: new Date(repo.updated_at).getTime(),
+          size:
+            Math.log((repo.stargazers_count || 1) + 1) * 4 +
+            Math.log((repo.forks_count || 1) + 1) * 2 +
+            8,
+        });
+
+        try {
+          const contributors = await fetchRepoContributors(
+            `${repo.contributors_url}?per_page=30`
+          );
+
+          contributors.slice(0, 15).forEach((c: any) => {
+            if (!c?.login) return;
+
+            if (!userMap.has(c.login)) {
+              userMap.set(c.login, true);
+
+              nodes.push({
+                id: c.login,
+                type: "user",
+                label: c.login,
+                img: c.avatar_url,
+                contributions: c.contributions,
+                activity: c.contributions,
+                size: Math.log((c.contributions || 1) + 1) * 3 + 6,
+              });
+            }
+
+            links.push({
+              source: c.login,
+              target: repo.full_name,
+              weight: c.contributions || 1,
+            });
+          });
+        } catch (err) {
+          console.log(err);
+        }
+      }
+      setStats({
+        users: nodes.filter(n => n.type === "user").length,
+        repos: nodes.filter(n => n.type === "repo").length,
+        edges: links.length,
+      });
+      setGraphData({ nodes, links });
+    };
+
+
+    build();
+  }, [repos]);
+
+
+  /* ───────── FORCE LAYOUT (MULTI ORG FIXED) ───────── */
+  useEffect(() => {
+    if (!fgRef.current) return;
+
+    const fg = fgRef.current;
+
+    fg.d3Force("charge").strength(-320);
+
+    fg.d3Force("link").distance((l: any) =>
+      Math.max(80, 200 - Math.log2(l.weight + 1) * 25)
+    );
+
+    //  ORGS
+    const orgs: string[] = Array.from(
+      new Set(
+        graphData.nodes
+          .filter((n) => n.type === "repo" && n.org)
+          .map((n) => n.org as string)
+      )
+    );
+
+    const orgMap: Record<string, number> = {};
+    const gap = 400;
+
+    orgs.forEach((org, i) => {
+      orgMap[org] = (i - (orgs.length - 1) / 2) * gap;
+    });
+
+    //  X FORCE
+    fg.d3Force("x", (node: any) => {
+      if (node.type === "repo") {
+        return node.org ? orgMap[node.org] ?? 0 : 0;
+      }
+
+      const linked = graphData.links.find((l) => l.source === node.id);
+
+      if (!linked) return 0;
+
+      const repoNode = graphData.nodes.find(
+        (n) => n.id === linked.target
+      ) as NodeType | undefined;
+
+      if (!repoNode || !repoNode.org) return 0;
+
+      return orgMap[repoNode.org] ?? 0;
+    });
+
+    //  Y FORCE (activity)
+    fg.d3Force("y", (node: any) => {
+      const act = node.activity || 1;
+      const norm = Math.min(1, Math.log(act + 1) / 10);
+
+      return node.type === "repo"
+        ? -300 * norm
+        : 300 * (1 - norm);
+    });
+  }, [graphData]);
+
+  // ========================================================================================
+  const isConnectedToFocus = (nodeId: string) => {
+    if (!focusNode) return true;
+
+    const focusId = focusNode.id;
+
+    return graphData.links.some((l: any) => {
+      const s = typeof l.source === "object" ? l.source.id : l.source;
+      const t = typeof l.target === "object" ? l.target.id : l.target;
+
+      return (
+        (s === nodeId && t === focusId) ||
+        (t === nodeId && s === focusId)
+      );
+    });
+  };
+  // =======================================================
+  /* ───────── NODE DRAW ───────── */
+
+  const drawNode = (node: any, ctx: CanvasRenderingContext2D, scale: number) => {
+    const padding = 6;
+
+    //  dynamic width based on text
+    const label = node.label || "";
+    ctx.font = `${9 / scale}px Arial`;
+    const textWidth = ctx.measureText(label).width;
+
+    const width = Math.max(80, textWidth + 40); // auto width
+    const height = 52;
+
+    const x = node.x - width / 2;
+    const y = node.y - height / 2;
+
+    //  helper for id (IMPORTANT FIX)
+    const getId = (val: any) =>
+      typeof val === "object" ? val.id : val;
+
+    let opacity = 1;
+
+    //  PRIORITY: FOCUS MODE
+    if (focusNode) {
+      const isConnected = isConnectedToFocus(node.id);
+
+      if (node.id !== focusNode.id && !isConnected) {
+        opacity = 0.1;
+      }
+    }
+
+    //  SECOND: HOVER MODE
+    else if (hoverNode) {
+      const getId = (val: any) =>
+        typeof val === "object" ? val.id : val;
+
+      const isConnected = graphData.links.some((l: any) => {
+        const s = getId(l.source);
+        const t = getId(l.target);
+
+        return (
+          (s === node.id && t === hoverNode.id) ||
+          (t === node.id && s === hoverNode.id)
+        );
+      });
+
+      if (node.id !== hoverNode.id && !isConnected) {
+        opacity = 0.1;
+      }
+    }
+
+    ctx.globalAlpha = opacity;
+
+    //  CARD BACKGROUND (glass style)
+    ctx.fillStyle = "rgba(15, 23, 42, 0.9)";
+    ctx.strokeStyle = node.type === "repo" ? "#facc15" : "#22c55e";
+    ctx.lineWidth = 1.5;
+
+    ctx.beginPath();
+    ctx.roundRect(x, y, width, height, 10);
+    ctx.fill();
+    ctx.stroke();
+
+    // avatar
+    if (node.img) {
+      const img = new Image();
+      img.src = node.img;
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(x + padding, y + padding, 22, 22, 4);
+      ctx.clip();
+      ctx.drawImage(img, x + padding, y + padding, 22, 22);
+      ctx.restore();
+    }
+
+    // TEXT CLIP (IMPORTANT — no overflow)
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x + 30, y + 5, width - 35, 20);
+    ctx.clip();
+
+    ctx.fillStyle = "#e5e7eb";
+    ctx.fillText(label, x + 30, y + 18);
+    ctx.restore();
+
+    // 📊 contributions / stats
+    if (node.contributions) {
+      ctx.fillStyle = "#22c55e";
+      ctx.font = `${8 / scale}px Arial`;
+      ctx.fillText(`${node.contributions} commits`, x + 30, y + 35);
+    }
+
+    if (node.type === "repo") {
+      ctx.fillStyle = "#facc15";
+      ctx.font = `${8 / scale}px Arial`;
+      ctx.fillText("repo", x + 30, y + 35);
+    }
+
+    ctx.globalAlpha = 1;
+
+    if (focusNode) {
+      const isConnected = isConnectedToFocus(node.id);
+
+      if (node.id !== focusNode.id && !isConnected) {
+        opacity = 0.1; //  dim others
+      }
+    }
+  };
+  /* ───────── LINK DRAW ───────── */
+
+  const topContributor = graphData.nodes
+    .filter(n => n.type === "user")
+    .sort((a, b) => (b.contributions || 0) - (a.contributions || 0))[0];
+
+  const mostActiveRepo = graphData.nodes
+    .filter(n => n.type === "repo")
+    .sort((a, b) => (b.activity || 0) - (a.activity || 0))[0];
+
+  const strongestLink = graphData.links
+    .sort((a, b) => b.weight - a.weight)[0];
+
+  const getId = (val: any) =>
+    typeof val === "object" ? val.id : val;
+
+  //  TOTAL UNIQUE CONTRIBUTORS
+  const totalUniqueContributors = new Set(
+    graphData.nodes
+      .filter(n => n.type === "user")
+      .map(n => n.id)
+  ).size;
+
+
+  //  SHARED CONTRIBUTORS
+  const contributorOrgs: Record<string, Set<string>> = {};
+
+  graphData.links.forEach((l: any) => {
+    const user = typeof l.source === "object" ? l.source.id : l.source;
+    const repo = graphData.nodes.find(n => n.id === l.target);
+
+    if (!repo?.org) return;
+
+    if (!contributorOrgs[user]) {
+      contributorOrgs[user] = new Set();
+    }
+
+    contributorOrgs[user].add(repo.org);
+  });
+
+  const sharedContributors = Object.values(contributorOrgs).filter(
+    (orgSet) => orgSet.size > 1
+  ).length;
+
+  const drawLink = (link: any, ctx: CanvasRenderingContext2D) => {
+    const getId = (val: any) =>
+      typeof val === "object" ? val.id : val;
+
+    const s = link.source;
+    const t = link.target;
+
+    if (!s?.x || !t?.x) return;
+
+    let opacity = 0.3;
+
+    if (focusNode) {
+      const sourceId = getId(link.source);
+      const targetId = getId(link.target);
+
+      if (sourceId === focusNode.id || targetId === focusNode.id) {
+        opacity = 1;
+      } else {
+        opacity = 0.05;
+      }
+    } else if (hoverNode) {
+      const sourceId = getId(link.source);
+      const targetId = getId(link.target);
+
+      if (sourceId === hoverNode.id || targetId === hoverNode.id) {
+        opacity = 1;
+      } else {
+        opacity = 0.05;
+      }
+    }
+
+    ctx.beginPath();
+    ctx.moveTo(s.x, s.y);
+    ctx.lineTo(t.x, t.y);
+
+    ctx.strokeStyle = `rgba(34,197,94,${opacity})`;
+    ctx.lineWidth = Math.max(1, Math.log2(link.weight + 1));
+
+    ctx.stroke();
+  };
+  /* ───────── UI ───────── */
+
+  return (
+    <div className="relative w-full h-[100vh] bg-[#020617] rounded-xl overflow-hidden">
+
+      <div className="absolute top-4 left-4 right-4 z-50 flex justify-between items-center">
+
+        {/* LEFT SIDE (FULL WIDTH STATS) */}
+        <div className="flex gap-4 items-center 
+    w-full mr-4
+    bg-[#020617]/80 backdrop-blur-md 
+    border border-gray-700 px-5 py-3 
+    rounded-xl shadow-lg 
+    text-base font-medium 
+    whitespace-nowrap overflow-x-auto">
+
+          <div className="bg-gray-900 px-3 py-1 rounded border border-gray-700">
+            <GoPeople /> {stats.users} Contributors
+          </div>
+
+          <div className="bg-gray-900 px-3 py-1 rounded border border-gray-700">
+            <GoRepo /> {stats.repos} Repos
+          </div>
+
+          <div className="bg-gray-900 px-3 py-1 rounded border border-gray-700">
+            <GoGitBranch /> {stats.edges} Links
+          </div>
+
+          <div className="bg-purple-900/30 px-3 py-1 rounded border border-purple-500/30">
+            <IoPeople /> {totalUniqueContributors} Total
+          </div>
+
+          <div className="bg-pink-900/30 px-3 py-1 rounded border border-pink-500/30">
+            <FaLink /> {sharedContributors} Shared
+          </div>
+
+          <div className="bg-green-900/30 px-3 py-1 rounded border border-green-500/30">
+            Top Contributor : {topContributor?.label}
+          </div>
+
+          <div className="bg-yellow-900/30 px-3 py-1 rounded border border-yellow-500/30">
+            Most Active Repo : {mostActiveRepo?.label}
+          </div>
+
+          <div className="bg-blue-900/30 px-3 py-1 rounded border border-blue-500/30">
+            <GoLink /> {getId(strongestLink?.source)} → {getId(strongestLink?.target)}
+          </div>
+
+        </div>
+
+        {/* RIGHT SIDE BUTTON */}
+        <button
+          onClick={() => exportCSV(graphData)}
+          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-lg whitespace-nowrap"
+        >
+          ⬇ Export CSV
+        </button>
+
+      </div>
+
+      {selectedNode && (
+        <div className="absolute right-6 top-20 w-72 bg-[#0f172a] border border-green-500 p-4 rounded-xl text-white shadow-xl z-50">
+
+          <button onClick={() => setSelectedNode(null)} className="absolute top-2 right-3 text-gray-400 hover:text-white">
+            ✕
+          </button>
+
+          <div className="flex items-center gap-3 mb-3">
+            {selectedNode.img && (
+              <img src={selectedNode.img} className="w-12 h-12 rounded-lg" />
+            )}
+            <div>
+              <h3 className="font-bold text-lg">{selectedNode.label}</h3>
+              <p className="text-green-400 text-sm">
+                {selectedNode.type === "user" ? "Contributor" : "Repository"}
+              </p>
+            </div>
+          </div>
+
+          {selectedNode.type === "user" ? (
+            <>
+              <p>Commits: {selectedNode.contributions}</p>
+            </>
+          ) : (
+            <>
+              <p>⭐ Stars: {selectedNode.stars}</p>
+              <p>🍴 Forks: {selectedNode.forks}</p>
+            </>
+          )}
+
+          <a
+            href={`https://github.com/${selectedNode.id}`}
+            target="_blank"
+            className="block mt-4 text-center bg-green-600 py-2 rounded"
+          >
+            Open GitHub →
+          </a>
+        </div>
+
+
+      )}
+
+      <ForceGraph2D
+        ref={fgRef}
+        graphData={graphData}
+        width={window.innerWidth}
+        height={window.innerHeight * 0.8}
+        backgroundColor="#020617"
+
+        nodeCanvasObject={drawNode}
+        linkCanvasObject={drawLink}
+
+        //  FIX: BIGGER HOVER AREA
+        nodePointerAreaPaint={(node: any, color, ctx) => {
+          const width = 100;
+          const height = 60;
+
+          ctx.fillStyle = color;
+          ctx.fillRect(
+            node.x - width / 2,
+            node.y - height / 2,
+            width,
+            height
+          );
+        }}
+
+        onNodeHover={(node: any) => {
+          setHoverNode(node);
+          document.body.style.cursor = node ? "pointer" : "default";
+        }}
+
+        onNodeClick={(node: any) => {
+          setSelectedNode(node);
+          setFocusNode(node);
+        }}
+
+        linkDirectionalParticles={2}
+        linkDirectionalParticleSpeed={0.004}
+
+        onEngineStop={() => fgRef.current?.zoomToFit(400)}
+      />
+    </div>
+  );
+}
+
+============================================================================================
+components/Input/OrgInput.tsx == 
+export default function OrgInput({ onSubmit, value, setValue }: any) {
+  return (
+    <div className="mb-6 flex gap-3">
+      <input
+        className="flex-1 p-3 bg-gray-900 border border-gray-700 rounded"
+        placeholder="Enter orgs (AOSSIE-Org
+, StabilityNexus)"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+      />
+
+      <button
+        className="bg-green-500 px-6 py-2 rounded hover:bg-green-600"
+        onClick={() => onSubmit(value)}
+      >
+        Analyze
+      </button>
+    </div>
+  );
+}
+==============================================================================================
+components/Insights/Insightpanel.tsx ==
+
+import StatCard from "../Cards/statCard";
+import { IoIosStarOutline } from "react-icons/io"
+import { GoRepo } from "react-icons/go";
+import { useNavigate } from "react-router-dom";
+
+export default function InsightPanel({ data }: { data: any }) {
+  const navigate = useNavigate();
+  return (
+    <>
+      <div className="grid grid-cols-4 gap-4 mb-6">
+        <StatCard title="Repos" value={data.totalRepos} />
+        <StatCard title="Stars" value={data.totalStars} />
+        <StatCard title="Forks" value={data.totalForks} />
+        <StatCard title="Inactive %" value={data.inactivePercent + "%"} />
+      </div>
+<div className="bg-[#111827] p-4 rounded-lg mt-4">
+         <h3 className="text-sm text-gray-400 mb-3">High Activity Repositories</h3>
+
+         <div className="space-y-2">
+        
+
+          {data.topRepos.map((repo: any, i: number) => (
+            <div
+              key={repo.id}
+              onClick={() => navigate(`/repo/${repo.name}`, { state: repo })}
+              className="flex justify-between items-center p-2 rounded hover:bg-gray-800 transition cursor-pointer"
+            >
+            <span className="text-white">
+              {repo.name}
+            </span>
+
+            <span className="text-grey-400 text-sm inline-flex items-center gap-1">
+              <IoIosStarOutline /> {repo.stargazers_count}
+            </span>
+          </div> 
+         ))}
+        </div>
+      </div>
+
+      <div className="bg-[#111827] p-4 rounded-lg mt-4">
+  <h3 className="text-lg text-gray-200 mb-3">
+    Key Insights
+  </h3>
+
+  <div className="space-y-2">
+    {data.insights.map((insight: string, i: number) => (
+      <div
+        key={i}
+        className="text-sm text-gray-300 bg-gray-900/50 p-2 rounded"
+      >
+        {insight}
+      </div>
+    ))}
+  </div>
+</div>
+    </>
+  );
+}
+
+
+      
+===========================================================================
+components/Tables/RepoTable.tsx ==  
+import { useState } from "react";
+import { FaCodeBranch } from "react-icons/fa";
+import { MdOutlineReportGmailerrorred } from "react-icons/md";
+import { useNavigate } from "react-router-dom";
+import { IoIosStarOutline } from "react-icons/io";
+
+console.log("Rendering RepoTable component...");
+export default function RepoTable({ repos }: any) {
+  const [sortKey, setSortKey] = useState("stars");
+  const [search, setSearch] = useState("");
+  const [language, setLanguage] = useState("all");
+
+  const navigate = useNavigate();
+
+  // 🔥 UNIQUE LANGUAGES
+  const languages = [
+    "all",
+    ...new Set(repos.map((r: any) => r.language).filter(Boolean)),
+  ];
+
+  // 🔥 FILTER + SEARCH
+  const filtered = repos.filter((r: any) => {
+    const matchSearch =
+      r.name.toLowerCase().includes(search.toLowerCase()) ||
+      (r.language || "").toLowerCase().includes(search.toLowerCase());
+
+    const matchLang =
+      language === "all" || r.language === language;
+
+    return matchSearch && matchLang;
+  });
+
+  // 🔥 SORT
+  const sorted = [...filtered].sort((a, b) => {
+    if (sortKey === "stars") return b.stargazers_count - a.stargazers_count;
+    if (sortKey === "forks") return b.forks_count - a.forks_count;
+    if (sortKey === "issues") return b.open_issues_count - a.open_issues_count;
+    return 0;
+  });
+
+  // 🔥 STATUS
+  const getStatus = (updated_at: string) => {
+    const days =
+      (Date.now() - new Date(updated_at).getTime()) /
+      (1000 * 60 * 60 * 24);
+
+    return days < 30 ? "Active" : "Inactive";
+  };
+
+  return (
+    <div className="bg-[#1F2937] p-6 rounded-xl shadow-lg border border-gray-800">
+
+      {/* 🔥 TOP BAR */}
+      <div className="flex flex-col md:flex-row justify-between gap-4 mb-4">
+
+        {/* TITLE */}
+        <h3 className="text-lg font-semibold text-white">
+          Repositories ({sorted.length})
+        </h3>
+
+        {/* SEARCH */}
+        <input
+          type="text"
+          placeholder="Search repo or language..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="px-3 py-2 rounded bg-gray-800 text-white border border-gray-600"
+        />
+
+        {/* LANGUAGE FILTER */}
+        <select
+          value={language}
+          onChange={(e) => setLanguage(e.target.value)}
+          className="px-3 py-2 rounded bg-gray-800 text-white border border-gray-600"
+        >
+          {languages.map((lang: any, i: number) => (
+            <option key={i} value={lang}>
+              {lang || "Unknown"}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* 🔥 SORT BUTTONS */}
+      <div className="flex gap-2 mb-4">
+        <button
+          onClick={() => setSortKey("stars")}
+          className={`px-3 py-1 rounded text-sm ${sortKey === "stars" ? "bg-green-500" : "bg-gray-700"
+            }`}
+        >
+            Stars
+        </button>
+
+        <button
+          onClick={() => setSortKey("forks")}
+          className={`px-3 py-1 rounded text-sm ${sortKey === "forks" ? "bg-blue-500" : "bg-gray-700"
+            }`}
+        >
+           Forks
+        </button>
+
+        <button
+          onClick={() => setSortKey("issues")}
+          className={`px-3 py-1 rounded text-sm ${sortKey === "issues" ? "bg-yellow-500" : "bg-gray-700"
+            }`}
+        >
+           Issues
+        </button>
+      </div>
+
+      {/* 🔥 TABLE */}
+      <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
+        <table className="min-w-[900px] w-full text-sm text-left">
+
+          <thead className="bg-gray-800 text-gray-300 ">
+            <tr>
+              <th className="p-3">Repository</th>
+              <th className="p-3"> Stars</th>
+              <th className="p-3"> Forks</th>
+              <th className="p-3"> Issues</th>
+              <th className="p-3">Language</th>
+              <th className="p-3">Last Updated</th>
+              <th className="p-3">Status</th>
+            </tr>
+          </thead>
+
+       <tbody>
+  {sorted.map((r: any) => (
+    <tr
+      key={r.id}
+      onClick={() => navigate(`/repo/${r.name}`, { state: r })}
+      className="border-t border-gray-700 hover:bg-gray-800 transition cursor-pointer"
+    >
+      {/* 1. REPO */}
+      <td className="p-3 text-green-400 font-semibold">
+        {r.name}
+        <div className="text-xs text-gray-400">
+          {r.description || "No description"}
+        </div>
+      </td>
+
+      {/* 2. STARS */}
+      <td className="p-3 text-grey-400">
+        <div className="flex items-center gap-1">
+          <IoIosStarOutline /> {r.stargazers_count}
+        </div>
+      </td>
+
+      {/* 3. FORKS */}
+      <td className="p-3 text-grey-400">
+        <div className="flex items-center gap-1">
+          <FaCodeBranch /> {r.forks_count}
+        </div>
+      </td>
+
+      {/* 4. ISSUES */}
+      <td className="p-3 text-grey-400">
+        <div className="flex items-center gap-1">
+          <MdOutlineReportGmailerrorred /> {r.open_issues_count || 0}
+        </div>
+      </td>
+
+      {/* 5. LANGUAGE */}
+      <td className="p-3">
+        <span className="bg-gray-700 px-2 py-1 rounded text-xs">
+          {r.language || "N/A"}
+        </span>
+      </td>
+
+      {/* 6. LAST UPDATED */}
+      <td className="p-3 text-gray-300">
+        {new Date(r.updated_at).toLocaleDateString()}
+      </td>
+
+      {/* 7. STATUS */}
+      <td className="p-3">
+        {getStatus(r.updated_at).includes("Active") ? (
+          <span className="text-green-400">🟢 Active</span>
+        ) : (
+          <span className="text-red-400">🔴 Inactive</span>
+        )}
+      </td>
+    </tr>
+  ))}
+</tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+=========================================================
+src/components/HealthScore.tsx
+export default function HealthScore({ score, label }: any) {
+  return (
+    <div className="bg-[#111827] p-5 rounded-xl border border-gray-800 w-full mt-10">
+
+      <h3 className="text-gray-400 text-sm mb-2">
+        Organization Health Score
+      </h3>
+
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-3xl font-bold text-green-400">
+          {score}/100
+        </span>
+        <span className="text-sm text-gray-300">
+          {label}
+        </span>
+      </div>
+
+      {/* Progress bar */}
+      <div className="w-full bg-gray-700 h-3 rounded-full">
+        <div
+          className="h-3 rounded-full bg-green-500 transition-all duration-500"
+          style={{ width: `${score}%` }}
+        ></div>
+      </div>
+
+    </div>
+  );
+}
+==================================================================
+src/components/TopContributors.tsx
+
+
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { FaTrophy } from "react-icons/fa";
+
+const TOKEN = import.meta.env.VITE_GITHUB_TOKEN;
+
+export default function TopContributors({ repos }: any) {
+    const [contributors, setContributors] = useState<any[]>([]);
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        const fetchData = async () => {
+            const map: any = {};
+
+            for (let repo of repos.slice(0, 5)) {
+                try {
+                    const res = await fetch(repo.contributors_url, {
+                        headers: {
+                            Authorization: `token ${TOKEN}`
+                        }
+                    });
+
+                    const data = await res.json();
+
+                    // ✅ ERROR HANDLE
+                    if (!Array.isArray(data)) {
+                        console.error("GitHub API Error:", data);
+                        continue;
+                    }
+
+                    data.forEach((c: any) => {
+                        if (!map[c.login]) {
+                            map[c.login] = {
+                                login: c.login,
+                                avatar: c.avatar_url,
+                                contributions: 0,
+                                url: c.html_url
+                            };
+                        }
+
+                        map[c.login].contributions += c.contributions;
+                    });
+
+                } catch (e) {
+                    console.error("Fetch error:", e);
+                }
+            }
+
+            const sorted = Object.values(map)
+                .sort((a: any, b: any) => b.contributions - a.contributions)
+                .slice(0, 5);
+
+            setContributors(sorted);
+        };
+
+        if (repos.length) fetchData();
+    }, [repos]);
+
+    return (
+        <div className="mt-10">
+            <h3 className="text-gray-400 mb-3 text-lg">
+                <FaTrophy />
+                Top Contributors 
+            </h3>
+
+            {/* 🔥 Horizontal Scroll */}
+            <div className="flex gap-4 overflow-x-auto pb-2">
+
+                {contributors.map((c, i) => (
+                    <div
+                        key={c.login}
+                        onClick={() =>
+                            navigate(`/contributor/${c.login}`, { state: c })
+                        }
+                        className="min-w-[220px] bg-[#111827] p-4 rounded-lg cursor-pointer hover:bg-gray-800 transition border border-gray-700"
+                    >
+                        <img
+                            src={c.avatar}
+                            className="w-12 h-12 rounded-full mb-2"
+                        />
+
+                        <p className="text-white font-semibold">
+                            #{i + 1} {c.login}
+                        </p>
+
+                        <p className="text-gray-400 text-sm">
+                            {c.contributions} contributions
+                        </p>
+                    </div>
+                ))}
+
+            </div>
+        </div>
+    );
+}
+==============================================================
+src/layout/DashboardLayout.tsx ==
+import Sidebar from "./Sidebar";
+import Topbar from "./Topbar";
+
+export default function DashboardLayout({ children, orgInput, orgLogo }: any) {
+  return (
+    <div className="flex h-screen overflow-hidden">
+      
+      {/* Sidebar */}
+      <Sidebar />
+
+      {/* Main */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        
+        <Topbar orgInput={orgInput} logo={orgLogo}/>
+
+        <div className="flex-1 overflow-hidden p-4">
+          {children}
+        </div>
+
+      </div>
+    </div>
+  );
+}
+======================================================================
+src/layout/Sidebar.tsx ===
+
+
+import { Link, useLocation } from "react-router-dom";
+
+
+export default function Sidebar() {
+
+  const location = useLocation();
+
+  return (
+    <div className="w-64 bg-[#111827] border-r border-gray-800 p-4 flex flex-col justify-between">
+
+      <div>
+        <div className="h-40 w-40 ">
+          <img src="/org-explorer-logo.svg" alt="Logo" /> 
+        </div>
+
+        <nav className="space-y-3">
+
+          <Link
+            to="/"
+            className={`block p-2 rounded ${
+              location.pathname === "/" ? "bg-gray-800" : "hover:bg-gray-800"
+            }`}
+          >
+            Dashboard
+          </Link>
+
+          <Link
+            to="/repositories"
+            className={`block p-2 rounded ${
+              location.pathname === "/repositories"
+                ? "bg-gray-800"
+                : "hover:bg-gray-800"
+            }`}
+          >
+            Repositories
+          </Link>
+           <Link
+            to="/graph"
+            className={`block p-2 rounded ${
+              location.pathname === "/graph"
+                ? "bg-gray-800"
+                : "hover:bg-gray-800"
+            }`}
+          >
+            Graph
+          </Link>
+
+        </nav>
+      </div>
+
+      <div className="p-2 hover:bg-gray-800 rounded cursor-pointer">
+        ⚙ Settings
+      </div>
+
+    </div>
+  );
+}
+==================================================================================
+src/layout/Topbar.tsx ==
+
+export default function Topbar({ orgInput, logo }: any) {
+
+  const orgs = orgInput
+    ? orgInput.split(",").map((o: string) => o.trim())
+    : [];
+
+  return (
+    <div className="flex items-center justify-between px-6 py-4 h-32 border-b border-gray-800 bg-[#0B1220]">
+
+      <div className="flex items-center gap-3">
+
+        {logo ? (
+          <img
+            src={logo}
+            className="w-12 h-12 rounded-full border border-gray-700"
+          />
+        ) : (
+          <div className="w-12 h-12 bg-gray-700 rounded-full animate-pulse"></div>
+        )}
+
+        <h2 className="text-4xl font-semibold text-green-400">
+          {orgs.join(" + ") || "OrgExplorer"}
+        </h2>
+
+      </div>
+    </div>
+  );
+}
+==================================
+src/pages/RepoDetails.tsx=============
+import { useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
+import {
+    AreaChart,
+    Area,
+    XAxis,
+    YAxis,
+    Tooltip,
+    ResponsiveContainer
+} from "recharts";
+import { FaCodeBranch, FaGithub } from "react-icons/fa";
+import { IoIosStarOutline } from "react-icons/io";
+import { MdOutlineReportGmailerrorred } from "react-icons/md";
+;
+
+const TOKEN = import.meta.env.VITE_GITHUB_TOKEN;
+
+export default function RepoDetails() {
+    const { state } = useLocation();
+    const repo = state;
+
+    const [contributors, setContributors] = useState<any[]>([]);
+    const [chartData, setChartData] = useState<any[]>([]);
+
+    useEffect(() => {
+        if (!repo) return;
+
+        fetchContributors();
+        fetchActivity();
+    }, []);
+
+    // 👨‍💻 CONTRIBUTORS
+    const fetchContributors = async () => {
+        const res = await fetch(repo.contributors_url, {
+            headers: { Authorization: `token ${TOKEN}` }
+        });
+        const data = await res.json();
+        setContributors(data.slice(0, 4));
+    };
+
+    // 📊 ACTIVITY CHART
+    const fetchActivity = async () => {
+        const res = await fetch(
+            `https://api.github.com/repos/${repo.full_name}/issues?per_page=100`,
+            { headers: { Authorization: `token ${TOKEN}` } }
+        );
+
+        const data = await res.json();
+
+        const map: any = {};
+
+        data.forEach((item: any) => {
+            const d = new Date(item.created_at)
+                .toISOString()
+                .split("T")[0];
+
+            if (!map[d]) map[d] = { date: d, issues: 0 };
+
+            map[d].issues++;
+        });
+
+        const result = Object.values(map);
+        setChartData(result);
+    };
+
+    if (!repo) {
+        return <p className="text-white">No repo data</p>;
+    }
+
+    const formatDate = (date: string) => {
+  const d = new Date(date);
+  return d.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+};
+
+    return (
+        <div className="p-6 text-white h-full overflow-y-auto">
+
+            {/* TITLE */}
+            <h1 className="text-2xl font-bold mb-4">
+                {repo.name}
+            </h1>
+
+            {/* ⭐ STAT CARDS */}
+            <div className="grid grid-cols-3 gap-4 mb-6">
+
+                {/* STARS */}
+                <div className="bg-gray-800 p-4 rounded flex items-center gap-3">
+                    <IoIosStarOutline className="text-yellow-400 text-xl" />
+                    <div>
+                        <p className="text-sm text-gray-400">Stars</p>
+                        <p className="text-lg font-bold">{repo.stargazers_count}</p>
+                    </div>
+                </div>
+
+                {/* FORKS */}
+                <div className="bg-gray-800 p-4 rounded flex items-center gap-3">
+                    <FaCodeBranch className="text-blue-400 text-xl" />
+                    <div>
+                        <p className="text-sm text-gray-400">Forks</p>
+                        <p className="text-lg font-bold">{repo.forks_count}</p>
+                    </div>
+                </div>
+
+                {/* ISSUES */}
+                <div
+                    className="bg-gray-800 p-4 rounded flex items-center gap-3 cursor-pointer hover:bg-gray-700"
+                    onClick={() =>
+                        window.open(repo.html_url + "/issues", "_blank")
+                    }
+                >
+                    <MdOutlineReportGmailerrorred className="text-red-400 text-xl" />
+                    <div>
+                        <p className="text-sm text-gray-400">Issues</p>
+                        <p className="text-lg font-bold">{repo.open_issues_count}</p>
+                    </div>
+                </div>
+
+            </div>
+
+            {/* 📊 AREA CHART */}
+            <div className="bg-gray-900 p-4 rounded mb-6">
+                <h3 className="mb-2">📊 Issues Activity</h3>
+
+                <ResponsiveContainer width="100%" height={250}>
+                    <AreaChart data={chartData}>
+                        <XAxis dataKey="date" tick/>
+                        <YAxis />
+                        <Tooltip />
+
+                        <Area
+                            type="monotone"
+                            dataKey="issues"
+                            stroke="#22c55e"
+                            fill="#22c55e"
+                            fillOpacity={0.2}
+                        />
+                    </AreaChart>
+                </ResponsiveContainer>
+            </div>
+
+            {/* 👨‍💻 CONTRIBUTORS */}
+            <div className="bg-gray-900 p-4 rounded mb-6">
+                <h3 className="mb-3">👨‍💻 Top Contributors</h3>
+
+                <div className="grid grid-cols-2 gap-4">
+                    {contributors.map((c: any) => (
+                        // <div
+                        //   key={c.id}
+                        //   className="flex items-center gap-3 bg-gray-800 p-3 rounded"
+                        // >
+                        <div
+                            key={c.id}
+                            onClick={() => window.open(c.html_url, "_blank")}
+                            className="flex items-center gap-3 bg-gray-800 p-3 rounded cursor-pointer hover:bg-gray-700 transition"
+                        >
+                            <img
+                                src={c.avatar_url}
+                                className="w-10 h-10 rounded-full"
+                            />
+
+                            <div>
+                                <p>{c.login}</p>
+                                <p className="text-sm text-gray-400">
+                                    Contributions: {c.contributions}
+                                </p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/* 🔗 GITHUB LINK */}
+            <button
+                onClick={() => window.open(repo.html_url, "_blank")}
+                className="bg-green-500 px-3 py-3 rounded flex items-center gap-2 hover:bg-green-600 transition"
+            >
+                <FaGithub /> Open on GitHub
+            </button>
+
+        </div>
+    );
+}
+
+====================================================================================
+src/pages/GraphPage.tsx ===
+
+import NetworkGraph from "../components/Graph/NetworkGraph";
+
+export default function GraphPage() {
+  const repos = JSON.parse(localStorage.getItem("repos") || "[]");
+
+  if (!repos.length) {
+    return (
+      <div className="text-gray-400 text-center mt-20">
+        No data found 🚫 <br />
+        Please analyze organizations first.
+      </div>
+    );
+  }
+
+  return (
+    <div>
+
+      <h2 className="text-xl font-semibold mb-3 text-green-400">
+        Contributor Collaboration Network 🌐
+      </h2>
+
+      <NetworkGraph repos={repos} />
+
+      <p className="text-gray-400 mb-4">
+        Visualizes relationships between repositories and contributors across multiple organizations.
+      </p>
+    </div>
+  );
+}
+
+===================================================================
+src/pages/Overview.tsx ==
+
+import { useState, useEffect } from "react";
+import OrgInput from "../components/Input/OrgInput";
+import InsightPanel from "../components/Insights/Insightpanel";
+import ActivityChart from "../components/Charts/ActivityChart";
+import { fetchOrgRepos } from "../services/githubService";
+import { mergeRepos } from "../utils/mergeOrgs";
+import { getInsights } from "../utils/insightEngine";
+import HealthScore from "../components/HealthScore";
+import { calculateOrgHealthScore } from "../utils/calculateScore";
+import type { Repo, Insight } from "../types/github";
+import { generateInsights } from "../utils/insights";
+import TopContributors from "../components/TopContributors";
+
+type Props = {
+  orgInput: string;
+  setOrgInput: React.Dispatch<React.SetStateAction<string>>;
+  setOrgLogo : React.Dispatch<React.SetStateAction<string>>;
+};
+export default function Overview({ orgInput, setOrgInput, setOrgLogo }: Props) {
+
+  const [repos, setRepos] = useState<Repo[]>([]);
+  const [data, setData] = useState<Insight | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const { score, label } = calculateOrgHealthScore(repos);
+
+  // 🔥 DEFAULT LOAD
+  useEffect(() => {
+    const savedRepos = localStorage.getItem("repos");
+    const savedInput = localStorage.getItem("orgInput");
+    const savedLogo = localStorage.getItem("orgLogo");
+
+    if (!savedInput) {
+      handleSubmit("AOSSIE-Org"); // default
+      return;
+    }
+
+    if (savedRepos) {
+      const parsed: Repo[] = JSON.parse(savedRepos);
+      setRepos(parsed);
+      setData(getInsights(parsed));
+    }
+
+    if (savedInput) {
+      setOrgInput(savedInput);
+    }
+
+    if (savedLogo) {
+      setOrgLogo(savedLogo); // 🔥 GLOBAL SET
+    }
+
+  }, []);
+
+  // 🔥 ANALYZE
+  const handleSubmit = async (input: string) => {
+    setLoading(true);
+
+    try {
+      setOrgInput(input);
+
+      const orgs = input.split(",").map(o => o.trim()).filter(Boolean);
+
+      // 🔥 FAST LOGO (NO WAIT)
+      fetch(`https://api.github.com/orgs/${orgs[0]}`)
+        .then(res => res.json())
+        .then(data => {
+          setOrgLogo(data.avatar_url); // 🔥 GLOBAL
+          localStorage.setItem("orgLogo", data.avatar_url);
+        })
+        .catch(() => setOrgLogo(""));
+
+      // 🔥 MULTI ORG DATA
+      const results = await Promise.all(orgs.map(fetchOrgRepos));
+      const merged: Repo[] = mergeRepos(results);
+
+      setRepos(merged);
+
+      localStorage.setItem("repos", JSON.stringify(merged));
+      localStorage.setItem("orgInput", input);
+
+      const insights: Insight = getInsights(merged);
+      setData(insights);
+
+    } catch (e) {
+      console.error(e);
+    }
+
+    setLoading(false);
+  };
+
+  const insights = generateInsights(repos);
+
+  return (
+    <div className="h-full overflow-y-auto pr-2">
+
+      <OrgInput
+        onSubmit={handleSubmit}
+        value={orgInput}
+        setValue={setOrgInput}
+      />
+
+      {loading && <p className="text-gray-400">Loading...</p>}
+
+      {data && <InsightPanel data={data} />}
+
+      {/* INSIGHTS */}
+      <div className="mt-6 bg-[#0B1220] p-4 rounded-xl border border-gray-800">
+        <h3 className="text-lg font-semibold mb-3 text-green-400">
+          Insights
+        </h3>
+
+        <ul className="space-y-2 text-sm text-gray-300">
+          {insights.map((insight, i) => (
+            <li key={i}>• {insight}</li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="mb-10 mt-24">
+        <HealthScore score={score} label={label} />
+      </div>
+
+      {/* CHART */}
+      {repos.length > 0 && (
+        <ActivityChart
+          orgs={orgInput.split(",").map(o => o.trim()).filter(Boolean)}
+        />
+      )}
+
+      {/* CONTRIBUTORS */}
+      {repos.length > 0 && (
+        <TopContributors repos={repos} />
+      )}
+
+    </div>
+  );
+}
+========================================================================================
+src/pages/Repositories.tsx ===
+import { useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
+import {
+    AreaChart,
+    Area,
+    XAxis,
+    YAxis,
+    Tooltip,
+    ResponsiveContainer
+} from "recharts";
+import { FaCodeBranch, FaGithub } from "react-icons/fa";
+import { IoIosStarOutline } from "react-icons/io";
+import { MdOutlineReportGmailerrorred } from "react-icons/md";
+;
+
+const TOKEN = import.meta.env.VITE_GITHUB_TOKEN;
+
+export default function RepoDetails() {
+    const { state } = useLocation();
+    const repo = state;
+
+    const [contributors, setContributors] = useState<any[]>([]);
+    const [chartData, setChartData] = useState<any[]>([]);
+
+    useEffect(() => {
+        if (!repo) return;
+
+        fetchContributors();
+        fetchActivity();
+    }, []);
+
+    // CONTRIBUTORS
+    const fetchContributors = async () => {
+        const res = await fetch(repo.contributors_url, {
+            headers: { Authorization: `token ${TOKEN}` }
+        });
+        const data = await res.json();
+        setContributors(data.slice(0, 4));
+    };
+
+    //  ACTIVITY CHART
+    const fetchActivity = async () => {
+        const res = await fetch(
+            `https://api.github.com/repos/${repo.full_name}/issues?per_page=100`,
+            { headers: { Authorization: `token ${TOKEN}` } }
+        );
+
+        const data = await res.json();
+
+        const map: any = {};
+
+        data.forEach((item: any) => {
+            const d = new Date(item.created_at)
+                .toISOString()
+                .split("T")[0];
+
+            if (!map[d]) map[d] = { date: d, issues: 0 };
+
+            map[d].issues++;
+        });
+
+        const result = Object.values(map);
+        setChartData(result);
+    };
+
+    if (!repo) {
+        return <p className="text-white">No repo data</p>;
+    }
+
+    const formatDate = (date: string) => {
+        const d = new Date(date);
+        return d.toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+        });
+    };
+
+    return (
+        <div className="p-6 text-white h-full overflow-y-auto">
+
+            {/* TITLE */}
+            <h1 className="text-2xl font-bold mb-4">
+                {repo.name}
+            </h1>
+
+            {/*  STAT CARDS */}
+            <div className="grid grid-cols-3 gap-4 mb-6">
+
+                {/* STARS */}
+                <div className="bg-gray-800 p-4 rounded flex items-center gap-3">
+                    <IoIosStarOutline className="text-yellow-400 text-xl" />
+                    <div>
+                        <p className="text-sm text-gray-400">Stars</p>
+                        <p className="text-lg font-bold">{repo.stargazers_count}</p>
+                    </div>
+                </div>
+
+                {/* FORKS */}
+                <div className="bg-gray-800 p-4 rounded flex items-center gap-3">
+                    <FaCodeBranch className="text-blue-400 text-xl" />
+                    <div>
+                        <p className="text-sm text-gray-400">Forks</p>
+                        <p className="text-lg font-bold">{repo.forks_count}</p>
+                    </div>
+                </div>
+
+                {/* ISSUES */}
+                <div
+                    className="bg-gray-800 p-4 rounded flex items-center gap-3 cursor-pointer hover:bg-gray-700"
+                    onClick={() =>
+                        window.open(repo.html_url + "/issues", "_blank")
+                    }
+                >
+                    <MdOutlineReportGmailerrorred className="text-red-400 text-xl" />
+                    <div>
+                        <p className="text-sm text-gray-400">Issues</p>
+                        <p className="text-lg font-bold">{repo.open_issues_count}</p>
+                    </div>
+                </div>
+
+            </div>
+
+            {/*  AREA CHART */}
+            <div className="bg-gray-900 p-4 rounded mb-6">
+                <h3 className="mb-2"> Issues Activity</h3>
+
+                <ResponsiveContainer width="100%" height={250}>
+                    <AreaChart data={chartData}>
+                        <XAxis dataKey="date" tick />
+                        <YAxis />
+                        <Tooltip />
+
+                        <Area
+                            type="monotone"
+                            dataKey="issues"
+                            stroke="#22c55e"
+                            fill="#22c55e"
+                            fillOpacity={0.2}
+                        />
+                    </AreaChart>
+                </ResponsiveContainer>
+            </div>
+
+            {/*  CONTRIBUTORS */}
+            <div className="bg-gray-900 p-4 rounded mb-6">
+                <h3 className="mb-3">Top Contributors</h3>
+
+                <div className="grid grid-cols-2 gap-4">
+                    {contributors.map((c: any) => (
+
+                        <div
+                            key={c.id}
+                            onClick={() => window.open(c.html_url, "_blank")}
+                            className="flex items-center gap-3 bg-gray-800 p-3 rounded cursor-pointer hover:bg-gray-700 transition"
+                        >
+                            <img
+                                src={c.avatar_url}
+                                className="w-10 h-10 rounded-full"
+                            />
+
+                            <div>
+                                <p>{c.login}</p>
+                                <p className="text-sm text-gray-400">
+                                    Contributions: {c.contributions}
+                                </p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/*  GITHUB LINK */}
+            <button
+                onClick={() => window.open(repo.html_url, "_blank")}
+                className="bg-green-500 px-3 py-3 rounded flex items-center gap-2 hover:bg-green-600 transition"
+            >
+                <FaGithub /> Open on GitHub
+            </button>
+
+        </div>
+    );
+}
+
+===========================================================================
+src/pages/ContributorDetail.tsx
+
+import { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
+import {
+    AreaChart, Area,  XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer, Legend
+} from "recharts";
+import { FaCodeBranch } from "react-icons/fa";
+
+
+const TOKEN = import.meta.env.VITE_GITHUB_TOKEN;
+
+export default function ContributorDetail() {
+    const { username } = useParams();
+
+    const [user, setUser] = useState<any>(null);
+    const [prs, setPrs] = useState<any[]>([]);
+    const [issues, setIssues] = useState<any[]>([]);
+    const [sortKey, setSortKey] = useState("prCreated");
+    const [sortOrder, setSortOrder] = useState("desc");
+    const [events, setEvents] = useState<any[]>([]);
+    const [filter, setFilter] = useState("7");
+
+    useEffect(() => {
+        if (!username) return;
+
+        const fetchData = async () => {
+            try {
+                // 👤 USER
+                const userRes = await fetch(`https://api.github.com/users/${username}`, {
+                    headers: { Authorization: `token ${TOKEN}` }
+                });
+                const userData = await userRes.json();
+                setUser(userData);
+
+                // 🔀 PRs
+                const prRes = await fetch(
+                    `https://api.github.com/search/issues?q=author:${username}+type:pr`,
+                    { headers: { Authorization: `token ${TOKEN}` } }
+                );
+                const prData = await prRes.json();
+                setPrs(prData.items || []);
+
+                // 🐞 Issues
+                const issueRes = await fetch(
+                    `https://api.github.com/search/issues?q=author:${username}+type:issue`,
+                    { headers: { Authorization: `token ${TOKEN}` } }
+                );
+                const issueData = await issueRes.json();
+                setIssues(issueData.items || []);
+
+                // 📅 EVENTS (Recent Activity)
+                const eventRes = await fetch(
+                    `https://api.github.com/users/${username}/events`,
+                    { headers: { Authorization: `token ${TOKEN}` } }
+                );
+                const eventData = await eventRes.json();
+                setEvents(eventData || []);
+                console.log("events", eventData);
+
+            } catch (err) {
+                console.error(err);
+            }
+        };
+
+        fetchData();
+
+
+    }, [username]);
+
+    // const timeAgo = (date: string) => {
+    //     const diff = (new Date().getTime() - new Date(date).getTime()) / 1000;
+
+    //     const days = Math.floor(diff / 86400);
+    //     if (days > 0) return `${days} day${days > 1 ? "s" : ""} ago`;
+
+    //     const hours = Math.floor(diff / 3600);
+    //     if (hours > 0) return `${hours} hour${hours > 1 ? "s" : ""} ago`;
+
+    //     const mins = Math.floor(diff / 60);
+    //     return `${mins} min ago`;
+    // };
+
+    function timeAgo(date: string) {
+        const seconds = Math.floor((new Date().getTime() - new Date(date).getTime()) / 1000);
+
+        const intervals: any = {
+            year: 31536000,
+            month: 2592000,
+            week: 604800,
+            day: 86400,
+            hour: 3600,
+            minute: 60,
+        };
+
+        for (let key in intervals) {
+            const interval = Math.floor(seconds / intervals[key]);
+            if (interval > 1) return `${interval} ${key}s ago`;
+            if (interval === 1) return `1 ${key} ago`;
+        }
+
+        return "just now";
+    }
+
+    const filteredEvents = events.filter((e: any) => {
+        const days = filter === "7" ? 7 : 30;
+        const eventDate = new Date(e.created_at);
+        const now = new Date();
+
+        return (now.getTime() - eventDate.getTime()) / (1000 * 60 * 60 * 24) <= days;
+    });
+
+    if (!user) return <p className="text-white">Loading...</p>;
+
+    // 📊 CALCULATIONS
+    const totalPR = prs.length;
+    const mergedPR = prs.filter(p => p.pull_request?.merged_at).length;
+    const mergeRate = totalPR ? Math.round((mergedPR / totalPR) * 100) : 0;
+    const totalIssues = issues.length;
+
+    const score = Math.round(
+        0.5 * mergeRate +
+        0.3 * Math.min(totalIssues * 5, 100) +
+        0.2 * 70
+    );
+
+    // 📁 REPO-WISE STATS
+    const repoStats: any = {};
+
+    // PR data
+    prs.forEach((pr: any) => {
+        // const repo = pr.repository_url.split("/").pop();
+        const parts = pr.repository_url.split("/");
+        const repo = parts[parts.length - 2] + "/" + parts[parts.length - 1];
+
+        if (!repoStats[repo]) {
+            repoStats[repo] = {
+                repo,
+                prCreated: 0,
+                prMerged: 0,
+                issuesSolved: 0,
+            };
+        }
+
+        repoStats[repo].prCreated++;
+
+        if (pr.pull_request?.merged_at) {
+            repoStats[repo].prMerged++;
+        }
+    });
+
+    // Issue data
+    issues.forEach((issue: any) => {
+        // const repo = issue.repository_url.split("/").pop();
+        const parts = issue.repository_url.split("/");
+        const repo = parts[parts.length - 2] + "/" + parts[parts.length - 1];
+
+        if (!repoStats[repo]) {
+            repoStats[repo] = {
+                repo,
+                prCreated: 0,
+                prMerged: 0,
+                issuesSolved: 0,
+            };
+        }
+
+        repoStats[repo].issuesSolved++;
+    });
+
+    const repoList = Object.values(repoStats);
+    const sortedRepos = [...repoList].sort((a: any, b: any) => {
+        const valA = a[sortKey];
+        const valB = b[sortKey];
+
+        if (sortOrder === "asc") return valA - valB;
+        return valB - valA;
+    });
+
+    const chartData = repoList.map((r: any) => ({
+        name: r.repo.split("/")[1], // sirf repo name
+        created: r.prCreated,
+        merged: r.prMerged
+    }));
+
+
+    return (
+        <div className="p-6 text-white space-y-8 h-[calc(100vh-120px)] overflow-y-auto pr-2">
+
+            {/* 🔥 TOP SECTION */}
+            <div className="bg-[#111827] p-6 rounded-xl flex items-center gap-6 border border-gray-800">
+
+                <img
+                    src={user.avatar_url}
+                    className="w-24 h-24 rounded-full border-2 border-green-400"
+                />
+
+                <div>
+                    <h1 className="text-3xl font-bold">{user.login}</h1>
+
+                    <p className="text-green-400 text-lg mt-1">
+                        ⭐ Quality Score: {score}/100
+                    </p>
+
+                    <p className="text-blue-400">
+                        📊 Merge Rate: {mergeRate}%
+                    </p>
+
+                    <p className={`mt-2 font-semibold ${score > 80 ? "text-green-400" :
+                        score > 50 ? "text-yellow-400" :
+                            "text-red-400"
+                        }`}>
+                        {score > 80 ? "🟢 High Quality Contributor" :
+                            score > 50 ? "🟡 Medium Quality" :
+                                "🔴 Low Quality"}
+                    </p>
+                </div>
+            </div>
+
+            {/* 📊 STATS CARDS */}
+            <div className="grid grid-cols-4 gap-4">
+                <div className="bg-[#1F2937] p-4 rounded-xl text-center">
+                    <span className="text-gray-400 text-sm">PR</span><FaCodeBranch />
+                    <h2 className="text-2xl text-green-400">{totalPR}</h2>
+                </div>
+
+                <div className="bg-[#1F2937] p-4 rounded-xl text-center">
+                    <p className="text-gray-400 text-sm">PR Merged</p>
+                    <h2 className="text-2xl text-blue-400">{mergedPR}</h2>
+                </div>
+
+                <div className="bg-[#1F2937] p-4 rounded-xl text-center">
+                    <p className="text-gray-400 text-sm">Issues Solved</p>
+                    <h2 className="text-2xl text-yellow-400">{totalIssues}</h2>
+                </div>
+
+                <div className="bg-[#1F2937] p-4 rounded-xl text-center">
+                    <p className="text-gray-400 text-sm">Issues Created</p>
+                    <h2 className="text-2xl text-red-400">{totalIssues}</h2>
+                </div>
+            </div>
+
+            <div className="bg-[#111827] p-6 rounded-xl mt-6 border border-gray-800">
+
+                <h3 className="text-lg font-semibold mb-4 text-green-400">
+                    PR Activity (Created vs Merged)
+                </h3>
+
+                <ResponsiveContainer width="100%" height={300}>
+                    <AreaChart data={chartData}>
+
+                        <defs>
+                            <linearGradient id="colorCreated" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4} />
+                                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                            </linearGradient>
+
+                            <linearGradient id="colorMerged" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#22c55e" stopOpacity={0.4} />
+                                <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
+                            </linearGradient>
+                        </defs>
+
+                        <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+
+                        <XAxis dataKey="name" stroke="#9CA3AF" />
+                        <YAxis stroke="#9CA3AF" />
+
+                        <Tooltip />
+
+                        <Legend />
+
+                        <Area
+                            type="monotone"
+                            dataKey="created"
+                            stroke="#3b82f6"
+                            fillOpacity={1}
+                            fill="url(#colorCreated)"
+                            name="PR Created"
+                            
+                        />
+
+                        <Area
+                            type="monotone"
+                            dataKey="merged"
+                            stroke="#22c55e"
+                            fillOpacity={1}
+                            fill="url(#colorMerged)"
+                            name="PR Merged"
+                        />
+
+                    </AreaChart>
+                </ResponsiveContainer>
+
+            </div>
+
+            {/* 📁 REPOSITORIES TABLE */}
+            <div className="bg-[#111827] p-6 rounded-xl mt-6 border border-gray-800">
+
+                <h3 className="text-lg font-semibold mb-4 text-green-400">
+                    Repository Contributions
+                </h3>
+
+                {repoList.length === 0 ? (
+                    <p className="text-gray-400">No repository data found</p>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+
+                            {/* HEADER */}
+                            {/* <thead className="bg-gray-800 text-gray-300">
+                                <tr>
+                                    <th className="p-3 text-left">Repo</th>
+                                    <th className="p-3 text-left">PR Created</th>
+                                    <th className="p-3 text-left">PR Merged</th>
+                                    <th className="p-3 text-left">Merge %</th>
+                                    <th className="p-3 text-left">Issues Solved</th>
+                                </tr>
+                            </thead> */}
+
+                            <thead className="bg-gray-800 text-gray-300">
+                                <tr>
+
+                                    <th className="p-3 text-left">Repo</th>
+
+                                    {/* <th
+                                        className="p-3 cursor-pointer"
+                                        onClick={() => {
+                                            setSortKey("prCreated");
+                                            setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+                                        }}
+                                    >
+                                        PR Created
+                                    </th> */}
+                                    <th
+                                        className="p-3 cursor-pointer"
+                                        onClick={() => {
+                                            setSortKey("prCreated");
+                                            setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+                                        }}
+                                    >
+                                        PR {sortKey === "prCreated" ? (sortOrder === "asc" ? "↑" : "↓") : ""}
+                                    </th>
+
+                                    <th
+                                        className="p-3 cursor-pointer"
+                                        onClick={() => {
+                                            setSortKey("prMerged");
+                                            setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+                                        }}
+                                    >
+                                        PR Merged {sortKey === "prMerged" ? (sortOrder === "asc" ? "↑" : "↓") : ""}
+                                    </th>
+
+                                    <th className="p-3">Merge %</th>
+
+                                    <th
+                                        className="p-3 cursor-pointer"
+                                        onClick={() => {
+                                            setSortKey("issuesSolved");
+                                            setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+                                        }}
+                                    >
+                                        Issues Solved {sortKey === "issuesSolved" ? (sortOrder === "asc" ? "↑" : "↓") : ""}
+                                    </th>
+
+                                </tr>
+                            </thead>
+
+                            {/* BODY */}
+                            <tbody>
+                                {sortedRepos.map((r: any) => {
+                                    const mergeRate =
+                                        r.prCreated > 0
+                                            ? Math.round((r.prMerged / r.prCreated) * 100)
+                                            : 0;
+
+                                    return (
+                                        <tr
+                                            key={r.repo}
+                                            className="border-t border-gray-700 hover:bg-gray-800 transition"
+                                        >
+                                            <td className="p-3">
+                                                <a
+                                                    href={`https://github.com/${r.repo}`}
+                                                    target="_blank"
+                                                    className="text-blue-400 hover:underline"
+                                                >
+                                                    {r.repo}
+                                                </a>
+                                            </td>
+
+                                            <td className="p-3">{r.prCreated}</td>
+
+                                            <td className="p-3 text-green-400">
+                                                {r.prMerged}
+                                            </td>
+
+                                            <td className="p-3 font-semibold">
+                                                {mergeRate}%
+                                            </td>
+
+                                            <td className="p-3 text-yellow-400">
+                                                {r.issuesSolved}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+
+                        </table>
+                    </div>
+                )}
+            </div>
+
+            {/* 💡 INSIGHTS */}
+            <div className="bg-[#111827] p-6 rounded-xl border border-gray-800">
+                <h3 className="text-green-400 mb-3">Insights</h3>
+
+                <ul className="space-y-2 text-sm text-gray-300">
+                    {mergeRate > 70 && (
+                        <li>🟢 High merge rate indicates quality work</li>
+                    )}
+                    {mergeRate < 40 && (
+                        <li>⚠️ Low merge rate suggests PR issues</li>
+                    )}
+                    {totalPR < 5 && (
+                        <li>⚠️ Limited contributions</li>
+                    )}
+                </ul>
+            </div>
+
+
+            {/* 📅 Recent Activity */}
+            <div className="mt-8 bg-gray-900 p-5 rounded-xl">
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold">📅 Recent Activity</h3>
+
+                    {/* Filter */}
+                    <select
+                        value={filter}
+                        onChange={(e) => setFilter(e.target.value)}
+                        className="bg-gray-800 p-2 rounded"
+                    >
+                        <option value="7">Last 7 days</option>
+                        <option value="30">Last 30 days</option>
+                    </select>
+                </div>
+
+                {/* Events */}
+                {filteredEvents.length === 0 ? (
+                    <p className="text-gray-400">No recent activity</p>
+                ) : (
+                    <div className="space-y-2">
+                        {filteredEvents.slice(0, 10).map((e: any, index: number) => {
+                            const isLatest = index === 0;
+
+                            let text = "";
+                            let link = "#";
+
+                            // 🔀 PR Created
+                            if (e.type === "PullRequestEvent" && e.payload.action === "opened") {
+                                const prNumber = e.payload?.pull_request?.number || "";
+                                text = `🔀 Created PR #${prNumber} in ${e.repo.name}`;
+                                link = e.payload?.pull_request?.html_url;
+                            }
+
+                            // ✅ PR Merged
+                            else if (e.type === "PullRequestEvent" && e.payload?.pull_request?.merged) {
+                                const prNumber = e.payload?.pull_request?.number || "";
+                                text = `✅ PR #${prNumber} merged in ${e.repo.name}`;
+                                link = e.payload?.pull_request?.html_url;
+                            }
+
+                            // 🆕 Issue Opened
+                            else if (e.type === "IssuesEvent" && e.payload.action === "opened") {
+                                const issueNumber = e.payload?.issue?.number || "";
+                                text = `🆕 Opened issue #${issueNumber} in ${e.repo.name}`;
+                                link = e.payload?.issue?.html_url;
+                            }
+
+                            // 🐞 Issue Closed
+                            else if (e.type === "IssuesEvent" && e.payload.action === "closed") {
+                                const issueNumber = e.payload?.issue?.number || "";
+                                text = `🐞 Closed issue #${issueNumber} in ${e.repo.name}`;
+                                link = e.payload?.issue?.html_url;
+                            }
+
+                            // 📦 Push
+                            else if (e.type === "PushEvent") {
+                                text = `📦 Pushed code to ${e.repo.name}`;
+                                link = `https://github.com/${e.repo.name}`;
+                            }
+
+                            else return null;
+
+                            return (
+                                <a
+                                    key={index}
+                                    href={link}
+                                    target="_blank"
+                                    className={`block p-3 rounded-lg border border-gray-700 hover:bg-gray-800 ${isLatest ? "bg-gray-800 font-bold" : ""
+                                        }`}
+                                >
+                                    {text}
+                                    <span className="text-gray-400 ml-2">
+                                        ({timeAgo(e.created_at)})
+                                    </span>
+                                </a>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+
+
+
+            {/* 🔗 GITHUB */}
+            <a
+                href={user.html_url}
+                target="_blank"
+                className="text-blue-400 block mb-8"
+            >
+                View GitHub Profile →
+            </a>
+
+        </div>
+    );
+}
+=====================================================================================================
+src/services/githubService.ts ===
+
+const BASE = "https://api.github.com";
+
+const TOKEN = import.meta.env.VITE_GITHUB_TOKEN;
+
+export const fetchOrgRepos = async (org: string) => {
+  const res = await fetch(`${BASE}/orgs/${org}/repos?per_page=100`, {
+    headers: {
+      Authorization: `token ${TOKEN}`
+    }
+  });
+
+  if (!res.ok) throw new Error("API Error");
+  return res.json();
+};
+
+export const fetchRepoContributors = async (url: string) => {
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `token ${TOKEN}`
+    }
+  });
+
+  if (!res.ok) throw new Error("Contributor API Error");
+  return res.json();
+};
+
+export const fetchRepoIssues = async (owner: string, repo: string) => {
+  const res = await fetch(
+    `https://api.github.com/repos/${owner}/${repo}/issues?state=all&per_page=100`,
+    {
+      headers: {
+        Authorization: `token ${TOKEN}`
+      }
+    }
+  );
+
+  if (!res.ok) throw new Error("Issues API Error");
+  return res.json();
+};
+
+export const fetchRepoPRs = async (owner: string, repo: string) => {
+  const res = await fetch(
+    `${BASE}/repos/${owner}/${repo}/pulls?state=all&per_page=100`,
+    {
+      headers: { Authorization: `token ${TOKEN}` }
+    }
+  );
+
+  if (!res.ok) return [];
+  return res.json();
+};
+===============================================================================
+src/types/github.ts ==
+export interface Repo {
+  id: number;
+  name: string;
+  stargazers_count: number;
+  forks_count: number;
+  updated_at: string;
+}
+
+export interface Insight {
+  totalRepos: number;
+  totalStars: number;
+  totalForks: number;
+  inactivePercent: string;
+  topRepos : Repo[];
+insights: string[];
+}
+====================================================================================
+utils/calculateScore.ts ==
+export const calculateOrgHealthScore = (repos: any[]) => {
+  if (!repos || repos.length === 0) return { score: 0, label: "No Data" };
+
+  const totalRepos = repos.length;
+
+  const activeRepos = repos.filter(repo => {
+    const days =
+      (Date.now() - new Date(repo.pushed_at).getTime()) /
+      (1000 * 60 * 60 * 24);
+    return days < 30;
+  }).length;
+
+  const avgStars =
+    repos.reduce((sum, r) => sum + r.stargazers_count, 0) / totalRepos;
+
+  const avgForks =
+    repos.reduce((sum, r) => sum + r.forks_count, 0) / totalRepos;
+
+  const staleRepos = repos.filter(repo => {
+    const days =
+      (Date.now() - new Date(repo.pushed_at).getTime()) /
+      (1000 * 60 * 60 * 24);
+    return days > 180;
+  }).length;
+
+  let score = 0;
+
+  // 🚀 Activity score (40)
+  score += (activeRepos / totalRepos) * 40;
+
+  // 🌟 Popularity score (30)
+  score += Math.min(avgStars, 100) * 0.3;
+
+  // 🔁 Engagement score (20)
+  score += Math.min(avgForks, 50) * 0.4;
+
+  // 🛑 Penalty (10)
+  score -= (staleRepos / totalRepos) * 10;
+
+  score = Math.round(score);
+
+  let label = "Poor";
+  if (score > 75) label = "Excellent 🚀";
+  else if (score > 50) label = "Good 👍";
+  else if (score > 30) label = "Average ⚠️";
+
+  return { score, label };
+};
+======================================================
+
+==================================================================
+
+utils/exportCSV.ts ==
+
+export const exportCSV = (repos: any[]) => {
+  const rows = repos.map(r =>
+    `${r.name},${r.stargazers_count},${r.forks_count}`
+  );
+
+  const csv = "Name,Stars,Forks\n" + rows.join("\n");
+
+  const blob = new Blob([csv]);
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "repos.csv";
+  a.click();
+};
+=======================================================================
+utils/insightEngine.ts ===
+import type { Repo, Insight } from "../types/github";
+
+export interface InsightResult extends Insight {
+  insights: string[];
+}
+
+export const getInsights = (repos: Repo[]): InsightResult => {
+  const now = new Date();
+
+  const inactive = repos.filter(r =>
+    (now.getTime() - new Date(r.updated_at).getTime()) >
+    90 * 24 * 60 * 60 * 1000
+  );
+
+  const totalStars = repos.reduce((sum, r) => sum + r.stargazers_count, 0);
+  const totalForks = repos.reduce((s, r) => s + r.forks_count, 0);
+
+  const topRepos = [...repos]
+    .sort((a, b) => b.stargazers_count - a.stargazers_count)
+    .slice(0, 5);
+
+  const inactivePercent = (inactive.length / repos.length) * 100;
+
+  //  NEW: INSIGHT GENERATION
+  const insights: string[] = [];
+
+  //  Inactive repos insight
+  if (inactivePercent > 50) {
+    insights.push("⚠ More than 50% repositories are inactive → maintenance risk");
+  } else if (inactivePercent > 30) {
+    insights.push("⚠ Significant number of repositories are inactive");
+  } else {
+    insights.push("✅ Most repositories are actively maintained");
+  }
+
+  //  Star concentration insight
+  if (topRepos.length > 0) {
+    const topStar = topRepos[0].stargazers_count;
+
+    if (topStar > totalStars * 0.5) {
+      insights.push("⚡ One repository dominates more than 50% of total stars");
+    } else if (topStar > totalStars * 0.3) {
+      insights.push("⚡ A few repositories dominate the ecosystem");
+    }
+  }
+
+  //  Fork vs Star ratio insight
+  if (totalStars > 0) {
+    const ratio = totalForks / totalStars;
+
+    if (ratio > 0.6) {
+      insights.push("🔁 High fork-to-star ratio → strong developer engagement");
+    } else if (ratio < 0.2) {
+      insights.push("📉 Low fork activity compared to stars");
+    }
+  }
+
+  //  Recently active repos insight
+  const recent = repos.filter(r =>
+    (now.getTime() - new Date(r.updated_at).getTime()) <
+    30 * 24 * 60 * 60 * 1000
+  );
+
+  if (recent.length > repos.length * 0.5) {
+    insights.push("🚀 High recent activity across repositories");
+  } else if (recent.length < repos.length * 0.2) {
+    insights.push("🐢 Low recent activity → possible slowdown");
+  }
+
+  // Repo size distribution insight
+  const lowStarRepos = repos.filter(r => r.stargazers_count < 10);
+
+  if (lowStarRepos.length > repos.length * 0.6) {
+    insights.push("📦 Majority of repositories have low visibility (<10 stars)");
+  }
+
+  // Growth potential insight
+  if (totalStars > 1000 && inactivePercent < 30) {
+    insights.push("📈 Organization shows strong growth potential");
+  }
+
+  return {
+    totalRepos: repos.length,
+    totalStars,
+    totalForks,
+    inactivePercent: inactivePercent.toFixed(1),
+    topRepos,
+    insights
+  };
+};
+===========================================================================================
+utils/mergeOrgs.ts======
+import type { Repo } from "../types/github";
+
+export const mergeRepos = (allRepos: Repo[][]): Repo[] => {
+  const map = new Map<number, Repo>();
+
+  allRepos.flat().forEach(repo => {
+    if (!map.has(repo.id)) {
+      map.set(repo.id, repo);
+    }
+  });
+
+  return Array.from(map.values());
+};
+==============================================================================================
+utils/insights.ts=================================
+export function generateInsights(repos: any[]) {
+  if (!repos || repos.length === 0) return [];
+
+  const insights: string[] = [];
+
+  // Most starred repo
+  const topRepo = [...repos].sort(
+    (a, b) => b.stargazers_count - a.stargazers_count
+  )[0];
+
+  insights.push(`⭐ Most popular repo: ${topRepo.name}`);
+
+  //  Low activity repos
+  const lowActivity = repos.filter((r) => r.stargazers_count < 5);
+  if (lowActivity.length > 0) {
+    insights.push(`⚠️ ${lowActivity.length} repos have very low stars`);
+  }
+
+  //  Fork heavy repos
+  const forkHeavy = repos.filter((r) => r.forks_count > r.stargazers_count);
+  if (forkHeavy.length > 0) {
+    insights.push(`🍴 Some repos are fork-heavy but not popular`);
+  }
+
+  //  Recently updated
+  const recent = repos.filter((r) => {
+    const updated = new Date(r.updated_at);
+    const now = new Date();
+    return (now.getTime() - updated.getTime()) / (1000 * 60 * 60 * 24) < 30;
+  });
+
+  if (recent.length > repos.length / 2) {
+    insights.push(`🚀 Org is actively maintained (many recent updates)`);
+  }
+
+  //  Stale repos
+  const stale = repos.filter((r) => {
+    const updated = new Date(r.updated_at);
+    const now = new Date();
+    return (now.getTime() - updated.getTime()) / (1000 * 60 * 60 * 24) > 180;
+  });
+
+  if (stale.length > 0) {
+    insights.push(`💀 ${stale.length} repos are stale (>6 months no updates)`);
+  }
+
+  //  Language dominance
+  const langMap: any = {};
+  repos.forEach((r) => {
+    if (!r.language) return;
+    langMap[r.language] = (langMap[r.language] || 0) + 1;
+  });
+
+  const topLang = Object.keys(langMap).sort(
+    (a, b) => langMap[b] - langMap[a]
+  )[0];
+
+  if (topLang) {
+    insights.push(`💻 Most used language: ${topLang}`);
+  }
+
+  return insights;
+}
+
+=====================================================================================
+app.tsx ===
+import { useState } from "react";
+import { Routes, Route } from "react-router-dom";
+
+import DashboardLayout from "./layout/DashboardLayout";
+import Overview from "./pages/Overview";
+import Repositories from "./pages/Repositories";
+import GraphPage from "./pages/GraphPage";
+import ContributorDetail from "./pages/ContributorDetail";
+import RepoDetails from "./pages/RepoDetails";
+
+export default function App() {
+  const [orgInput, setOrgInput] = useState("");
+  const [orgLogo, setOrgLogo] = useState("");
+
+  return (
+    <DashboardLayout orgInput={orgInput} orgLogo={orgLogo}>
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <Overview
+              orgInput={orgInput}
+              setOrgInput={setOrgInput}
+              setOrgLogo={setOrgLogo}   
+            />
+          }
+        />
+
+        <Route path="/repositories" element={<Repositories />} />
+        <Route path="/graph" element={<GraphPage />} />
+        <Route path="/contributor/:username" element={<ContributorDetail />} />
+        <Route path="/repo/:name" element={<RepoDetails />} />
+
+      </Routes>
+    </DashboardLayout>
+  );
+}
+

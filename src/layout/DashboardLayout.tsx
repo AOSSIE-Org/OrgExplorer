@@ -1,7 +1,7 @@
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
 
-export default function DashboardLayout({ children, orgInput }: any) {
+export default function DashboardLayout({ children, orgInput, orgLogo }: any) {
   return (
     <div className="flex h-screen overflow-hidden">
       
@@ -11,9 +11,9 @@ export default function DashboardLayout({ children, orgInput }: any) {
       {/* Main */}
       <div className="flex-1 flex flex-col overflow-hidden">
         
-        <Topbar orgInput={orgInput}/>
+        <Topbar orgInput={orgInput} logo={orgLogo}/>
 
-        <div className="flex-1 overflow-hidden p-4">
+        <div className="flex-1 p-4 overflow-y-auto">
           {children}
         </div>
 

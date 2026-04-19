@@ -8,16 +8,16 @@ import { getInsights } from "../utils/insightEngine";
 import HealthScore from "../components/HealthScore";
 import { calculateOrgHealthScore } from "../utils/calculateScore";
 import type { Repo, Insight } from "../types/github";
-import { generateInsights } from "../utils/insights";
+// import { generateInsights } from "../utils/insights";
+import TopContributors from "../components/TopContributors";
 
-
-//  PROPS TYPE
 type Props = {
   orgInput: string;
   setOrgInput: React.Dispatch<React.SetStateAction<string>>;
+  setOrgLogo: React.Dispatch<React.SetStateAction<string>>;
 };
 
-export default function Overview({ orgInput, setOrgInput }: Props) {
+export default function Overview({ orgInput, setOrgInput, setOrgLogo }: Props) {
 
   const [repos, setRepos] = useState<Repo[]>([]);
   const [data, setData] = useState<Insight | null>(null);
@@ -25,10 +25,16 @@ export default function Overview({ orgInput, setOrgInput }: Props) {
 
   const { score, label } = calculateOrgHealthScore(repos);
 
-  // RESTORE DATA
+  //  DEFAULT LOAD
   useEffect(() => {
     const savedRepos = localStorage.getItem("repos");
     const savedInput = localStorage.getItem("orgInput");
+    const savedLogo = localStorage.getItem("orgLogo");
+
+    if (!savedInput) {
+      handleSubmit("AOSSIE-Org"); // default
+      return;
+    }
 
     if (savedRepos) {
       const parsed: Repo[] = JSON.parse(savedRepos);
@@ -37,22 +43,36 @@ export default function Overview({ orgInput, setOrgInput }: Props) {
     }
 
     if (savedInput) {
-      setOrgInput(savedInput); //  sync with topbar
+      setOrgInput(savedInput);
     }
-  }, [setOrgInput]);
 
-  // ANALYZE
+    if (savedLogo) {
+      setOrgLogo(savedLogo); // GLOBAL SET
+    }
+
+  }, []);
+
+  //  ANALYZE
   const handleSubmit = async (input: string) => {
     setLoading(true);
+
     try {
-      setOrgInput(input); // GLOBAL UPDATE
+      setOrgInput(input);
 
-      const orgs = input.split(",").map(o => o.trim());
+      const orgs = input.split(",").map(o => o.trim()).filter(Boolean);
 
+      //  FAST LOGO (NO WAIT)
+      fetch(`https://api.github.com/orgs/${orgs[0]}`)
+        .then(res => res.json())
+        .then(data => {
+          setOrgLogo(data.avatar_url);
+          localStorage.setItem("orgLogo", data.avatar_url);
+        })
+        .catch(() => setOrgLogo(""));
+
+      //  MULTI ORG DATA
       const results = await Promise.all(orgs.map(fetchOrgRepos));
       const merged: Repo[] = mergeRepos(results);
-
-      console.log("TOTAL REPOS:", merged.length);
 
       setRepos(merged);
 
@@ -69,48 +89,33 @@ export default function Overview({ orgInput, setOrgInput }: Props) {
     setLoading(false);
   };
 
-  const insights = generateInsights(repos);
-
   return (
     <div className="h-full overflow-y-auto pr-2">
 
-      {/*  INPUT */}
       <OrgInput
         onSubmit={handleSubmit}
         value={orgInput}
         setValue={setOrgInput}
       />
 
-      {/*  LOADING */}
       {loading && <p className="text-gray-400">Loading...</p>}
 
       {data && <InsightPanel data={data} />}
-
-      <div className="mt-6 bg-[#0B1220] p-4 rounded-xl border border-gray-800">
-        <h3 className="text-lg font-semibold mb-3 text-green-400">
-          Insights
-        </h3>
-
-        <ul className="space-y-2 text-sm text-gray-300">
-          {insights.map((insight, i) => (
-            <li key={i}>• {insight}</li>
-          ))}
-        </ul>
-      </div>
 
       <div className="mb-10 mt-24">
         <HealthScore score={score} label={label} />
       </div>
 
-
-      {/* CHART + EXPORT */}
+      {/* CHART */}
       {repos.length > 0 && (
-        <div className="mt-4">
+        <ActivityChart
+          orgs={orgInput.split(",").map(o => o.trim()).filter(Boolean)}
+        />
+      )}
 
-          {/* CHART */}
-          <ActivityChart repos={repos} />
-
-        </div>
+      {/* CONTRIBUTORS */}
+      {repos.length > 0 && (
+        <TopContributors repos={repos} />
       )}
 
     </div>

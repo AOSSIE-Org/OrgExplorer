@@ -49,9 +49,9 @@ export const getInsights = (repos: Repo[]): InsightResult => {
     const ratio = totalForks / totalStars;
 
     if (ratio > 0.6) {
-      insights.push("🔁 High fork-to-star ratio → strong developer engagement");
+      insights.push(" High fork-to-star ratio → strong developer engagement");
     } else if (ratio < 0.2) {
-      insights.push("📉 Low fork activity compared to stars");
+      insights.push(" Low fork activity compared to stars");
     }
   }
 
@@ -62,9 +62,9 @@ export const getInsights = (repos: Repo[]): InsightResult => {
   );
 
   if (recent.length > repos.length * 0.5) {
-    insights.push("🚀 High recent activity across repositories");
+    insights.push(" High recent activity across repositories");
   } else if (recent.length < repos.length * 0.2) {
-    insights.push("🐢 Low recent activity → possible slowdown");
+    insights.push(" Low recent activity → possible slowdown");
   }
 
   // Repo size distribution insight
