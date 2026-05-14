@@ -2,30 +2,83 @@
   width: 100%;
 }
 
-.home-container,
-.notfound-container {
+.app-container {
   min-height: 100vh;
+  min-height: 100dvh;
 
   display: flex;
   flex-direction: column;
-
-  justify-content: center;
   align-items: center;
+
+  padding: 40px;
+
+  background-color: #111;
+  color: white;
+}
+
+.app-container h1 {
+  margin-bottom: 30px;
+  font-size: 3rem;
+}
+
+form {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 30px;
+}
+
+input {
+  padding: 12px;
+  width: 300px;
+
+  border: none;
+  border-radius: 10px;
+
+  font-size: 16px;
+}
+
+button {
+  padding: 12px 20px;
+
+  border: none;
+  border-radius: 10px;
+
+  cursor: pointer;
+
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.org-card {
+  max-width: 500px;
+
+  padding: 30px;
+
+  border-radius: 16px;
+
+  background-color: #1d1d1d;
 
   text-align: center;
 }
 
-h1 {
-  font-size: 4rem;
+.org-card img {
+  border-radius: 50%;
   margin-bottom: 20px;
 }
 
-a {
-  color: #4ea1ff;
-  text-decoration: none;
-  font-size: 18px;
+.org-card h2 {
+  margin-bottom: 10px;
 }
 
-a:hover {
+.org-card p {
+  margin-bottom: 12px;
+}
+
+.org-card a {
+  color: #4ea1ff;
+  text-decoration: none;
+}
+
+.org-card a:hover {
   text-decoration: underline;
 }

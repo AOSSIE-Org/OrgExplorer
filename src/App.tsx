@@ -1,27 +1,52 @@
-import { Routes, Route } from 'react-router-dom'
+import { useState } from 'react'
 
-function Home() {
-  return (
-    <h1>Hello, OrgExplorer!</h1>
-  )
-}
+import './App.css'
 
-function NotFoundPage() {
-  return (
-    <div>
-      <h1>404 - Page Not Found</h1>
-      <a href="/">Go Back Home</a>
-    </div>
-  )
-}
+import OrgCard from './components/orgcard'
+import SearchBar from './components/serachbar'
+
+import { fetchOrganization } from './services/githubapi'
+
+import type { GitHubOrg } from './types/github'
 
 function App() {
-  return (
-    <Routes>
-      <Route path="/" element={<Home />} />
+  const [organization, setOrganization] =
+    useState<GitHubOrg | null>(null)
 
-      <Route path="*" element={<NotFoundPage />} />
-    </Routes>
+  const [loading, setLoading] = useState(false)
+
+  const [error, setError] = useState('')
+
+  async function handleSearch(orgName: string) {
+    try {
+      setLoading(true)
+      setError('')
+
+      const data = await fetchOrganization(orgName)
+
+      setOrganization(data)
+    } catch {
+      setOrganization(null)
+      setError('Organization not found')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="app-container">
+      <h1>OrgExplorer</h1>
+
+      <SearchBar onSearch={handleSearch} />
+
+      {loading && <p>Loading...</p>}
+
+      {error && <p>{error}</p>}
+
+      {organization && (
+        <OrgCard organization={organization} />
+      )}
+    </div>
   )
 }
 
