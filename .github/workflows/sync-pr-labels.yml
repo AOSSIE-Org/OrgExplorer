@@ -16,6 +16,62 @@ jobs:
     if: ${{ github.repository_owner == 'AOSSIE-Org' }}
     runs-on: ubuntu-latest
     steps:
+      # STEP 0: Ensure all labels exist with correct colors
+      - name: Upsert colored labels
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const labels = [
+              { name: 'documentation',         color: '0075ca', description: 'Documentation updates' },
+              { name: 'enhancement',            color: 'a2eeef', description: 'New feature or request' },
+              { name: 'frontend',               color: '7057ff', description: 'Frontend changes' },
+              { name: 'javascript',             color: 'f0e040', description: 'JavaScript/TypeScript changes' },
+              { name: 'dependencies',           color: 'e4e669', description: 'Dependency updates' },
+              { name: 'configuration',          color: 'f9d0c4', description: 'Config file changes' },
+              { name: 'good first issue',       color: '7cfc00', description: 'Good for newcomers' },
+              { name: 'first-time-contributor', color: 'ff9500', description: 'First time contributor' },
+              { name: 'no-issue-linked',        color: 'd93f0b', description: 'PR has no linked issue' },
+              { name: 'size/XS',                color: '3cbf00', description: '1-10 lines changed' },
+              { name: 'size/S',                 color: '5d9801', description: '11-50 lines changed' },
+              { name: 'size/M',                 color: 'ffd700', description: '51-200 lines changed' },
+              { name: 'size/L',                 color: 'ff8c00', description: '201-500 lines changed' },
+              { name: 'size/XL',                color: 'e11d48', description: '500+ lines changed' },
+              { name: 'ci-cd',                  color: '00c0ef', description: 'CI/CD changes' },
+              { name: 'github-actions',         color: '0052cc', description: 'GitHub Actions changes' },
+              { name: 'backend',                color: 'c5def5', description: 'Backend changes' },
+              { name: 'python',                 color: 'ffe066', description: 'Python changes' },
+              { name: 'tests',                  color: 'bfd4f2', description: 'Test changes' },
+              { name: 'docker',                 color: '0db7ed', description: 'Docker changes' },
+              { name: 'member',                 color: '006b75', description: 'Org member' },
+              { name: 'external-contributor',   color: 'e6e6e6', description: 'External contributor' },
+              { name: 'maintainer',             color: 'b60205', description: 'Maintainer' },
+            ];
+            for (const label of labels) {
+              try {
+                await github.rest.issues.updateLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  name: label.name,
+                  color: label.color,
+                  description: label.description
+                });
+              } catch (e) {
+                if (e.status === 404) {
+                  await github.rest.issues.createLabel({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    name: label.name,
+                    color: label.color,
+                    description: label.description
+                 });
+                } else {
+                  throw e;
+                }
+              }
+            }
+
+      # STEP 1: Issue-based labels
       - name: Get PR details
         id: pr-details
         uses: actions/github-script@v7
@@ -30,7 +86,6 @@ jobs:
               head: pr.head.ref
             };
 
-      # STEP 1: Issue-based labels
       - name: Extract linked issue number
         id: extract-issue
         uses: actions/github-script@v7
@@ -68,7 +123,6 @@ jobs:
             const prNumber = context.payload.pull_request.number;
             
             try {
-              // Fetch issue labels
               const issue = await github.rest.issues.get({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
@@ -81,8 +135,6 @@ jobs:
               
               if (issueLabels.length > 0) {
                 console.log(`Applying issue-based labels: ${issueLabels.join(', ')}`);
-                
-                // Add labels from issue
                 await github.rest.issues.addLabels({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
@@ -101,10 +153,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const prNumber = context.payload.pull_request.number;
-            
             console.log('No issue linked to this PR');
-            
-            // Add "no-issue-linked" label
             await github.rest.issues.addLabels({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -120,17 +169,13 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const prNumber = context.payload.pull_request.number;
-            
-            // Get list of files changed in the PR
             const files = await github.rest.pulls.listFiles({
               owner: context.repo.owner,
               repo: context.repo.repo,
               pull_number: prNumber
             });
-            
             const changedFiles = files.data.map(file => file.filename);
             core.setOutput('files', JSON.stringify(changedFiles));
-            
             return changedFiles;
 
       - name: Apply file-based labels
@@ -142,8 +187,6 @@ jobs:
             const changedFiles = JSON.parse('${{ steps.changed-files.outputs.files }}');
             
             const fileLabels = [];
-            
-            // Define file-based label mappings
             const labelMappings = {
               'documentation': ['.md', 'README', 'CONTRIBUTING', 'LICENSE', '.txt'],
               'frontend': ['.html', '.css', '.scss', '.jsx', '.tsx', '.vue'],
@@ -158,7 +201,6 @@ jobs:
               'ci-cd': ['.github/', '.gitlab-ci', 'Jenkinsfile', '.circleci']
             };
             
-            // Check each file against label mappings
             for (const file of changedFiles) {
               for (const [label, patterns] of Object.entries(labelMappings)) {
                 for (const pattern of patterns) {
@@ -173,7 +215,6 @@ jobs:
             
             if (fileLabels.length > 0) {
               console.log(`Applying file-based labels: ${fileLabels.join(', ')}`);
-              
               await github.rest.issues.addLabels({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
@@ -191,8 +232,6 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const prNumber = context.payload.pull_request.number;
-            
-            // Get PR details to calculate size
             const pr = await github.rest.pulls.get({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -202,10 +241,8 @@ jobs:
             const additions = pr.data.additions;
             const deletions = pr.data.deletions;
             const totalChanges = additions + deletions;
-            
             console.log(`PR has ${additions} additions and ${deletions} deletions (${totalChanges} total changes)`);
             
-            // Determine size label based on total changes
             let sizeLabel = '';
             if (totalChanges <= 10) {
               sizeLabel = 'size/XS';
@@ -221,7 +258,6 @@ jobs:
             
             console.log(`Applying size label: ${sizeLabel}`);
             
-            // Remove any existing size labels first
             const currentLabels = await github.rest.issues.listLabelsOnIssue({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -241,7 +277,6 @@ jobs:
               });
             }
             
-            // Apply the new size label
             await github.rest.issues.addLabels({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -261,7 +296,6 @@ jobs:
             const prAuthor = context.payload.pull_request.user.login;
             
             try {
-              // Check if user is a first-time contributor
               const commits = await github.rest.repos.listCommits({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
@@ -270,7 +304,6 @@ jobs:
               
               const contributorLabels = [];
               
-              // Check if contributor is a member of the organization
               try {
                 await github.rest.orgs.checkMembershipForUser({
                   org: context.repo.owner,
@@ -278,7 +311,6 @@ jobs:
                 });
                 contributorLabels.push('member');
               } catch (error) {
-                // Not a member
                 if (commits.data.length <= 1) {
                   contributorLabels.push('first-time-contributor');
                 } else {
@@ -286,14 +318,12 @@ jobs:
                 }
               }
               
-              // Check if PR author is a collaborator
               try {
                 const permissionLevel = await github.rest.repos.getCollaboratorPermissionLevel({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                   username: prAuthor
                 });
-                
                 if (permissionLevel.data.permission === 'admin' || permissionLevel.data.permission === 'maintain') {
                   contributorLabels.push('maintainer');
                 }
@@ -303,7 +333,6 @@ jobs:
               
               if (contributorLabels.length > 0) {
                 console.log(`Applying contributor-based labels: ${contributorLabels.join(', ')}`);
-                
                 await github.rest.issues.addLabels({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
@@ -322,14 +351,11 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const prNumber = context.payload.pull_request.number;
-            
-            // Get current labels on PR
             const pr = await github.rest.issues.get({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: prNumber
             });
-            
             const currentLabels = pr.data.labels.map(label => label.name);
             console.log('='.repeat(50));
             console.log('PR Label Sync Complete');
