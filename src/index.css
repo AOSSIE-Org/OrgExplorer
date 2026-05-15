@@ -1,15 +1,24 @@
-:root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+@import "tailwindcss";
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+@theme {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
+html {
+  @apply antialiased;
+}
+
+body {
+  @apply m-0 min-h-screen font-sans text-zinc-100;
+  background-color: #09090b;
+  background-image:
+    radial-gradient(ellipse 120% 80% at 50% -20%, rgb(16 185 129 / 0.12), transparent),
+    radial-gradient(ellipse 60% 50% at 100% 50%, rgb(59 130 246 / 0.06), transparent),
+    radial-gradient(ellipse 50% 40% at 0% 80%, rgb(16 185 129 / 0.05), transparent);
+  background-attachment: fixed;
+}
+
+#root {
+  @apply min-h-screen;
+}
