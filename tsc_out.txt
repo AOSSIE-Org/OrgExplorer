@@ -1,0 +1,1 @@
+src/components/Metrics/NetworkTab.tsx(176,48): error TS6133: 'globalScale' is declared but its value is never read.
