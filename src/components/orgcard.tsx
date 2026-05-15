@@ -7,15 +7,18 @@ interface OrgCardProps {
 function OrgCard({ organization }: OrgCardProps) {
   return (
     <div className="org-card">
-      <img
-        src={organization.avatar_url}
-        alt={organization.login}
-        width={120}
-      />
+    <img
+  src={organization.avatar_url}
+  alt={organization.login}
+  width={120}
+  height={120}
+/>
 
       <h2>{organization.login}</h2>
 
-      <p>{organization.description}</p>
+      <p>
+  {organization.description || 'No description available'}
+</p>
 
       <p>Followers: {organization.followers}</p>
 

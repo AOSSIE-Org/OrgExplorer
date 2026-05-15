@@ -3,7 +3,7 @@ import { useState } from 'react'
 import './App.css'
 
 import OrgCard from './components/orgcard'
-import SearchBar from './components/serachbar'
+import SearchBar from "./components/searchbar";
 
 import { fetchOrganization } from './services/githubapi'
 
@@ -25,9 +25,14 @@ function App() {
       const data = await fetchOrganization(orgName)
 
       setOrganization(data)
-    } catch {
+    } catch (error) {
       setOrganization(null)
-      setError('Organization not found')
+
+      if (error instanceof Error) {
+        setError(error.message)
+      } else {
+        setError('Something went wrong')
+      }
     } finally {
       setLoading(false)
     }
