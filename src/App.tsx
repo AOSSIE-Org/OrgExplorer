@@ -1,12 +1,15 @@
-import './App.css'
+import Navbar from './components/layout/Navbar';
+import Footer from './components/layout/Footer';
+import Home from './pages/Home';
 
-function App() {
-
+export default function App() {
   return (
-    <>
-      <h1>Hello, OrgExplorer!</h1>
-    </>
-  )
+    <div className="bg-white text-black overflow-x-hidden">
+      <Navbar />
+      <main>
+        <Home />
+      </main>
+      <Footer />
+    </div>
+  );
 }
-
-export default App
