@@ -12,7 +12,7 @@ export async function fetchOrganization(
   }
 
   if (response.status === 403) {
-    throw new Error('GitHub API rate limit exceeded')
+    throw new Error('GitHub API access denied or rate limit exceeded')
   }
 
   if (!response.ok) {
