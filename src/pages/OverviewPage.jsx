@@ -1,10 +1,11 @@
-import React from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FiExternalLink, FiShare2, FiArrowRight } from 'react-icons/fi'
 import { useApp } from '../context/AppContext'
 import { C, StatCard, HealthBar } from '../components/UI'
+import { BsFillInfoSquareFill } from "react-icons/bs";
 
-const LANG_COLORS = ['#22c55e','#f5c518','#3b82f6','#ef4444','#a855f7','#f97316','#06b6d4']
+const LANG_COLORS = ['#22c55e', '#f5c518', '#3b82f6', '#ef4444', '#a855f7', '#f97316', '#06b6d4']
 const fmt = n => n > 999 ? (n / 1000).toFixed(1) + 'k' : String(n)
 
 export default function OverviewPage() {
@@ -12,15 +13,30 @@ export default function OverviewPage() {
   const navigate = useNavigate()
   if (!model) return null
 
+  const [open, setOpen] = useState(false)
+  const infoRef = useRef(null)
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (infoRef.current && !infoRef.current.contains(event.target)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [])
+
   const { allRepos } = model
-  const isMulti     = orgs.length > 1
-  const totalStars  = allRepos.reduce((s, r) => s + r.stargazers_count, 0)
-  const totalForks  = allRepos.reduce((s, r) => s + r.forks_count, 0)
+  const isMulti = orgs.length > 1
+  const totalStars = allRepos.reduce((s, r) => s + r.stargazers_count, 0)
+  const totalForks = allRepos.reduce((s, r) => s + r.forks_count, 0)
   const activeRepos = allRepos.filter(r => r.lifecycle === 'Thriving' || r.lifecycle === 'Stable').length
 
   const langMap = {}
   allRepos.forEach(r => { if (r.language) langMap[r.language] = (langMap[r.language] || 0) + 1 })
-  const langs    = Object.entries(langMap).sort((a, b) => b[1] - a[1]).slice(0, 7)
+  const langs = Object.entries(langMap).sort((a, b) => b[1] - a[1]).slice(0, 7)
   const langTotal = langs.reduce((s, [, c]) => s + c, 0)
 
   const topRepos = [...allRepos].sort((a, b) => b.healthScore - a.healthScore).slice(0, 5)
@@ -85,9 +101,9 @@ export default function OverviewPage() {
 
       {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 24 }}>
-        <StatCard label="Total Repos"  value={allRepos.length.toLocaleString()} />
-        <StatCard label="Total Stars"  value={fmt(totalStars)} />
-        <StatCard label="Total Forks"  value={fmt(totalForks)} />
+        <StatCard label="Total Repos" value={allRepos.length.toLocaleString()} />
+        <StatCard label="Total Stars" value={fmt(totalStars)} />
+        <StatCard label="Total Forks" value={fmt(totalForks)} />
         <StatCard label="Active Repos" value={activeRepos} sub={`${Math.round(activeRepos / allRepos.length * 100)}% of total`} />
       </div>
 
@@ -113,15 +129,50 @@ export default function OverviewPage() {
           </div>
         </div>
 
-        <div style={C.card}>
-          <div style={{ fontWeight: 600, marginBottom: 4 }}>High Impact Repositories</div>
+        <div
+          style={C.card}
+          className="relative"
+        >
+          <div className="flex justify-between items-center font-semibold" ref={infoRef}>
+            <p>High Impact Repositories</p>
+
+            <button
+              onClick={() => setOpen(prev => !prev)}
+              className="p-3 rounded-full hover:bg-zinc-800 transition"
+            >
+              <BsFillInfoSquareFill />
+            </button>
+          </div>
+
+          {open && (
+            <div
+              className="absolute top-16 right-2 w-80 z-50 rounded-lg border-2 border-(--border) bg-zinc-900 p-4 shadow-xl text-xs"
+            >
+              <strong>Health Score</strong> estimates the overall health of a repository on a scale of 0 – 100.
+
+              <ul className="list-disc ml-4 mt-2 space-y-1">
+                <li>
+                  <strong>Activity (40%)</strong> – How recently the repository has been updated.
+                </li>
+                <li>
+                  <strong>Issue Health (30%)</strong> – Balance between open issues and maintenance.
+                </li>
+                <li>
+                  <strong>Contributor Diversity (30%)</strong> – Number of active contributors.
+                </li>
+              </ul>
+
+              <p className="mt-2 text-zinc-400">
+                Higher scores indicate healthier and more actively maintained repositories.
+              </p>
+            </div>
+          )}
           <div style={{ ...C.label, marginBottom: 16 }}>By Composite Health Score</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {topRepos.map(r => (
               <div key={r.id}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                   <span style={{ fontSize: 12, fontWeight: 500 }}>{r.name}</span>
-                  <span style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 600 }}>{r.healthScore}</span>
                 </div>
                 <HealthBar score={r.healthScore} />
               </div>
@@ -132,12 +183,12 @@ export default function OverviewPage() {
 
       {/* Nav cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14 }}>
-        <NavCard to="/repositories"  label="Repositories"  sub="Explore and sort repos by health, activity, and lifecycle state" />
-        <NavCard to="/contributors"  label="Contributors"  sub="Analyze contribution patterns, bus factor, and connector signals" />
-        <NavCard to="/network"       label="Network Graph" sub="Visualize contributor-repository relationships with D3 force graph" />
-        <NavCard to="/analytics"     label="Analytics"     sub="Time-series PR and issue velocity — weekly and monthly trends" />
-        <NavCard to="/governance"    label="Governance"    sub="Dead issues, zombie PRs, risky repos, license compliance" />
-        <NavCard to="/settings"      label="Settings"      sub="PAT authentication, API quota monitoring, cache management" />
+        <NavCard to="/repositories" label="Repositories" sub="Explore and sort repos by health, activity, and lifecycle state" />
+        <NavCard to="/contributors" label="Contributors" sub="Analyze contribution patterns, bus factor, and connector signals" />
+        <NavCard to="/network" label="Network Graph" sub="Visualize contributor-repository relationships with D3 force graph" />
+        <NavCard to="/analytics" label="Analytics" sub="Time-series PR and issue velocity — weekly and monthly trends" />
+        <NavCard to="/governance" label="Governance" sub="Dead issues, zombie PRs, risky repos, license compliance" />
+        <NavCard to="/settings" label="Settings" sub="PAT authentication, API quota monitoring, cache management" />
       </div>
     </div>
   )

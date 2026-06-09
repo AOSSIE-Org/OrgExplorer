@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect, useRef } from 'react'
 import { FiDatabase, FiDownload } from 'react-icons/fi'
 import { useApp } from '../context/AppContext'
 import { C, SortTh, PageTitle, LoadMore } from '../components/UI'
@@ -6,21 +6,52 @@ import { useSortedData } from '../hooks/useSortedData'
 import { computeBusFactor, exportContributorsCSV } from '../services/analytics'
 import { useNavigate } from 'react-router-dom'
 import EmptyStateCard from '../components/EmptyStateCard'
+import { BsFillInfoSquareFill } from "react-icons/bs";
 
 export default function ContributorsPage() {
   const { model } = useApp()
   const [search, setSearch] = useState('')
-  const [shown,  setShown]  = useState(20)
+  const [shown, setShown] = useState(20)
+  const [openInfo, setOpenInfo] = useState(null)
+  const busFactorRef = useRef(null)
+  const freshnessRef = useRef(null)
+  const signalRef = useRef(null)
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (
+        busFactorRef.current &&
+        busFactorRef.current.contains(e.target)
+      ) return
+
+      if (
+        freshnessRef.current &&
+        freshnessRef.current.contains(e.target)
+      ) return
+
+      if (
+        signalRef.current &&
+        signalRef.current.contains(e.target)
+      ) return
+
+      setOpenInfo(null)
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+
+    return () =>
+      document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   if (!model) return null
   const { contributors } = model
   const navigate = useNavigate()
 
-  const busFactor  = useMemo(() => computeBusFactor(contributors), [contributors])
-  const topActive  = contributors.slice(0, 10).filter(c => c.freshness > 50).length
-  const freshPct   = contributors.length ? Math.round(topActive / Math.min(10, contributors.length) * 100) : 0
+  const busFactor = useMemo(() => computeBusFactor(contributors), [contributors])
+  const topActive = contributors.slice(0, 10).filter(c => c.freshness > 50).length
+  const freshPct = contributors.length ? Math.round(topActive / Math.min(10, contributors.length) * 100) : 0
   const connectors = contributors.filter(c => c.isConnector)
-  const crossOrg   = contributors.filter(c => c.isCrossOrg)
+  const crossOrg = contributors.filter(c => c.isCrossOrg)
 
   const filtered = useMemo(() =>
     contributors.filter(c => !search || c.login.toLowerCase().includes(search.toLowerCase())),
@@ -30,13 +61,13 @@ export default function ContributorsPage() {
   const visible = sorted.slice(0, shown)
 
   const riskColor = r => r === 'critical' ? 'var(--red)' : r === 'high' ? 'var(--amber)' : 'var(--green)'
-  const riskBar   = r => r === 'critical' ? '90%' : r === 'high' ? '60%' : '25%'
+  const riskBar = r => r === 'critical' ? '90%' : r === 'high' ? '60%' : '25%'
 
   return (
     <div style={{ padding: '32px 24px', maxWidth: 1100, margin: '0 auto' }} className="fade-up">
       <PageTitle
         title="Contributor Intelligence"
-        subtitle="Analyzing contribution patterns, coverage risk, and organizational health — sorted by coverage and recency, not by commit count"
+        subtitle="Analyzing contribution patterns, coverage risk, and organizational health"
         right={
           <button onClick={() => exportContributorsCSV(contributors)} style={{ ...C.btn('ghost'), fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}>
             <FiDownload size={13} /> Export CSV
@@ -52,7 +83,42 @@ export default function ContributorsPage() {
           ...C.card,
           borderColor: busFactor.risk === 'critical' ? 'rgba(239,68,68,.4)' : busFactor.risk === 'high' ? 'rgba(245,158,11,.4)' : 'var(--border)',
         }}>
-          <div style={{ ...C.label, marginBottom: 8 }}>Bus Factor Risk</div>
+          <div ref={busFactorRef}
+            style={{ ...C.label, marginBottom: 8, position: 'relative' }}
+            className="flex justify-between items-center"
+          >
+            <p>Bus Factor Risk</p>
+
+            <button
+              onClick={() =>
+                setOpenInfo(openInfo === 'busfactor' ? null : 'busfactor')
+              }
+              className="p-2 rounded-full hover:bg-zinc-800 transition"
+            >
+              <BsFillInfoSquareFill className="text-white cursor-pointer" />
+            </button>
+
+            {openInfo === 'busfactor' && (
+              <div style={{ ...C.card, position: 'absolute', top: '120%', right: 0, width: '320px', zIndex: 100 }}>
+                <div className='text-xs text-(--text)'>
+                  <h4 style={{ marginBottom: 8 }} className='text-(--accent)'>Bus Factor</h4>
+
+                  <p> Measures contributor concentration risk. </p>
+
+                  <ul style={{ marginLeft: 16 }}>
+                    <li>1 = Critical Risk</li>
+                    <li>2 = High Risk</li>
+                    <li>3+ = Healthy Distribution</li>
+                  </ul>
+                </div>
+
+                <p style={{ marginTop: 8 }}>
+                  Higher values indicate knowledge is distributed across more contributors,
+                  reducing dependency on a small number of individuals.
+                </p>
+              </div>
+            )}
+          </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <div style={{ fontSize: 22, fontWeight: 700 }}>Bus Factor: {busFactor.factor}</div>
             <span style={{
@@ -79,7 +145,53 @@ export default function ContributorsPage() {
 
         {/* Freshness Index */}
         <div style={C.card}>
-          <div style={{ ...C.label, marginBottom: 12 }}>Freshness Index</div>
+          <div ref={freshnessRef}
+            style={{ ...C.label, marginBottom: 12, position: 'relative' }}
+            className="flex justify-between items-center"
+          >
+            <p>Freshness Index</p>
+
+            <button
+              onClick={() =>
+                setOpenInfo(openInfo === 'freshness' ? null : 'freshness')
+              }
+              className="p-2 rounded-full hover:bg-zinc-800 transition"
+            >
+              <BsFillInfoSquareFill className="text-white cursor-pointer" />
+            </button>
+
+            {openInfo === 'freshness' && (
+              <div
+                style={{
+                  ...C.card,
+                  position: 'absolute',
+                  top: '120%',
+                  right: 0,
+                  width: '320px',
+                  zIndex: 100,
+                }}
+                className='text-xs'
+              >
+                <div className="text-(--text) text-xs">
+                  <h4 className='text-(--accent)'>Freshness Index</h4>
+
+                  <p>
+                    Measures how active and recently engaged the contributor community is.
+                  </p>
+
+                  <ul className="ml-2">
+                    <li><strong>High Score</strong> = Contributors active recently</li>
+                    <li><strong>Medium Score</strong> = Some recent activity</li>
+                    <li><strong>Low Score</strong> = Limited recent participation</li>
+                  </ul>
+                </div>
+
+                <p style={{ marginTop: 8 }}>
+                  Higher values indicate stronger project momentum and ongoing maintenance.
+                </p>
+              </div>
+            )}
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 12 }}>
             <div style={{
               width: 64, height: 64, borderRadius: '50%', flexShrink: 0,
@@ -122,7 +234,7 @@ export default function ContributorsPage() {
             style={{ ...C.input, width: 220 }}
           />
           <span style={{ fontSize: 12, color: 'var(--text2)' }}>
-            {filtered.length} contributors — no rank column by design
+            {filtered.length} contributors found
           </span>
         </div>
         {contributors?.length ?
@@ -136,7 +248,59 @@ export default function ContributorsPage() {
                   <SortTh label="Orgs" sortKey="orgs" sortConfig={sortConfig} onSort={onSort} />
                   <SortTh label="Last Active" sortKey="lastActive" sortConfig={sortConfig} onSort={onSort} />
                   <th style={{ padding: '10px 14px', fontSize: 11, color: 'var(--text2)', fontWeight: 600, background: 'var(--surface2)', borderBottom: '1px solid var(--border)', textAlign: 'left' }}>
-                    SIGNALS
+                    <th
+                      style={{ padding: '10px 14px', fontSize: 11, color: 'var(--text2)', fontWeight: 600, background: 'var(--surface2)', textAlign: 'left', position: 'relative' }}
+                      ref={signalRef}
+                    >
+                      <div
+                        className="flex items-center gap-2"
+                        style={{ position: 'relative' }}
+                      >
+                        <p>SIGNALS</p>
+
+                        <button
+                          onClick={() =>
+                            setOpenInfo(openInfo === 'signals' ? null : 'signals')
+                          }
+                          className="p-2 rounded-full hover:bg-zinc-800 transition"
+                        >
+                          <BsFillInfoSquareFill className="text-white cursor-pointer" />
+                        </button>
+
+                        {openInfo === 'signals' && (
+                          <div
+                            style={{
+                              ...C.card,
+                              position: 'absolute',
+                              top: '130%',
+                              right: 2,
+                              width: '320px',
+                              zIndex: 100,
+                            }}
+                          >
+                            <h4 className='mb-2 text-(--accent)'>Contributor Signals</h4>
+
+                            <div className="text-(--text) text-xs">
+                              <p>
+                                Measures how contributors connect repositories and organizations.
+                              </p>
+
+                              <ul className="ml-2 mt-2">
+                                <li>
+                                  <strong>Connector Contributors</strong> — active in 3+ repositories.
+                                </li>
+                                <li>
+                                  <strong>Cross-Org Contributors</strong> — contribute across multiple organizations.
+                                </li>
+                              </ul></div>
+
+                            <p style={{ marginTop: 8 }}>
+                              Higher values indicate stronger collaboration and knowledge sharing.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </th>
                   </th>
                 </tr>
               </thead>
@@ -174,18 +338,18 @@ export default function ContributorsPage() {
             <LoadMore shown={shown} total={sorted.length} onLoad={() => setShown(s => s + 20)} /></>) :
           (<>
             <div
-            style={{
-              padding: '32px 24px',
-              maxWidth: 900,
-              margin: '0 auto',
-            }}
-          >
-            <EmptyStateCard
-              SvgIcon={<FiDatabase size={36} color='var(--accent)'/>}
-              title="No contributors found"
-              description="We couldn't find any contributor data for this organization. "
-              buttonText="Go to Home"
-              onButtonClick={() => navigate('/')}/>
+              style={{
+                padding: '32px 24px',
+                maxWidth: 900,
+                margin: '0 auto',
+              }}
+            >
+              <EmptyStateCard
+                SvgIcon={<FiDatabase size={36} color='var(--accent)' />}
+                title="No contributors found"
+                description="We couldn't find any contributor data for this organization. "
+                buttonText="Go to Home"
+                onButtonClick={() => navigate('/')} />
             </div>
           </>)}
       </div>
