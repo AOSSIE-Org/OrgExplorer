@@ -247,7 +247,6 @@ export default function ContributorsPage() {
                   <SortTh label="Repos Contributed To" sortKey="repos" sortConfig={sortConfig} onSort={onSort} />
                   <SortTh label="Orgs" sortKey="orgs" sortConfig={sortConfig} onSort={onSort} />
                   <SortTh label="Last Active" sortKey="lastActive" sortConfig={sortConfig} onSort={onSort} />
-                  {/* <th style={{ padding: '10px 14px', fontSize: 11, color: 'var(--text2)', fontWeight: 600, background: 'var(--surface2)', borderBottom: '1px solid var(--border)', textAlign: 'left' }}> */}
                   <th
                     style={{ padding: '10px 14px', fontSize: 11, color: 'var(--text2)', fontWeight: 600, background: 'var(--surface2)', borderBottom: '1px solid var(--border)', textAlign: 'left', position: 'relative' }}
                     ref={signalRef}
