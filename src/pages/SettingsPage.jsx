@@ -210,8 +210,11 @@ export default function SettingsPage() {
                 onClick={async () => {
                   if (isRefreshing) return;
                   setIsRefreshing(true);
-                  await refreshRateLimit();
-                  setTimeout(() => setIsRefreshing(false), 500); // Minimum spin duration for visual feedback
+                  try {
+                    await refreshRateLimit();
+                  } finally {
+                    setTimeout(() => setIsRefreshing(false), 500); // Minimum spin duration for visual feedback
+                  }
                 }}
                 style={{ 
                   background: 'none', 
