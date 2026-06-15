@@ -205,17 +205,34 @@ export default function SettingsPage() {
           <div style={C.card}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <div style={{ fontWeight: 600, fontSize: 15, letterSpacing: '.03em' }}>API Quota</div>
-              <FiRefreshCw 
-                size={14} 
-                color="var(--text2)" 
-                style={{ cursor: 'pointer', transition: 'transform 0.3s ease', transform: isRefreshing ? 'rotate(180deg)' : 'none' }} 
+              <button
+                type="button"
                 onClick={async () => {
                   if (isRefreshing) return;
                   setIsRefreshing(true);
                   await refreshRateLimit();
                   setTimeout(() => setIsRefreshing(false), 500); // Minimum spin duration for visual feedback
                 }}
-              />
+                style={{ 
+                  background: 'none', 
+                  border: 'none', 
+                  padding: '4px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: '4px'
+                }}
+                aria-label="Refresh API Quota"
+                title="Refresh API Quota"
+                className="hover:bg-zinc-800 transition"
+              >
+                <FiRefreshCw 
+                  size={14} 
+                  color="var(--text2)" 
+                  style={{ transition: 'transform 0.3s ease', transform: isRefreshing ? 'rotate(180deg)' : 'none' }} 
+                />
+              </button>
             </div>
 
             {rateLimit ? (
