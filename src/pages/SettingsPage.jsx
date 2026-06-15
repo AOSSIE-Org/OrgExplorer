@@ -6,11 +6,12 @@ import { cacheClear } from '../services/github'
 import { BsFillInfoSquareFill } from "react-icons/bs";
 
 export default function SettingsPage() {
-  const { pat, savePat, rateLimit } = useApp()
+  const { pat, savePat, rateLimit, refreshRateLimit } = useApp()
   const [draft, setDraft] = useState(pat)
   const [show, setShow] = useState(false)
   const [saved, setSaved] = useState(false)
   const [cleared, setCleared] = useState(false)
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
   const handleSave = () => {
     savePat(draft.trim())
@@ -204,7 +205,17 @@ export default function SettingsPage() {
           <div style={C.card}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <div style={{ fontWeight: 600, fontSize: 15, letterSpacing: '.03em' }}>API Quota</div>
-              <FiRefreshCw size={14} color="var(--text2)" style={{ cursor: 'pointer' }} />
+              <FiRefreshCw 
+                size={14} 
+                color="var(--text2)" 
+                style={{ cursor: 'pointer', transition: 'transform 0.3s ease', transform: isRefreshing ? 'rotate(180deg)' : 'none' }} 
+                onClick={async () => {
+                  if (isRefreshing) return;
+                  setIsRefreshing(true);
+                  await refreshRateLimit();
+                  setTimeout(() => setIsRefreshing(false), 500); // Minimum spin duration for visual feedback
+                }}
+              />
             </div>
 
             {rateLimit ? (
