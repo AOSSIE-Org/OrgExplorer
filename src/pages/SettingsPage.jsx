@@ -98,8 +98,7 @@ export default function SettingsPage() {
 
                       <div className="mb-4 color-(--text) text-xs">
                         <p>
-                          Your GitHub Personal Access Token (PAT) is stored locally on your
-                          device and is never sent to OrgExplorer servers.
+                          Your Personal Access Token (PAT) is stored locally on your device and is never sent to any server. OrgExplorer is a purely static page served to your browser via GitHub Pages and it has no servers.
                         </p>
 
                         <ul className="list-disc ml-5 text-(--text) mt-1 text-xs">
@@ -237,12 +236,12 @@ export default function SettingsPage() {
             )}
           </div>
 
-          {/* Architect Meta */}
+          {/* Technical Information */}
           <div style={C.card}>
-            <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 16, letterSpacing: '.03em' }}>Architect Meta</div>
+            <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 16, letterSpacing: '.03em' }}>Technical Information</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
               {[
-                ['Core Version', 'v2.0.0-stable'],
+                ['Core Version', 'v1.0.0-stable'],
                 ['Architecture', 'Client-side only, no backend'],
                 ['API strategy', '53 req/hr unauthenticated'],
                 ['Cache', 'IndexedDB + React Context'],

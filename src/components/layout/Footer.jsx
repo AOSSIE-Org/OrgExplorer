@@ -125,7 +125,7 @@ export default function Footer() {
         <div className="flex flex-col items-start gap-2 text-left lg:items-end lg:text-right">
           <p
             className="
-              text-xs uppercase tracking-[0.2em]
+              text-xs tracking-[0.2em]
               text-zinc-500
             "
           >

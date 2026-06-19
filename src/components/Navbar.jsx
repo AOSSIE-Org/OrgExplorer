@@ -33,7 +33,7 @@ export default function Navbar() {
         onClick={() => navigate('/')}
         style={{ fontWeight: 800, fontSize: 15, letterSpacing: '.1em', color: 'var(--accent)', cursor: 'pointer', flexShrink: 0 }}
       >
-        ORGEXPLORER
+        OrgExplorer
       </span>
 
       {/* Nav links — only visible when data is loaded */}
