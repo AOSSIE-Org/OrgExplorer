@@ -75,7 +75,8 @@ export default function SettingsPage() {
                   <p>GitHub Authentication</p>
 
                   <button
-                    onClick={() => setOpen(prev => !prev)}
+                    onMouseEnter={()=> setOpen(true)}
+                    onMouseLeave={()=> setOpen(false)}
                     className="p-2 rounded-full hover:bg-zinc-800 transition"
                   >
                     <BsFillInfoSquareFill className="text-white cursor-pointer" />
@@ -151,7 +152,7 @@ export default function SettingsPage() {
               </button>
               <button
                 onClick={handleDelete}
-                style={{ ...C.btn('ghost'), display: 'flex', alignItems: 'center', gap: 5, fontSize: 13 }}
+                style={{ ...C.btn('danger'), display: 'flex', alignItems: 'center', gap: 5, fontSize: 13 }}
               >
                 <FiTrash2 size={13} /> Delete
               </button>
@@ -163,10 +164,12 @@ export default function SettingsPage() {
             <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 14 }}>How to create a PAT</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               {[
-                ['01', 'Go to GitHub Settings → Developer settings → Personal access tokens → Tokens (classic)'],
-                ['02', 'Click "Generate new token (classic)"'],
-                ['03', 'Select scopes: read:org and public_repo'],
-                ['04', 'Copy the token and paste it above, then click Save'],
+                ['01', 'Go to GitHub Settings → Developer settings → Personal access tokens'],
+                ['02', 'Click "Generate new token" and choose "Fine-grained token"'],
+                ['03', 'Give your token a name(e.g. "OrgExplorer PAT"), select an expiration, and verify yourself'],
+                ['04', 'Choose "Public repositories" access and grant Read-only permissions'],
+                ['05', 'Generate the token and copy it'],
+                ['06', 'Paste the token above and click Save'],
               ].map(([n, text]) => (
                 <div key={n} style={{ background: 'var(--surface2)', borderRadius: 6, padding: '10px 12px' }}>
                   <div style={{ color: 'var(--accent)', fontWeight: 700, fontSize: 15, marginBottom: 4 }}>{n}</div>
@@ -185,7 +188,7 @@ export default function SettingsPage() {
               </div>
               <button
                 onClick={handleClear}
-                style={{ ...C.btn('ghost'), fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}
+                style={{ ...C.btn('danger'), fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}
               >
                 <FiTrash2 size={13} /> {cleared ? 'Cleared' : 'Clear All'}
               </button>

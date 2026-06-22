@@ -39,7 +39,8 @@ export const C = {
     border: 'none',
     transition: 'opacity .15s',
     ...(v === 'primary' ? { background: 'var(--accent)', color: '#000' }
-      : v === 'ghost'   ? { background: 'transparent', color: 'var(--text)', border: '1px solid var(--border)' }
+      : v === 'ghost' ? { background: 'transparent', color: 'var(--text)', border: '1px solid var(--border)' }
+      :  v === 'danger' ? { background: 'var(--red)', color: '#fff' }
                         : { background: 'var(--surface2)', color: 'var(--text)', border: '1px solid var(--border)' }),
   }),
   input: {
