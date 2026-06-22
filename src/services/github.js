@@ -74,10 +74,11 @@ async function fetchWithCache(url, pat) {
 export const fetchOrg = (org, pat) =>
   fetchWithCache(`https://api.github.com/orgs/${org}`, pat)
 
-export async function fetchRepos(org, pat) {
+export async function fetchRepos(org, repoCount, pat) {
   const all = []
-  for (let page = 1; page <= 5; page++) {
-    const url  = `https://api.github.com/orgs/${org}/repos?per_page=100&page=${page}&sort=updated`
+  const maxPages = pat ? Math.ceil(repoCount / 100) : 5
+  for (let page = 1; page <= maxPages; page++) {
+    const url = `https://api.github.com/orgs/${org}/repos?per_page=100&page=${page}&sort=updated`
     const data = await fetchWithCache(url, pat)
     all.push(...data)
     if (data.length < 100) break
@@ -88,7 +89,7 @@ export async function fetchRepos(org, pat) {
 export async function fetchContributors(org, repo, pat) {
   try {
     return await fetchWithCache(
-      `https://api.github.com/repos/${org}/${repo}/contributors?per_page=30`, pat
+      `https://api.github.com/repos/${org}/${repo}/contributors?per_page=100`, pat
     )
   } catch { return [] }
 }

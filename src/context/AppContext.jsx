@@ -33,7 +33,7 @@ export function AppProvider({ children }) {
       setLoadMsg('Fetching repositories...')
       const reposPerOrg = {}
       await Promise.allSettled(validOrgs.map(async org => {
-        reposPerOrg[org.login] = await fetchRepos(org.login, pat)
+        reposPerOrg[org.login] = await fetchRepos(org.login, org.public_repos, pat)
       }))
 
       setLoadMsg('Fetching contributor data for top repositories...')
