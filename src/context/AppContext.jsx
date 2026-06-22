@@ -39,7 +39,7 @@ export function AppProvider({ children }) {
       setLoadMsg('Fetching contributor data for top repositories...')
       const contribsPerRepo = {}
       for (const org of validOrgs) {
-        const top = (reposPerOrg[org.login] || [])
+        const top = pat ? reposPerOrg[org.login] : (reposPerOrg[org.login] || [])
           .sort((a, b) => b.stargazers_count - a.stargazers_count)
           .slice(0, 10)
         await Promise.allSettled(top.map(async repo => {
