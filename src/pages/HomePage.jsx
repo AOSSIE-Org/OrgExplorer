@@ -12,17 +12,17 @@
     const navigate = useNavigate()
     const [input, setInput] = useState('')
     const [chips, setChips] = useState([])
-    const[suggestions, setSuggestion] = useState([])
+    const[suggestions, setSuggestions] = useState([])
     const[showSuggestion, setShowSuggestions] = useState(false)
 
     useEffect(() => {
       if (!input.trim()) {
-        setSuggestion([])
+        setSuggestions([])
         return
       }
       const t = setTimeout(async () =>  {
         const result = await searchOrgs(input.trim())
-        setSuggestion(result.slice(0,6))
+        setSuggestions(result.slice(0,6))
         setShowSuggestions(true)
       }, 300)
       return () => clearTimeout(t)
@@ -101,12 +101,12 @@
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKey}
-              onBlur={() => input.trim() && addChip(input)}
+              onBlur={() => !showSuggestions && input.trim() && addChip(input)}
+              aria-label="Search GitHub organizations"
               placeholder={chips.length ? 'Add another org...' : 'AOSSIE-Org, StabilityNexus, DjedAlliance...'}
               style={{ flex: 1, minWidth: 160, background: 'none', color: 'var(--text)', fontSize: 14, padding: '4px 8px', border: 'none', outline: 'none' }}
             />
-
-            <button onClick={() => go()} style={{ ...C.btn('primary'), padding: '8px 22px', flexShrink: 0 }}>
+            <button type = "button" onClick={() => go()} style={{ ...C.btn('primary'), padding: '8px 22px', flexShrink: 0 }}>
               EXPLORE
             </button>
           </div>
