@@ -3,6 +3,7 @@
   import { FiSearch, FiX } from 'react-icons/fi'
   import { useApp } from '../context/AppContext'
   import { C, Spinner } from '../components/UI'
+  import { searchOrgs } from '../services/github'
 
   const QUICK = ['AOSSIE-Org', 'DjedAlliance', 'StabilityNexus']
 
@@ -13,6 +14,26 @@
     const [chips, setChips] = useState([])
     const[suggestions, setSuggestion] = useState([])
     const[showSuggestion, setShowSuggestions] = useState(false)
+
+    useEffect(() => {
+      if (!input.trim()) {
+        setSuggestion([])
+        return
+      }
+      const t = setTimeout(async () =>  {
+        const result = await searchOrgs(input.trim())
+        setSuggestion(result.slice(0,6))
+        setShowSuggestions(true)
+      }, 300)
+      return () => clearTimeout(t)
+    }, [input])
+
+    const selectSuggestion = (login) => {
+      setChips(prev => [...new Set([...prev,login])])
+      setInput('')
+      setSuggestion([])
+      setShowSuggestions(false)
+    }
 
     const recent = JSON.parse(localStorage.getItem('oe_recent') || '[]')
 
@@ -59,7 +80,7 @@
         </div>
 
         {/* Search */}
-        <div style={{ width: '100%', maxWidth: 680 }}>
+        <div style={{ width: '100%', maxWidth: 680, position: 'relative'}}>
           <div style={{
             background: 'var(--surface)', border: '1px solid var(--border)',
             borderRadius: 10, padding: '6px 8px',
@@ -84,6 +105,7 @@
               placeholder={chips.length ? 'Add another org...' : 'AOSSIE-Org, StabilityNexus, DjedAlliance...'}
               style={{ flex: 1, minWidth: 160, background: 'none', color: 'var(--text)', fontSize: 14, padding: '4px 8px', border: 'none', outline: 'none' }}
             />
+
             <button onClick={() => go()} style={{ ...C.btn('primary'), padding: '8px 22px', flexShrink: 0 }}>
               EXPLORE
             </button>
@@ -92,6 +114,45 @@
             Type an org name and press Enter or comma to add. Add multiple orgs to analyze as a unified portfolio.
           </p>
           {error && <p style={{ color: 'var(--red)', fontSize: 12, marginTop: 8 }}>{error}</p>}
+          {showSuggestion && suggestions.length > 0 && (
+          <div style={{
+            position: 'relative',
+            width: '100%',
+          }}>
+            <div style={{
+              position: 'absolute',
+              top: 6,
+              left: 0,
+              right: 0,
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
+              borderRadius: 8,
+              zIndex: 20,
+              maxHeight: 220,
+              overflowY: 'auto'
+            }}>
+              {suggestions.map(org => (
+                <div
+                  key={org.login}
+                  onMouseDown={() => selectSuggestion(org.login)}
+                  style={{
+                    padding: '10px 12px',
+                    cursor: 'pointer',
+                    fontSize: 13,
+                    display: 'flex',
+                    justifyContent: 'space-between'
+                  }}
+                >
+                  <span>{org.login}</span>
+                  <span style={{ color: 'var(--text3)', fontSize: 11 }}>
+                    org
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         </div>
 
         {/* Loading */}

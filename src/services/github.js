@@ -85,7 +85,7 @@ export async function fetchRepos(org, pat) {
   return all
 }
 
-const searchOrgs = async (query) => {
+export const searchOrgs = async (query) => {
   if (!query) return []
 
   const res = await fetch(
