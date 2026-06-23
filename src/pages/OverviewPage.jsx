@@ -72,7 +72,7 @@ export default function OverviewPage() {
           </div>
         ) : (
           orgs[0]?.avatar_url && (
-            <img src={orgs[0].avatar_url} alt="" style={{ width: 56, height: 56, borderRadius: '50%', border: '2px solid var(--border)' }} />
+            <img src={orgs[0].avatar_url} alt="" style={{ width: 56, height: 56 }} />
           )
         )}
         <div style={{ flex: 1 }}>
