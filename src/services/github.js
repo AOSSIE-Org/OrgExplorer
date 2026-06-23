@@ -85,6 +85,19 @@ export async function fetchRepos(org, pat) {
   return all
 }
 
+const searchOrgs = async (query) => {
+  if (!query) return []
+
+  const res = await fetch(
+    `https://api.github.com/search/users?q=${encodeURIComponent(query)}+type:org`
+  )
+  if (!res.ok) return []
+  
+  const data = await res.json()
+  return data.items || []
+}
+
+
 export async function fetchContributors(org, repo, pat) {
   try {
     return await fetchWithCache(
