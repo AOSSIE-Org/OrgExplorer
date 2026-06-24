@@ -100,6 +100,7 @@ const SocialShareButton = ({
 
     return (
       <button
+        type="button"
         onClick={handleFallbackCopy}
         style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, border: '1px solid #ef4444', padding: '6px 12px', borderRadius: '6px', background: 'transparent', color: 'inherit', cursor: 'pointer' }}
         title="Social Share widget failed to load. Click to copy link."
