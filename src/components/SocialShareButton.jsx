@@ -38,7 +38,7 @@ const SocialShareButton = ({
         setLoadError(false);
         shareButtonRef.current = new window.SocialShareButton({
           container: containerRef.current,
-          url: url || window.location.href,
+          url: url || 'https://orgexplorer.aossie.org/',
           title: title || document.title,
           description,
           hashtags,
@@ -81,7 +81,7 @@ const SocialShareButton = ({
   if (loadError) {
     const handleFallbackCopy = () => {
       if (onCopy) onCopy();
-      else navigator.clipboard?.writeText(url || window.location.href);
+      else navigator.clipboard?.writeText(url || 'https://orgexplorer.aossie.org/');
       alert("Widget failed to load. Link copied to clipboard!");
     };
 
