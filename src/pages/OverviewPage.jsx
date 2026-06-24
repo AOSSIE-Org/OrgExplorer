@@ -94,6 +94,9 @@ export default function OverviewPage() {
           <SocialShareButton 
             theme="dark" 
             buttonStyle="ghost" 
+            title={isMulti ? `OrgExplorer: ${orgs.map(o => o.login).join(' + ')}` : `OrgExplorer: ${orgs[0]?.name || orgs[0]?.login}`}
+            description={isMulti ? `${orgs.length} organizations — combined portfolio view` : (orgs[0]?.description || `@${orgs[0]?.login}`)}
+            url={window.location.href}
           />
         </div>
       </div>

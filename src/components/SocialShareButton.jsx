@@ -1,12 +1,17 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
+import { FiShare2 } from 'react-icons/fi';
+
+const DEFAULT_HASHTAGS = [];
+const DEFAULT_PLATFORMS = ['whatsapp', 'facebook', 'twitter', 'linkedin', 'telegram', 'reddit', 'pinterest'];
+const DEFAULT_ANALYTICS_PLUGINS = [];
 
 const SocialShareButton = ({
   url = '',
   title = '',
   description = '',
-  hashtags = [],
+  hashtags = DEFAULT_HASHTAGS,
   via = '',
-  platforms = ['whatsapp', 'facebook', 'twitter', 'linkedin', 'telegram', 'reddit', 'pinterest'],
+  platforms = DEFAULT_PLATFORMS,
   theme = 'dark',
   buttonText = 'Share',
   customClass = '',
@@ -19,39 +24,45 @@ const SocialShareButton = ({
   showButton = true,
   analytics = true,
   onAnalytics = null,
-  analyticsPlugins = [],
+  analyticsPlugins = DEFAULT_ANALYTICS_PLUGINS,
   componentId = null,
   debug = false,
 }) => {
   const containerRef = useRef(null);
   const shareButtonRef = useRef(null);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && window.SocialShareButton) {
-      shareButtonRef.current = new window.SocialShareButton({
-        container: containerRef.current,
-        url: url || window.location.href,
-        title: title || document.title,
-        description,
-        hashtags,
-        via,
-        platforms,
-        theme,
-        buttonText,
-        customClass,
-        onShare,
-        onCopy,
-        buttonStyle,
-        modalPosition,
-        buttonColor,
-        buttonHoverColor,
-        showButton,
-        analytics,
-        onAnalytics,
-        analyticsPlugins,
-        componentId,
-        debug,
-      });
+    if (typeof window !== 'undefined') {
+      if (window.SocialShareButton) {
+        setLoadError(false);
+        shareButtonRef.current = new window.SocialShareButton({
+          container: containerRef.current,
+          url: url || window.location.href,
+          title: title || document.title,
+          description,
+          hashtags,
+          via,
+          platforms,
+          theme,
+          buttonText,
+          customClass,
+          onShare,
+          onCopy,
+          buttonStyle,
+          modalPosition,
+          buttonColor,
+          buttonHoverColor,
+          showButton,
+          analytics,
+          onAnalytics,
+          analyticsPlugins,
+          componentId,
+          debug,
+        });
+      } else {
+        setLoadError(true);
+      }
     }
 
     return () => {
@@ -66,6 +77,24 @@ const SocialShareButton = ({
     buttonHoverColor, showButton, analytics, onAnalytics, analyticsPlugins,
     componentId, debug
   ]);
+
+  if (loadError) {
+    const handleFallbackCopy = () => {
+      if (onCopy) onCopy();
+      else navigator.clipboard?.writeText(url || window.location.href);
+      alert("Widget failed to load. Link copied to clipboard!");
+    };
+
+    return (
+      <button
+        onClick={handleFallbackCopy}
+        style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, border: '1px solid #ef4444', padding: '6px 12px', borderRadius: '6px', background: 'transparent', color: 'inherit', cursor: 'pointer' }}
+        title="Social Share widget failed to load. Click to copy link."
+      >
+        <FiShare2 size={13} /> {buttonText} (Fallback)
+      </button>
+    );
+  }
 
   return <div ref={containerRef}></div>;
 };
