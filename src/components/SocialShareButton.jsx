@@ -79,10 +79,23 @@ const SocialShareButton = ({
   ]);
 
   if (loadError) {
-    const handleFallbackCopy = () => {
-      if (onCopy) onCopy();
-      else navigator.clipboard?.writeText(url || 'https://orgexplorer.aossie.org/');
-      alert("Widget failed to load. Link copied to clipboard!");
+    const handleFallbackCopy = async () => {
+      try {
+        if (onCopy) {
+          await onCopy();
+        } else {
+          const fallbackUrl = url || 'https://orgexplorer.aossie.org/';
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(fallbackUrl);
+          } else {
+            throw new Error("Clipboard API not available");
+          }
+        }
+        alert("Widget failed to load. Link copied to clipboard!");
+      } catch (err) {
+        console.error("Failed to copy link: ", err);
+        alert("Widget failed to load. Failed to copy link.");
+      }
     };
 
     return (
