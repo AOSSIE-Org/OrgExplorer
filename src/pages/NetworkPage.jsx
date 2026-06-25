@@ -93,10 +93,33 @@ export default function NetworkPage() {
           .attr('fill', healthColor(d.data.healthScore || 0))
           .attr('stroke', '#0d0d0d').attr('stroke-width', 1.5)
       } else {
+        const r = contribR(d.data.totalContribs || 1)
+
+        const clipId = `avatar-clip-${d.id}`
+
+        svg.append('defs')
+          .append('clipPath')
+          .attr('id', clipId)
+          .append('circle')
+          .attr('r', r)
+          .attr('cx', 0)
+          .attr('cy', 0)
+
+        // Avatar image
+        el.append('image')
+          .attr('href', d.data.avatar_url)
+          .attr('x', -r)
+          .attr('y', -r)
+          .attr('width', r * 2)
+          .attr('height', r * 2)
+          .attr('clip-path', `url(#${clipId})`)
+
+        // Border around avatar
         el.append('circle')
-          .attr('r', contribR(d.data.totalContribs || 1))
-          .attr('fill', d.data.isConnector ? '#f5c518' : '#555')
-          .attr('stroke', '#0d0d0d').attr('stroke-width', 1.5)
+          .attr('r', r)
+          .attr('fill', 'none')
+          .attr('stroke', d.data.isConnector ? '#f5c518' : '#555')
+          .attr('stroke-width', 2)
       }
       const labelY = d.type === 'repo'
         ? repoRadius(d.data.stargazers_count || 0) + 11
