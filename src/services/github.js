@@ -1,14 +1,14 @@
 // IndexedDB Cache (L2) 
 const DB_NAME = 'orgexplorer_cache'
-const STORE   = 'cache'
-const TTL_MS  = 3_600_000 // 1 hour
+const STORE = 'cache'
+const TTL_MS = 3_600_000 // 1 hour
 
 function openDB() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, 1)
     req.onupgradeneeded = e => e.target.result.createObjectStore(STORE, { keyPath: 'k' })
-    req.onsuccess  = e => resolve(e.target.result)
-    req.onerror    = ()  => reject(req.error)
+    req.onsuccess = e => resolve(e.target.result)
+    req.onerror = () => reject(req.error)
   })
 }
 
@@ -34,7 +34,7 @@ export async function cacheSet(key, value) {
       const tx = db.transaction(STORE, 'readwrite')
       tx.objectStore(STORE).put({ k: key, v: value, ts: Date.now() })
       tx.oncomplete = () => res(true)
-      tx.onerror    = () => res(false)
+      tx.onerror = () => res(false)
     })
   } catch { return false }
 }
@@ -46,7 +46,7 @@ export async function cacheClear() {
       const tx = db.transaction(STORE, 'readwrite')
       tx.objectStore(STORE).clear()
       tx.oncomplete = () => res(true)
-      tx.onerror    = () => res(false)
+      tx.onerror = () => res(false)
     })
   } catch { return false }
 }
@@ -61,6 +61,18 @@ async function fetchWithCache(url, pat) {
   if (pat) headers.Authorization = `token ${pat}`
 
   const res = await fetch(url, { headers })
+
+  window.dispatchEvent(
+    new CustomEvent('rate-limit-update', {
+      detail: {
+        limit: Number(res.headers.get('x-ratelimit-limit')),
+        remaining: Number(res.headers.get('x-ratelimit-remaining')),
+        used: Number(res.headers.get('x-ratelimit-used')),
+        reset: Number(res.headers.get('x-ratelimit-reset'))
+      }
+    })
+  )
+
   if (res.status === 403) throw new Error('RATE_LIMIT')
   if (res.status === 404) throw new Error('NOT_FOUND')
   if (!res.ok) throw new Error(`HTTP_${res.status}`)
@@ -112,7 +124,7 @@ export async function fetchRateLimit(pat) {
   try {
     const headers = { Accept: 'application/vnd.github.v3+json' }
     if (pat) headers.Authorization = `token ${pat}`
-    const res  = await fetch('https://api.github.com/rate_limit', { headers })
+    const res = await fetch('https://api.github.com/rate_limit', { headers })
     const data = await res.json()
     return data.rate
   } catch { return null }

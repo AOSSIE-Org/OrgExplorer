@@ -1,19 +1,63 @@
-import { createContext, useContext, useState, useCallback } from 'react'
-import { fetchOrg, fetchRepos, fetchContributors, fetchIssues, fetchRateLimit } from '../services/github'
+import { createContext, useContext, useState, useCallback, useEffect } from 'react'
+import { fetchOrg, fetchRepos, fetchContributors, fetchIssues, } from '../services/github'
 import { buildAnalyticalModel } from '../services/analytics'
 
 const Ctx = createContext(null)
 
+function getStoredRateLimit() {
+  const stored = localStorage.getItem('oe_rate_limit')
+
+  if (!stored) return null
+
+  try {
+    const data = JSON.parse(stored)
+
+    if (Date.now() > data.reset * 1000) {
+      localStorage.removeItem('oe_rate_limit')
+      return null
+    }
+
+    return data
+  } catch {
+    localStorage.removeItem('oe_rate_limit')
+    return null
+  }
+}
+
 export function AppProvider({ children }) {
-  const [pat,        setPat]        = useState(() => localStorage.getItem('oe_pat') || '')
-  const [orgs,       setOrgs]       = useState([])
-  const [model,      setModel]      = useState(null)
+  const [pat, setPat] = useState(() => localStorage.getItem('oe_pat') || '')
+  const [orgs, setOrgs] = useState([])
+  const [model, setModel] = useState(null)
   const [issuesData, setIssuesData] = useState({})
-  const [rateLimit,  setRateLimit]  = useState(null)
-  const [loading,    setLoading]    = useState(false)
-  const [loadMsg,    setLoadMsg]    = useState('')
+  const [rateLimit, setRateLimit] = useState(getStoredRateLimit)
+  const [loading, setLoading] = useState(false)
+  const [loadMsg, setLoadMsg] = useState('')
   const [govLoading, setGovLoading] = useState(false)
-  const [error,      setError]      = useState('')
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    const handler = e => {
+      setRateLimit(e.detail)
+      localStorage.setItem('oe_rate_limit', JSON.stringify(e.detail))
+    }
+
+    window.addEventListener('rate-limit-update', handler)
+
+    return () => {
+      window.removeEventListener('rate-limit-update', handler)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!rateLimit?.reset) return
+
+    const timeout = setTimeout(() => {
+      localStorage.removeItem('oe_rate_limit')
+      setRateLimit(null)
+    }, Math.max(0, rateLimit.reset * 1000 - Date.now()))
+
+    return () => clearTimeout(timeout)
+  }, [rateLimit])
 
   const savePat = useCallback(token => {
     setPat(token)
@@ -25,7 +69,7 @@ export function AppProvider({ children }) {
     setLoading(true); setError(''); setModel(null); setOrgs([]); setIssuesData({})
     try {
       setLoadMsg('Fetching organization metadata...')
-      const orgRes   = await Promise.allSettled(orgNames.map(n => fetchOrg(n, pat)))
+      const orgRes = await Promise.allSettled(orgNames.map(n => fetchOrg(n, pat)))
       const validOrgs = orgRes.filter(r => r.status === 'fulfilled').map(r => r.value)
       if (!validOrgs.length) throw new Error('No valid organizations found. Check the names and try again.')
       setOrgs(validOrgs)
@@ -50,11 +94,9 @@ export function AppProvider({ children }) {
       setLoadMsg('Building analytical data model...')
       setModel(buildAnalyticalModel(validOrgs, reposPerOrg, contribsPerRepo))
 
-      const rl = await fetchRateLimit(pat)
-      if (rl) setRateLimit(rl)
 
       // Save to recent searches
-      const prev  = JSON.parse(localStorage.getItem('oe_recent') || '[]')
+      const prev = JSON.parse(localStorage.getItem('oe_recent') || '[]')
       const entry = orgNames.join(', ')
       localStorage.setItem('oe_recent', JSON.stringify([...new Set([entry, ...prev])].slice(0, 6)))
       return true

@@ -33,7 +33,10 @@ export default function RateLimitBanner() {
           </span>
         )}
       </span>
-      <span style={{ fontSize: 11, color: 'var(--text2)' }}>RESETS HOURLY</span>
+      <span style={{ fontSize: 11, color: 'var(--text2)' }}>
+        Used: {rateLimit.used} • Reset at{' '}
+        {new Date(rateLimit.reset * 1000).toLocaleTimeString()}
+      </span>
     </div>
   )
 }

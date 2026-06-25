@@ -4,6 +4,7 @@ import { FiExternalLink, FiShare2, FiArrowRight } from 'react-icons/fi'
 import { useApp } from '../context/AppContext'
 import { C, StatCard, HealthBar } from '../components/UI'
 import { BsFillInfoSquareFill } from "react-icons/bs";
+import SocialShareButton from '../components/SocialShareButton';
 
 const LANG_COLORS = ['#22c55e', '#f5c518', '#3b82f6', '#ef4444', '#a855f7', '#f97316', '#06b6d4']
 const fmt = n => n > 999 ? (n / 1000).toFixed(1) + 'k' : String(n)
@@ -90,12 +91,12 @@ export default function OverviewPage() {
               <FiExternalLink size={13} /> View on GitHub
             </a>
           )}
-          <button
-            onClick={() => navigator.clipboard?.writeText(window.location.href)}
-            style={{ ...C.btn('ghost'), display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}
-          >
-            <FiShare2 size={13} /> Share
-          </button>
+          <SocialShareButton 
+            theme="dark" 
+            buttonStyle="ghost" 
+            title={isMulti ? `OrgExplorer: ${orgs.map(o => o.login).join(' + ')}` : `OrgExplorer: ${orgs[0]?.name || orgs[0]?.login}`}
+            description={isMulti ? `${orgs.length} organizations — combined portfolio view` : (orgs[0]?.description || `@${orgs[0]?.login}`)}
+          />
         </div>
       </div>
 
