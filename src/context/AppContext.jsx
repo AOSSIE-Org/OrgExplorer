@@ -59,6 +59,11 @@ export function AppProvider({ children }) {
     return () => clearTimeout(timeout)
   }, [rateLimit])
 
+  const refreshRateLimit = useCallback(async () => {
+    const rl = await fetchRateLimit(pat)
+    if (rl) setRateLimit(rl)
+  }, [pat])
+
   const savePat = useCallback(token => {
     setPat(token)
     token ? localStorage.setItem('oe_pat', token) : localStorage.removeItem('oe_pat')
@@ -132,7 +137,7 @@ export function AppProvider({ children }) {
     <Ctx.Provider value={{
       pat, savePat, orgs, model, issuesData,
       rateLimit, loading, loadMsg, govLoading, error,
-      explore, runAudit, setError,
+      explore, runAudit, setError, refreshRateLimit
     }}>
       {children}
     </Ctx.Provider>
