@@ -12,18 +12,8 @@ import NetworkPage     from './pages/NetworkPage'
 import AnalyticsPage   from './pages/AnalyticsPage'
 import GovernancePage  from './pages/GovernancePage'
 import SettingsPage    from './pages/SettingsPage'
-import Footer from './components/layout/Footer'
+import Layout from "./components/layout/Layout";
 
-function Layout({ children }) {
-  return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <Navbar />
-      <RateLimitBanner />
-      <main style={{ flex: 1 }}>{children}</main>
-      <Footer />
-    </div>
-  )
-}
 
 function AppContent() {
   return (

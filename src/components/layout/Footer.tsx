@@ -11,7 +11,7 @@ import { HiOutlineMail } from "react-icons/hi";
 const footerLinks = [
   {
     label: "Documentation",
-    href: "https://github.com/AOSSIE-Org/OrgExplorer/blob/main/README.md",
+    href: "/docs",
   },
   {
     label: "Terms of Service",
@@ -23,7 +23,7 @@ const footerLinks = [
   },
   {
     label: "API Status",
-    href: "/settings#api-status",
+    href: "/status",
   },
 ];
 
@@ -62,7 +62,7 @@ const socialLinks = [
 
 export default function Footer() {
   return (
-    <footer role="contentinfo" style={{ borderTop: "1px solid var(--border)" }}>
+    <footer role="contentinfo" className=" bg-(--bg) text-(--text)">
       <div className="flex w-full flex-col gap-8 px-4 py-8 md:px-6 lg:flex-row lg:items-center lg:justify-between">
         {/* LEFT SECTION */}
         <div className="flex flex-col gap-6">
@@ -75,16 +75,18 @@ export default function Footer() {
               <Link
                 key={item.label}
                 to={item.href}
-                style={{
-                  color: "var(--text2)",
-                  transition: "color 0.2s ease",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.color = "var(--accent)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.color = "var(--text2)";
-                }}
+                className="
+                  text-xs font-medium uppercase tracking-[0.2em]
+                  text-zinc-500
+                  transition-colors duration-200
+                  hover:text-[#FCD34D]
+                  focus-visible:outline-none
+                  focus-visible:ring-2
+                  focus-visible:ring-[#FCD34D]
+                  focus-visible:ring-offset-2
+                  focus-visible:ring-offset-black
+                  rounded-sm
+                "
               >
                 {item.label}
               </Link>
@@ -92,7 +94,7 @@ export default function Footer() {
           </nav>
 
           {/* SOCIAL LINKS */}
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-3">
             {socialLinks.map((item) => {
               const Icon = item.icon;
 
@@ -103,16 +105,27 @@ export default function Footer() {
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label={`Visit our ${item.label}`}
-                  style={{
-                    color: "var(--text2)",
-                    transition: "color 0.2s ease",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.color = "var(--accent)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.color = "var(--text2)";
-                  }}
+                  className="
+                    flex h-10 w-10 items-center justify-center
+                    border-2 border-(--border)
+                    bg-(--bg)
+                    text-(--text)
+                    shadow-[3px_3px_0px_0px_#27272a]
+                    transition-all duration-150
+                    hover:-translate-x-1
+                    hover:-translate-y-1
+                    hover:border-[#FCD34D]
+                    hover:text-[#FCD34D]
+                    hover:shadow-[6px_6px_0px_0px_#FCD34D]
+                    active:translate-x-0
+                    active:translate-y-0
+                    active:shadow-[2px_2px_0px_0px_#FCD34D]
+                    focus-visible:outline-none
+                    focus-visible:ring-2
+                    focus-visible:ring-[#FCD34D]
+                    focus-visible:ring-offset-2
+                    focus-visible:ring-offset-black
+                  "
                 >
                   <Icon size={18} />
                 </a>
@@ -125,7 +138,7 @@ export default function Footer() {
         <div className="flex flex-col items-start gap-2 text-left lg:items-end lg:text-right">
           <p
             className="
-              text-xs tracking-[0.2em]
+              text-xs uppercase tracking-[0.2em]
               text-zinc-500
             "
           >
