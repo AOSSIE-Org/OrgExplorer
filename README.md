@@ -49,6 +49,7 @@
 - **Fully Browser-Based** — Runs entirely in the browser using GitHub APIs with no backend server required.
 
 - **Organization Overview Dashboard** — Explore repositories, contributors, activity trends, tech stack distribution, and organization growth insights.
+- **Smart Organization Search with Autocomplete** — GitHub org suggestions with real-time dropdown search
 
 - **Advanced Repository Analytics** — Analyze repository activity, contributor density, issue and PR trends, health metrics, and lifecycle status.
 
