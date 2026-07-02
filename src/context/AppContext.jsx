@@ -62,7 +62,11 @@ export function AppProvider({ children }) {
 
   const refreshRateLimit = useCallback(async () => {
     const rl = await fetchRateLimit(pat)
-    if (rl) setRateLimit(rl)
+    if (rl) {
+      setRateLimit(rl)
+      return true
+    }
+    return false
   }, [pat])
   const savePat = useCallback(token => {
     setPat(token)

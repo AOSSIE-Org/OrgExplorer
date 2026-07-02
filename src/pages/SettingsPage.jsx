@@ -11,7 +11,7 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false)
   const [cleared, setCleared] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
-
+  const [refreshError, setRefreshError] = useState(false)
   const handleSave = () => {
     savePat(draft.trim())
     setSaved(true)
@@ -210,11 +210,17 @@ export default function SettingsPage() {
               <div style={{ fontWeight: 600, fontSize: 15, letterSpacing: '.03em' }}>API Quota</div>
               <button
                 type="button"
+                disabled={isRefreshing}
                 onClick={async () => {
                   if (isRefreshing) return;
                   setIsRefreshing(true);
+                  setRefreshError(false);
                   try {
-                    await refreshRateLimit();
+                    const success = await refreshRateLimit();
+                    if (!success) {
+                      setRefreshError(true);
+                      setTimeout(() => setRefreshError(false), 2000);
+                    }
                   } finally {
                     setTimeout(() => setIsRefreshing(false), 500); // Minimum spin duration for visual feedback
                   }
@@ -230,12 +236,12 @@ export default function SettingsPage() {
                   borderRadius: '4px'
                 }}
                 aria-label="Refresh API Quota"
-                title="Refresh API Quota"
-                className="hover:bg-zinc-800 transition"
+                title={refreshError ? "Failed to refresh" : "Refresh API Quota"}
+                className="hover:bg-(--bg) transition"
               >
                 <FiRefreshCw 
                   size={14} 
-                  color="var(--text2)" 
+                  color={refreshError ? "var(--red)" : "var(--text2)"} 
                   style={{ transition: 'transform 0.3s ease', transform: isRefreshing ? 'rotate(180deg)' : 'none' }} 
                 />
               </button>
