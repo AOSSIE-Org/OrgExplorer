@@ -87,7 +87,7 @@ export default function HomePage() {
           </button>
         </div>
         <p style={{ fontSize: 11, color: 'var(--text3)', marginTop: 6, paddingLeft: 4 }}>
-          Type an org name and press Enter or comma to add. Add multiple orgs to analyze as a unified portfolio.
+          Type a github organization username (e.g., AOSSIE-Org) and press Enter or comma to add. Add multiple organizations to analyze as a unified portfolio.
         </p>
         {error && <p style={{ color: 'var(--red)', fontSize: 12, marginTop: 8 }}>{error}</p>}
       </div>
