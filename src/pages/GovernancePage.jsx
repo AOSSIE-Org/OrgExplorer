@@ -40,7 +40,7 @@ const getStatus = ratio => {
 }
 
 export default function GovernancePage() {
-  const { model, issuesData, runAudit, govLoading, staleRepoStats } = useApp()
+  const { model, issuesData, runAudit, govLoading, staleRepoStats, error, setError } = useApp()
   const [tab, setTab] = useState('dead')
 
   const ITEMS_PER_PAGE = 10
@@ -151,6 +151,25 @@ export default function GovernancePage() {
           </div>
         }
       />
+
+      {/* Audit error banner */}
+      {error && (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          background: 'rgba(239,68,68,.08)', border: '1px solid rgba(239,68,68,.3)',
+          borderRadius: 8, padding: '10px 16px', marginBottom: 20,
+          fontSize: 13, color: 'var(--red)',
+        }}>
+          <span>{error}</span>
+          <button
+            onClick={() => setError('')}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--red)', fontSize: 16, lineHeight: 1, padding: '0 4px' }}
+            aria-label="Dismiss error"
+          >
+            ×
+          </button>
+        </div>
+      )}
 
       {/* Summary stat cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 24 }}>

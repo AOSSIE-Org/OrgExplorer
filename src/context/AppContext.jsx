@@ -137,18 +137,35 @@ export function AppProvider({ children }) {
   const runAudit = useCallback(async () => {
     if (!model || govLoading) return
     setGovLoading(true)
+    setError('')
     const map   = {}
-    const repos = pat? model.totalRepos : model.totalRepos.slice(0, 15)
+    const repos = pat ? model.totalRepos : model.totalRepos.slice(0, 15)
+    let rateLimitHit = false
 
     // Batches of 5 using Promise.allSettled
     for (let i = 0; i < repos.length; i += 5) {
       const batch = repos.slice(i, i + 5)
-      await Promise.allSettled(batch.map(async repo => {
-        map[`${repo.orgLogin}/${repo.name}`] = await fetchIssues(repo.orgLogin, repo.name, pat)
+      const results = await Promise.allSettled(batch.map(async repo => {
+        const issues = await fetchIssues(repo.orgLogin, repo.name, pat)
+        map[`${repo.orgLogin}/${repo.name}`] = issues
       }))
+
+      // Check if any fetch in this batch hit the rate limit
+      const hitLimit = results.some(
+        r => r.status === 'rejected' && r.reason?.message === 'RATE_LIMIT'
+      )
+      if (hitLimit) {
+        rateLimitHit = true
+        break // no point continuing — remaining fetches will also fail
+      }
     }
+
     setIssuesData(map)
     setGovLoading(false)
+
+    if (rateLimitHit) {
+      setError('GitHub API rate limit reached during audit. Results shown may be incomplete. Add a PAT in Settings for 5,000 req/hr.')
+    }
   }, [model, pat, govLoading])
 
   const STALE_DAYS = 90
