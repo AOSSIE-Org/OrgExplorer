@@ -7,7 +7,7 @@ import { C, Spinner } from '../components/UI'
 const QUICK = ['AOSSIE-Org', 'DjedAlliance', 'StabilityNexus']
 
 export default function HomePage() {
-  const { explore, loading, loadMsg, error } = useApp()
+  const { explore, loading, loadMsg, exploreError } = useApp()
   const navigate = useNavigate()
   const [input, setInput] = useState('')
   const [chips, setChips] = useState([])
@@ -89,7 +89,7 @@ export default function HomePage() {
         <p style={{ fontSize: 11, color: 'var(--text3)', marginTop: 6, paddingLeft: 4 }}>
           Type an org name and press Enter or comma to add. Add multiple orgs to analyze as a unified portfolio.
         </p>
-        {error && <p style={{ color: 'var(--red)', fontSize: 12, marginTop: 8 }}>{error}</p>}
+        {exploreError && <p style={{ color: 'var(--red)', fontSize: 12, marginTop: 8 }}>{exploreError}</p>}
       </div>
 
       {/* Loading */}
