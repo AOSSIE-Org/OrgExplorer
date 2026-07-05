@@ -24,21 +24,24 @@ function downloadBadge(label, value, color) {
   const filePath = path.join(outputDir, filename);
   
   return new Promise((resolve, reject) => {
-    https.get(url, { headers: { 'User-Agent': 'NodeJS/LighthouseBadgeGenerator' } }, (res) => {
+    const req = https.get(url, { headers: { 'User-Agent': 'NodeJS/LighthouseBadgeGenerator' }, timeout: 10000 }, (res) => {
       if (res.statusCode !== 200) {
+        res.resume();
         reject(new Error(`Failed to download ${label} badge: Status code ${res.statusCode}`));
         return;
       }
       const fileStream = fs.createWriteStream(filePath);
+      res.on('error', reject);
+      fileStream.on('error', reject);
       res.pipe(fileStream);
       fileStream.on('finish', () => {
         fileStream.close();
         console.log(`Successfully downloaded: ${filename} (${value})`);
         resolve();
       });
-    }).on('error', (err) => {
-      reject(err);
     });
+    req.on('error', reject);
+    req.on('timeout', () => req.destroy(new Error(`Timed out downloading ${label} badge`)));
   });
 }
 
