@@ -1,6 +1,9 @@
 name: Lighthouse CI Audit
 
 on:
+  push:
+    branches:
+      - main
   pull_request:
     branches:
       - main
@@ -14,13 +17,11 @@ jobs:
   lighthouse:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955
-        with:
-          persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
@@ -39,3 +40,16 @@ jobs:
         with:
           configPath: './lighthouserc.json'
           temporaryPublicStorage: true
+
+      - name: Generate Lighthouse Badges
+        run: node .github/scripts/generate-lighthouse-badges.cjs
+
+      - name: Commit and Push Badges
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add badges/
+          git commit -m "chore: update lighthouse badges [skip ci]" || echo "No changes to commit"
+          git push origin HEAD:${{ github.ref_name }}
+
