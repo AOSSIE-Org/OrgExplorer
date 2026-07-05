@@ -20,7 +20,7 @@ if (!fs.existsSync(outputDir)) {
  */
 function downloadBadge(label, value, color) {
   const url = `https://img.shields.io/badge/${encodeURIComponent(label)}-${encodeURIComponent(value)}-${color}`;
-  const filename = `${label.toLowerCase().replace(/%20/g, '-').replace(/ /g, '-')}.svg`;
+  const filename = `${label.toLowerCase().replace(/ /g, '-')}.svg`;
   const filePath = path.join(outputDir, filename);
   
   return new Promise((resolve, reject) => {
