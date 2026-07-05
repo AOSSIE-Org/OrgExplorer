@@ -310,6 +310,30 @@ We welcome contributions from developers, designers, and open-source enthusiasts
 - Pull request guidelines
 - Community communication
 
+## 🐳 Docker Support
+
+You can run OrgExplorer in a containerized environment using Docker or Docker Compose. This is useful for self-hosting in your own infrastructure.
+
+### Build and Run with Docker Compose (Recommended)
+
+1. Build and start the container:
+   ```bash
+   docker compose up --build -d
+   ```
+2. Access the application in your browser at http://localhost:8080.
+
+### Build and Run with Docker CLI
+
+1. Build the Docker image:
+   ```bash
+   docker build -t orgexplorer .
+   ```
+2. Run the container:
+   ```bash
+   docker run -d -p 8080:80 orgexplorer
+   ```
+3. Access the application in your browser at http://localhost:8080.
+
 ## 📍 License
 
 This project is licensed under the GNU General Public License v3.0.  
