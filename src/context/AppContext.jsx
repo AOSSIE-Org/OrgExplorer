@@ -240,7 +240,7 @@ export function AppProvider({ children }) {
       pat, savePat, orgs, model, issuesData,
       rateLimit, loading, loadMsg, govLoading, error, totalRepo,
       isComplete, auditComplete, lastOrgNames,
-      explore, runFullExplore, runAudit, runGovernanceAnalysis, setError,
+      explore, runFullExplore, runAudit, runGovernanceAnalysis, setError, staleRepoStats
     }}>
       {children}
     </Ctx.Provider>
