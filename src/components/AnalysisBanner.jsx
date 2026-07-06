@@ -81,7 +81,7 @@ export default function AnalysisBanner({ page, description, onRun, loading = fal
                   color: 'var(--text)',
                 }}
               >
-                You are viewing <span style={{ color: 'var(--accent)' }}>Sample Analysis</span>
+                You are viewing <span style={{ color: 'var(--accent)' }}>Standard Analysis</span>
               </span>
             </div>
 
@@ -109,6 +109,7 @@ export default function AnalysisBanner({ page, description, onRun, loading = fal
           }}
         >
           <button
+            type="button"
             onClick={() => setOpen(true)}
             style={{
               padding: '10px 18px',
@@ -144,6 +145,7 @@ export default function AnalysisBanner({ page, description, onRun, loading = fal
           </button>
 
           <button
+            type="button"
             disabled={loading}
             onClick={() => {
               if (!pat) {

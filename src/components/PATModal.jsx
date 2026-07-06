@@ -94,6 +94,7 @@ export default function PATModal({ open, onClose }) {
           </div>
 
           <button
+            type="button"
             onClick={onClose}
             style={{
               background: "transparent",
@@ -147,6 +148,7 @@ export default function PATModal({ open, onClose }) {
             />
 
             <button
+              type="button"
               onClick={() => setShow((s) => !s)}
               style={{
                 padding: "0 14px",
@@ -169,6 +171,7 @@ export default function PATModal({ open, onClose }) {
             }}
           >
             <button
+              type="button"
               onClick={handleSave}
               disabled={!draft.trim()}
               style={{
@@ -189,6 +192,7 @@ export default function PATModal({ open, onClose }) {
             </button>
 
             <button
+              type="button"
               onClick={handleDelete}
               disabled={!draft.trim()}
               style={{
@@ -293,6 +297,7 @@ export default function PATModal({ open, onClose }) {
           }}
         >
           <button
+            type="button"
             onClick={onClose}
             style={{
               padding: "10px 20px",
