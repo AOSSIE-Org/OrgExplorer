@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react'
 import { FiRefreshCw, FiExternalLink } from 'react-icons/fi'
 import { useApp } from '../context/AppContext'
 import { C, PageTitle, EmptyOk } from '../components/UI'
+import AnalysisBanner from '../components/AnalysisBanner'
 
 const TABS = [
   { key: 'dead',    label: 'Dead Issues' },
@@ -11,7 +12,7 @@ const TABS = [
 ]
 
 export default function GovernancePage() {
-  const { model, issuesData, runAudit, govLoading } = useApp()
+  const { model, issuesData, runAudit, govLoading, auditComplete, loading, runGovernanceAnalysis } = useApp()
   const [tab, setTab] = useState('dead')
 
   // Flatten all issues and tag with repo/org
@@ -104,6 +105,13 @@ export default function GovernancePage() {
 
   return (
     <div style={{ padding: '32px 24px', maxWidth: 1100, margin: '0 auto' }} className="fade-up">
+      <AnalysisBanner
+        page="governance"
+        description="Governance insights are computed from a representative subset to balance speed and API usage. Connect a PAT to analyze every repository and access complete results."
+        analysisStatus={auditComplete ? 'complete' : 'standard'}
+        loading={loading || govLoading}
+        onRun={runGovernanceAnalysis}
+      />
       <PageTitle
         title="Governance Audit"
         subtitle="Analyzing structural integrity and compliance across the portfolio"
