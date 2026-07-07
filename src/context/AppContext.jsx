@@ -34,7 +34,20 @@ export function AppProvider({ children }) {
   const [loadMsg, setLoadMsg] = useState('')
   const [govLoading, setGovLoading] = useState(false)
   const [error, setError] = useState('')
-  const [totalRepo, setTotalRepo] = useState(0)
+  const [cachedOrgs, setCachedOrgs] = useState([])
+
+  useEffect(() => {
+    fetch('/data/manifest.json')
+      .then(res => res.json())
+      .then(data => {
+        if (data && Array.isArray(data.orgs)) {
+          setCachedOrgs(data.orgs.map(o => o.login.toLowerCase()))
+        }
+      })
+      .catch(() => {
+        // Fallback to empty if manifest does not exist
+      })
+  }, [])
 
   useEffect(() => {
     const handler = e => {
@@ -78,45 +91,81 @@ export function AppProvider({ children }) {
     setLoading(true); setError(''); setModel(null); setOrgs([]); setIssuesData({})
     try {
       setLoadMsg('Fetching organization metadata...')
-      const orgRes = await Promise.allSettled(orgNames.map(n => fetchOrg(n, pat)))
-      const validOrgs = orgRes.filter(r => r.status === 'fulfilled').map(r => r.value)
-      if (!validOrgs.length) throw new Error('No valid organizations found. Check the names and try again.')
+      
+      const fetchPromises = orgNames.map(async name => {
+        const lowerName = name.toLowerCase()
+        if (cachedOrgs.includes(lowerName)) {
+          const res = await fetch(`/data/orgs/${lowerName}.json`)
+          if (!res.ok) throw new Error(`Failed to load cached data for ${name}`)
+          const data = await res.json()
+          return { cached: true, name, data }
+        } else {
+          const org = await fetchOrg(name, pat)
+          const repos = await fetchRepos(org.login, org.public_repos, pat)
+          return { cached: false, name, org, repos }
+        }
+      })
+
+      const results = await Promise.all(fetchPromises)
+
+      // 1. Set orgs (tag cached ones so OverviewPage can show badge)
+      const validOrgs = results.map(r => r.cached ? { ...r.data.org, cached: true } : r.org)
       setOrgs(validOrgs)
 
-      setLoadMsg('Fetching repositories...')
+      // 2. Set total repos and reposPerOrg
       const reposPerOrg = {}
-      await Promise.allSettled(validOrgs.map(async org => {
-        reposPerOrg[org.login] = await fetchRepos(org.login, org.public_repos, pat)
-      }))
+      const totalReposPerOrg = {}
+      results.forEach(r => {
+        const orgLogin = r.cached ? r.data.org.login : r.org.login
+        const repos = r.cached ? r.data.repos : r.repos
+        reposPerOrg[orgLogin] = repos
+        totalReposPerOrg[orgLogin] = [...repos]
+      })
 
-      const total = Object.values(reposPerOrg).reduce(
+      const total = Object.values(totalReposPerOrg).reduce(
         (sum, repos) => sum + repos.length,
         0
-      );
+      )
+      setTotalRepo(total)
 
-      setTotalRepo(total);
-      const totalReposPerOrg = Object.fromEntries(
-        Object.entries(reposPerOrg).map(([org, repos]) => [
-          org,
-          [...repos], // copy each array
-        ])
-      );
-
+      // 3. Fetch contributor data for top repositories
       setLoadMsg('Fetching contributor data for top repositories...')
       const contribsPerRepo = {}
-      for (const org of validOrgs) {
+      const cachedIssuesData = {}
 
-        const top = pat ? (reposPerOrg[org.login] || []) : getTopRepositories(reposPerOrg[org.login] || [], 10);
-        reposPerOrg[org.login] = top; // Update to only include top repos
+      for (const r of results) {
+        const orgLogin = r.cached ? r.data.org.login : r.org.login
+        if (r.cached) {
+          const cachedContribs = r.data.contributors || {}
+          Object.entries(cachedContribs).forEach(([repoKey, contribList]) => {
+            const repoName = repoKey.includes('/') ? repoKey.split('/')[1] : repoKey
+            contribsPerRepo[`${orgLogin}/${repoName}`] = contribList
+          })
 
-        await Promise.allSettled(top.map(async repo => {
-          contribsPerRepo[`${org.login}/${repo.name}`] = await fetchContributors(org.login, repo.name, pat)
-        }))
+          const cachedIssues = r.data.issues || {}
+          Object.entries(cachedIssues).forEach(([repoKey, issueList]) => {
+            const repoName = repoKey.includes('/') ? repoKey.split('/')[1] : repoKey
+            cachedIssuesData[`${orgLogin}/${repoName}`] = issueList
+          })
+
+          const top = pat ? (reposPerOrg[orgLogin] || []) : getTopRepositories(reposPerOrg[orgLogin] || [], 10)
+          reposPerOrg[orgLogin] = top
+        } else {
+          const top = pat ? (reposPerOrg[orgLogin] || []) : getTopRepositories(reposPerOrg[orgLogin] || [], 10)
+          reposPerOrg[orgLogin] = top
+
+          await Promise.allSettled(top.map(async repo => {
+            contribsPerRepo[`${orgLogin}/${repo.name}`] = await fetchContributors(orgLogin, repo.name, pat)
+          }))
+        }
+      }
+
+      if (Object.keys(cachedIssuesData).length > 0) {
+        setIssuesData(prev => ({ ...prev, ...cachedIssuesData }))
       }
 
       setLoadMsg('Building analytical data model...')
       setModel(buildAnalyticalModel(validOrgs, reposPerOrg, contribsPerRepo, totalReposPerOrg))
-
 
       // Save to recent searches
       const prev = JSON.parse(localStorage.getItem('oe_recent') || '[]')
@@ -131,25 +180,28 @@ export function AppProvider({ children }) {
     } finally {
       setLoading(false); setLoadMsg('')
     }
-  }, [pat])
+  }, [pat, cachedOrgs])
 
   // Governance audit — parallel batches of 5 (Section 3.2.5)
   const runAudit = useCallback(async () => {
     if (!model || govLoading) return
     setGovLoading(true)
-    const map   = {}
-    const repos = pat? model.totalRepos : model.totalRepos.slice(0, 15)
+    const map = { ...issuesData }
+    const repos = pat ? model.totalRepos : model.totalRepos.slice(0, 15)
 
-    // Batches of 5 using Promise.allSettled
-    for (let i = 0; i < repos.length; i += 5) {
-      const batch = repos.slice(i, i + 5)
-      await Promise.allSettled(batch.map(async repo => {
-        map[`${repo.orgLogin}/${repo.name}`] = await fetchIssues(repo.orgLogin, repo.name, pat)
-      }))
+    const reposToFetch = repos.filter(repo => !map[`${repo.orgLogin}/${repo.name}`])
+
+    if (reposToFetch.length > 0) {
+      for (let i = 0; i < reposToFetch.length; i += 5) {
+        const batch = reposToFetch.slice(i, i + 5)
+        await Promise.allSettled(batch.map(async repo => {
+          map[`${repo.orgLogin}/${repo.name}`] = await fetchIssues(repo.orgLogin, repo.name, pat)
+        }))
+      }
     }
     setIssuesData(map)
     setGovLoading(false)
-  }, [model, pat, govLoading])
+  }, [model, pat, govLoading, issuesData])
 
   const STALE_DAYS = 90
   

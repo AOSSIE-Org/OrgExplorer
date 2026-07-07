@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FiExternalLink, FiShare2, FiArrowRight } from 'react-icons/fi'
+import { FiExternalLink, FiShare2, FiArrowRight, FiZap } from 'react-icons/fi'
 import { useApp } from '../context/AppContext'
 import { C, StatCard, HealthBar } from '../components/UI'
 import SocialShareButton from '../components/SocialShareButton';
@@ -76,8 +76,25 @@ export default function OverviewPage() {
           )
         )}
         <div style={{ flex: 1 }}>
-          <h1 style={{ fontSize: 22, fontWeight: 700 }}>
-            {isMulti ? orgs.map(o => o.login).join(' + ') : (orgs[0]?.name || orgs[0]?.login)}
+          <h1 style={{ fontSize: 22, fontWeight: 700, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+            <span>{isMulti ? orgs.map(o => o.login).join(' + ') : (orgs[0]?.name || orgs[0]?.login)}</span>
+            {orgs.some(o => o.cached) && (
+              <span style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                padding: '2px 8px',
+                borderRadius: 12,
+                background: 'rgba(34, 197, 94, 0.1)',
+                border: '1px solid rgba(34, 197, 94, 0.2)',
+                color: '#22c55e',
+                fontSize: 10,
+                fontWeight: 600,
+                letterSpacing: '0.05em'
+              }} title="Loaded instantly from pre-fetched daily cache">
+                <FiZap size={10} style={{ fill: '#22c55e' }} /> CACHED
+              </span>
+            )}
           </h1>
           <p style={{ fontSize: 13, color: 'var(--text2)', marginTop: 2 }}>
             {isMulti

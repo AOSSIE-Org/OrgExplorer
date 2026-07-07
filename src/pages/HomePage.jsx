@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FiSearch, FiX } from 'react-icons/fi'
 import { useApp } from '../context/AppContext'
@@ -11,6 +11,20 @@ export default function HomePage() {
   const navigate = useNavigate()
   const [input, setInput] = useState('')
   const [chips, setChips] = useState([])
+  const [quickOrgs, setQuickOrgs] = useState(QUICK)
+
+  useEffect(() => {
+    fetch('/data/manifest.json')
+      .then(res => res.json())
+      .then(data => {
+        if (data && Array.isArray(data.orgs)) {
+          setQuickOrgs(data.orgs)
+        }
+      })
+      .catch(() => {
+        // Keep fallback QUICK list
+      })
+  }, [])
 
   const recent = JSON.parse(localStorage.getItem('oe_recent') || '[]')
 
@@ -119,11 +133,15 @@ export default function HomePage() {
         <div style={{ textAlign: 'center' }}>
           <span style={{ ...C.label, display: 'block', marginBottom: 8 }}>Quick explore</span>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
-            {QUICK.map(q => (
-              <button key={q} onClick={() => go([q])} style={{ ...C.btn('secondary'), fontSize: 12, padding: '5px 14px' }}>
-                {q}
-              </button>
-            ))}
+            {quickOrgs.map(q => {
+              const login = typeof q === 'string' ? q : q.login
+              const name = typeof q === 'string' ? q : q.name
+              return (
+                <button key={login} onClick={() => go([login])} style={{ ...C.btn('secondary'), fontSize: 12, padding: '5px 14px' }}>
+                  {name}
+                </button>
+              )
+            })}
           </div>
         </div>
       )}
