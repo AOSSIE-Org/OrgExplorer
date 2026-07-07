@@ -83,72 +83,66 @@ export const RateLimitSchema = z.object({
 // ==========================================
 
 export const GraphQLOrgDetailsSchema = z.object({
-  data: z.object({
-    organization: z.object({
-      login: z.string(),
-      name: z.string().nullable().optional(),
-      description: z.string().nullable().optional(),
-      avatarUrl: z.url(),
-      repositories: z.object({
-        totalCount: z.number(),
-      }),
-    }).nullable(),
-  }),
+  organization: z.object({
+    login: z.string(),
+    name: z.string().nullable().optional(),
+    description: z.string().nullable().optional(),
+    avatarUrl: z.string().url(),
+    repositories: z.object({
+      totalCount: z.number(),
+    }),
+  }).nullable(),
 });
 
 export const GraphQLOrgReposSchema = z.object({
-  data: z.object({
-    organization: z.object({
-      repositories: z.object({
-        pageInfo: z.object({
-          hasNextPage: z.boolean(),
-          endCursor: z.string().nullable().optional(),
-        }),
-        nodes: z.array(z.object({
-          name: z.string(),
-          pushedAt: z.string(),
-          stargazerCount: z.number(),
-          forkCount: z.number(),
-          watchers: z.object({
-            totalCount: z.number(),
-          }),
-          primaryLanguage: z.object({
-            name: z.string(),
-          }).nullable().optional(),
-          licenseInfo: z.object({
-            key: z.string(),
-            name: z.string(),
-          }).nullable().optional(),
-          isArchived: z.boolean(),
-          isFork: z.boolean(),
-        })),
+  organization: z.object({
+    repositories: z.object({
+      pageInfo: z.object({
+        hasNextPage: z.boolean(),
+        endCursor: z.string().nullable().optional(),
       }),
-    }).nullable(),
-  }),
+      nodes: z.array(z.object({
+        name: z.string(),
+        pushedAt: z.string(),
+        stargazerCount: z.number(),
+        forkCount: z.number(),
+        watchers: z.object({
+          totalCount: z.number(),
+        }),
+        primaryLanguage: z.object({
+          name: z.string(),
+        }).nullable().optional(),
+        licenseInfo: z.object({
+          key: z.string(),
+          name: z.string(),
+        }).nullable().optional(),
+        isArchived: z.boolean(),
+        isFork: z.boolean(),
+      })),
+    }),
+  }).nullable(),
 });
 
 export const GraphQLRepoIssuesSchema = z.object({
-  data: z.object({
-    repository: z.object({
-      issues: z.object({
-        pageInfo: z.object({
-          hasNextPage: z.boolean(),
-          endCursor: z.string().nullable().optional(),
-        }),
-        nodes: z.array(z.object({
-          title: z.string(),
-          number: z.number(),
-          createdAt: z.string(),
-          updatedAt: z.string(),
-          state: z.string(),
-          url: z.url(),
-          author: z.object({
-            login: z.string(),
-          }).nullable().optional(),
-        })),
+  repository: z.object({
+    issues: z.object({
+      pageInfo: z.object({
+        hasNextPage: z.boolean(),
+        endCursor: z.string().nullable().optional(),
       }),
-    }).nullable(),
-  }),
+      nodes: z.array(z.object({
+        title: z.string(),
+        number: z.number(),
+        createdAt: z.string(),
+        updatedAt: z.string(),
+        state: z.string(),
+        url: z.string().url(),
+        author: z.object({
+          login: z.string(),
+        }).nullable().optional(),
+      })),
+    }),
+  }).nullable(),
 });
 
 // ==========================================
@@ -237,7 +231,12 @@ async function fetchGraphQL(query, variables = {}) {
   if (!res.ok) {
     throw new Error(`GraphQL Fetch failed: ${res.status} ${res.statusText}`);
   }
-  return res.json();
+  const json = await res.json();
+  if (json.errors && json.errors.length > 0) {
+    const errorMsg = json.errors.map(e => e.message).join('; ');
+    throw new Error(`GraphQL Error: ${errorMsg}`);
+  }
+  return json.data;
 }
 
 function handleZodError(error, contextName) {
