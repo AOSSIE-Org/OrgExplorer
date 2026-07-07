@@ -250,12 +250,68 @@ function handleZodError(error, contextName) {
   });
 }
 
+async function validateLiveRESTCollection({
+  url,
+  schema,
+  startMsg,
+  successMsg,
+  skipMsg,
+  errorMsg,
+  isArray = false,
+  getZodContext,
+  transform = (data) => data,
+  collectionTypeLabel = ''
+}) {
+  try {
+    console.log(`  ${startMsg}`);
+    const data = await fetchREST(url);
+    if (isArray) {
+      if (Array.isArray(data)) {
+        let valid = true;
+        for (const item of data) {
+          const parseResult = schema.safeParse(item);
+          if (!parseResult.success) {
+            failed = true;
+            valid = false;
+            handleZodError(parseResult.error, getZodContext(item));
+          }
+        }
+        if (valid) {
+          const formattedSuccess = successMsg.replace('{count}', data.length);
+          console.log(`  ${colors.green}✓ ${formattedSuccess}${colors.reset}`);
+        }
+      } else {
+        failed = true;
+        console.error(`  ${colors.red}❌ Expected array of ${collectionTypeLabel}, got: ${typeof data}${colors.reset}`);
+      }
+    } else {
+      const targetData = transform(data);
+      const parseResult = schema.safeParse(targetData);
+      if (!parseResult.success) {
+        failed = true;
+        handleZodError(parseResult.error, getZodContext(data));
+      } else {
+        console.log(`  ${colors.green}✓ ${successMsg}${colors.reset}`);
+      }
+    }
+  } catch (err) {
+    if (!token && err.status === 403) {
+      console.log(`  ${colors.yellow}⚠ ${skipMsg}${colors.reset}`);
+    } else {
+      failed = true;
+      console.error(`  ${colors.red}❌ ${errorMsg}: ${err.message}${colors.reset}`);
+    }
+  }
+}
+
 // ==========================================
 // Main Runner
 // ==========================================
 
+let failed = false;
+
 async function main() {
-  let failed = false;
+  failed = false;
 
   console.log(`\n${colors.blue}${colors.bold}=== OrgExplorer Data Schema & API Validation ===${colors.reset}\n`);
 
@@ -315,130 +371,64 @@ async function main() {
   const testRepo = 'OrgExplorer';
 
   // Live REST API checks
-  try {
-    console.log(`  Fetching live Org details for ${colors.bold}${testOrg}${colors.reset}...`);
-    const liveOrg = await fetchREST(`https://api.github.com/orgs/${testOrg}`);
-    const orgParse = OrganizationSchema.safeParse(liveOrg);
-    if (!orgParse.success) {
-      failed = true;
-      handleZodError(orgParse.error, `Live REST - Organization: ${testOrg}`);
-    } else {
-      console.log(`  ${colors.green}✓ Live REST organization schema matches expectations.${colors.reset}`);
-    }
-  } catch (err) {
-    if (!token && err.status === 403) {
-      console.log(`  ${colors.yellow}⚠ Skipped live Org REST fetch due to rate limiting (no token provided).${colors.reset}`);
-    } else {
-      failed = true;
-      console.error(`  ${colors.red}❌ Error fetching live Org REST: ${err.message}${colors.reset}`);
-    }
-  }
+  await validateLiveRESTCollection({
+    url: `https://api.github.com/orgs/${testOrg}`,
+    schema: OrganizationSchema,
+    startMsg: `Fetching live Org details for ${colors.bold}${testOrg}${colors.reset}...`,
+    successMsg: `Live REST organization schema matches expectations.`,
+    skipMsg: `Skipped live Org REST fetch due to rate limiting (no token provided).`,
+    errorMsg: `Error fetching live Org REST`,
+    isArray: false,
+    getZodContext: () => `Live REST - Organization: ${testOrg}`
+  });
 
-  try {
-    console.log(`  Fetching live repositories for ${colors.bold}${testOrg}${colors.reset}...`);
-    const liveRepos = await fetchREST(`https://api.github.com/orgs/${testOrg}/repos?per_page=5`);
-    if (Array.isArray(liveRepos)) {
-      let reposValid = true;
-      for (const repo of liveRepos) {
-        const repoParse = RepositorySchema.safeParse(repo);
-        if (!repoParse.success) {
-          failed = true;
-          reposValid = false;
-          handleZodError(repoParse.error, `Live REST - Repository: ${repo.name}`);
-        }
-      }
-      if (reposValid) {
-        console.log(`  ${colors.green}✓ Live REST repositories schema matches expectations (checked ${liveRepos.length} repos).${colors.reset}`);
-      }
-    } else {
-      failed = true;
-      console.error(`  ${colors.red}❌ Expected array of repos, got: ${typeof liveRepos}${colors.reset}`);
-    }
-  } catch (err) {
-    if (!token && err.status === 403) {
-      console.log(`  ${colors.yellow}⚠ Skipped live repos REST fetch due to rate limiting.${colors.reset}`);
-    } else {
-      failed = true;
-      console.error(`  ${colors.red}❌ Error fetching live Repos REST: ${err.message}${colors.reset}`);
-    }
-  }
+  await validateLiveRESTCollection({
+    url: `https://api.github.com/orgs/${testOrg}/repos?per_page=5`,
+    schema: RepositorySchema,
+    startMsg: `Fetching live repositories for ${colors.bold}${testOrg}${colors.reset}...`,
+    successMsg: `Live REST repositories schema matches expectations (checked {count} repos).`,
+    skipMsg: `Skipped live repos REST fetch due to rate limiting.`,
+    errorMsg: `Error fetching live Repos REST`,
+    isArray: true,
+    collectionTypeLabel: 'repos',
+    getZodContext: (repo) => `Live REST - Repository: ${repo.name}`
+  });
 
-  try {
-    console.log(`  Fetching live contributors for ${colors.bold}${testOrg}/${testRepo}${colors.reset}...`);
-    const liveContribs = await fetchREST(`https://api.github.com/repos/${testOrg}/${testRepo}/contributors?per_page=5`);
-    if (Array.isArray(liveContribs)) {
-      let contribsValid = true;
-      for (const c of liveContribs) {
-        const cParse = ContributorSchema.safeParse(c);
-        if (!cParse.success) {
-          failed = true;
-          contribsValid = false;
-          handleZodError(cParse.error, `Live REST - Contributor: ${c.login}`);
-        }
-      }
-      if (contribsValid) {
-        console.log(`  ${colors.green}✓ Live REST contributors schema matches expectations (checked ${liveContribs.length} contribs).${colors.reset}`);
-      }
-    } else {
-      failed = true;
-      console.error(`  ${colors.red}❌ Expected array of contributors, got: ${typeof liveContribs}${colors.reset}`);
-    }
-  } catch (err) {
-    if (!token && err.status === 403) {
-      console.log(`  ${colors.yellow}⚠ Skipped live contributors REST fetch due to rate limiting.${colors.reset}`);
-    } else {
-      failed = true;
-      console.error(`  ${colors.red}❌ Error fetching live Contributors REST: ${err.message}${colors.reset}`);
-    }
-  }
+  await validateLiveRESTCollection({
+    url: `https://api.github.com/repos/${testOrg}/${testRepo}/contributors?per_page=5`,
+    schema: ContributorSchema,
+    startMsg: `Fetching live contributors for ${colors.bold}${testOrg}/${testRepo}${colors.reset}...`,
+    successMsg: `Live REST contributors schema matches expectations (checked {count} contribs).`,
+    skipMsg: `Skipped live contributors REST fetch due to rate limiting.`,
+    errorMsg: `Error fetching live Contributors REST`,
+    isArray: true,
+    collectionTypeLabel: 'contributors',
+    getZodContext: (c) => `Live REST - Contributor: ${c.login}`
+  });
 
-  try {
-    console.log(`  Fetching live issues for ${colors.bold}${testOrg}/${testRepo}${colors.reset}...`);
-    const liveIssues = await fetchREST(`https://api.github.com/repos/${testOrg}/${testRepo}/issues?per_page=5&state=all`);
-    if (Array.isArray(liveIssues)) {
-      let issuesValid = true;
-      for (const issue of liveIssues) {
-        const issueParse = IssueSchema.safeParse(issue);
-        if (!issueParse.success) {
-          failed = true;
-          issuesValid = false;
-          handleZodError(issueParse.error, `Live REST - Issue: #${issue.number}`);
-        }
-      }
-      if (issuesValid) {
-        console.log(`  ${colors.green}✓ Live REST issues schema matches expectations (checked ${liveIssues.length} issues).${colors.reset}`);
-      }
-    } else {
-      failed = true;
-      console.error(`  ${colors.red}❌ Expected array of issues, got: ${typeof liveIssues}${colors.reset}`);
-    }
-  } catch (err) {
-    if (!token && err.status === 403) {
-      console.log(`  ${colors.yellow}⚠ Skipped live issues REST fetch due to rate limiting.${colors.reset}`);
-    } else {
-      failed = true;
-      console.error(`  ${colors.red}❌ Error fetching live Issues REST: ${err.message}${colors.reset}`);
-    }
-  }
+  await validateLiveRESTCollection({
+    url: `https://api.github.com/repos/${testOrg}/${testRepo}/issues?per_page=5&state=all`,
+    schema: IssueSchema,
+    startMsg: `Fetching live issues for ${colors.bold}${testOrg}/${testRepo}${colors.reset}...`,
+    successMsg: `Live REST issues schema matches expectations (checked {count} issues).`,
+    skipMsg: `Skipped live issues REST fetch due to rate limiting.`,
+    errorMsg: `Error fetching live Issues REST`,
+    isArray: true,
+    collectionTypeLabel: 'issues',
+    getZodContext: (issue) => `Live REST - Issue: #${issue.number}`
+  });
 
-  try {
-    console.log(`  Fetching live rate limit status...`);
-    const liveRate = await fetchREST(`https://api.github.com/rate_limit`);
-    const rateParse = RateLimitSchema.safeParse(liveRate.rate);
-    if (!rateParse.success) {
-      failed = true;
-      handleZodError(rateParse.error, `Live REST - RateLimit`);
-    } else {
-      console.log(`  ${colors.green}✓ Live REST rate limit schema matches expectations.${colors.reset}`);
-    }
-  } catch (err) {
-    if (!token && err.status === 403) {
-      console.log(`  ${colors.yellow}⚠ Skipped live rate limit REST fetch due to rate limiting.${colors.reset}`);
-    } else {
-      failed = true;
-      console.error(`  ${colors.red}❌ Error fetching live RateLimit REST: ${err.message}${colors.reset}`);
-    }
-  }
+  await validateLiveRESTCollection({
+    url: `https://api.github.com/rate_limit`,
+    schema: RateLimitSchema,
+    startMsg: `Fetching live rate limit status...`,
+    successMsg: `Live REST rate limit schema matches expectations.`,
+    skipMsg: `Skipped live rate limit REST fetch due to rate limiting.`,
+    errorMsg: `Error fetching live RateLimit REST`,
+    isArray: false,
+    transform: (liveRate) => liveRate.rate,
+    getZodContext: () => `Live REST - RateLimit`
+  });
 
   // Live GraphQL API checks
   if (token) {
