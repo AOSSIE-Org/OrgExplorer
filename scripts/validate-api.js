@@ -26,7 +26,7 @@ export const OrganizationSchema = z.object({
   login: z.string(),
   name: z.string().nullable().optional(),
   public_repos: z.number(),
-  avatar_url: z.string().url(),
+  avatar_url: z.url(),
   description: z.string().nullable().optional(),
 });
 
@@ -42,7 +42,7 @@ export const RepositorySchema = z.object({
     key: z.string(),
     name: z.string(),
     spdx_id: z.string().nullable().optional(),
-    url: z.string().url().nullable().optional(),
+    url: z.url().nullable().optional(),
     node_id: z.string().optional(),
   }).nullable().optional(),
   archived: z.boolean(),
@@ -51,7 +51,7 @@ export const RepositorySchema = z.object({
 
 export const ContributorSchema = z.object({
   login: z.string(),
-  avatar_url: z.string().url(),
+  avatar_url: z.url(),
   contributions: z.number(),
 });
 
@@ -63,10 +63,10 @@ export const IssueSchema = z.object({
   }).nullable().optional(),
   created_at: z.string(),
   updated_at: z.string(),
-  html_url: z.string().url().optional(),
+  html_url: z.url().optional(),
   pull_request: z.object({
-    url: z.string().url().optional(),
-    html_url: z.string().url().optional(),
+    url: z.url().optional(),
+    html_url: z.url().optional(),
   }).nullable().optional(),
   state: z.string(),
 });
@@ -88,7 +88,7 @@ export const GraphQLOrgDetailsSchema = z.object({
       login: z.string(),
       name: z.string().nullable().optional(),
       description: z.string().nullable().optional(),
-      avatarUrl: z.string().url(),
+      avatarUrl: z.url(),
       repositories: z.object({
         totalCount: z.number(),
       }),
@@ -141,7 +141,7 @@ export const GraphQLRepoIssuesSchema = z.object({
           createdAt: z.string(),
           updatedAt: z.string(),
           state: z.string(),
-          url: z.string().url(),
+          url: z.url(),
           author: z.object({
             login: z.string(),
           }).nullable().optional(),
