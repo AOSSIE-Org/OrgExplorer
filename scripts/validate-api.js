@@ -214,7 +214,9 @@ async function fetchREST(url) {
   }
   const res = await fetch(url, { headers });
   if (res.status === 403) {
-    throw new Error(`REST Rate Limit or Forbidden for ${url}. Consider adding a GITHUB_TOKEN.`);
+    const error = new Error(`REST Rate Limit or Forbidden for ${url}. Consider adding a GITHUB_TOKEN.`);
+    error.status = 403;
+    throw error;
   }
   if (!res.ok) {
     throw new Error(`REST Fetch failed for ${url}: ${res.status} ${res.statusText}`);
@@ -324,7 +326,7 @@ async function main() {
       console.log(`  ${colors.green}✓ Live REST organization schema matches expectations.${colors.reset}`);
     }
   } catch (err) {
-    if (!token && err.message.includes('403')) {
+    if (!token && err.status === 403) {
       console.log(`  ${colors.yellow}⚠ Skipped live Org REST fetch due to rate limiting (no token provided).${colors.reset}`);
     } else {
       failed = true;
@@ -353,7 +355,7 @@ async function main() {
       console.error(`  ${colors.red}❌ Expected array of repos, got: ${typeof liveRepos}${colors.reset}`);
     }
   } catch (err) {
-    if (!token && err.message.includes('403')) {
+    if (!token && err.status === 403) {
       console.log(`  ${colors.yellow}⚠ Skipped live repos REST fetch due to rate limiting.${colors.reset}`);
     } else {
       failed = true;
@@ -382,7 +384,7 @@ async function main() {
       console.error(`  ${colors.red}❌ Expected array of contributors, got: ${typeof liveContribs}${colors.reset}`);
     }
   } catch (err) {
-    if (!token && err.message.includes('403')) {
+    if (!token && err.status === 403) {
       console.log(`  ${colors.yellow}⚠ Skipped live contributors REST fetch due to rate limiting.${colors.reset}`);
     } else {
       failed = true;
@@ -411,7 +413,7 @@ async function main() {
       console.error(`  ${colors.red}❌ Expected array of issues, got: ${typeof liveIssues}${colors.reset}`);
     }
   } catch (err) {
-    if (!token && err.message.includes('403')) {
+    if (!token && err.status === 403) {
       console.log(`  ${colors.yellow}⚠ Skipped live issues REST fetch due to rate limiting.${colors.reset}`);
     } else {
       failed = true;
@@ -430,7 +432,7 @@ async function main() {
       console.log(`  ${colors.green}✓ Live REST rate limit schema matches expectations.${colors.reset}`);
     }
   } catch (err) {
-    if (!token && err.message.includes('403')) {
+    if (!token && err.status === 403) {
       console.log(`  ${colors.yellow}⚠ Skipped live rate limit REST fetch due to rate limiting.${colors.reset}`);
     } else {
       failed = true;
