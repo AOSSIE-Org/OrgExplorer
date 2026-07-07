@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react'
-import { fetchOrg, fetchRepos, fetchContributors, fetchIssues, } from '../services/github'
+import { fetchOrg, fetchRepos, fetchContributors, fetchIssues, fetchRateLimit } from '../services/github'
 import { buildAnalyticalModel, getTopRepositories } from '../services/analytics'
 
 const Ctx = createContext(null)
@@ -72,7 +72,15 @@ export function AppProvider({ children }) {
 
     return () => clearTimeout(timeout)
   }, [rateLimit])
-  const [totalRepo, setTotalRepo] = useState(0);
+
+  const refreshRateLimit = useCallback(async () => {
+    const rl = await fetchRateLimit(pat)
+    if (rl) {
+      setRateLimit(rl)
+      return true
+    }
+    return false
+  }, [pat])
   const savePat = useCallback(token => {
     setPat(token)
     token ? localStorage.setItem('oe_pat', token) : localStorage.removeItem('oe_pat')
@@ -233,7 +241,7 @@ export function AppProvider({ children }) {
     <Ctx.Provider value={{
       pat, savePat, orgs, model, issuesData,
       rateLimit, loading, loadMsg, govLoading, error, totalRepo,
-      explore, runAudit, setError, staleRepoStats,
+      explore, runAudit, setError, refreshRateLimit, staleRepoStats,
     }}>
       {children}
     </Ctx.Provider>

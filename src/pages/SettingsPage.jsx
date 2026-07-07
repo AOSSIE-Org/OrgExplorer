@@ -5,12 +5,13 @@ import { C } from '../components/UI'
 import { cacheClear } from '../services/github'
 import { AiOutlineInfoCircle } from "react-icons/ai";
 export default function SettingsPage() {
-  const { pat, savePat, rateLimit } = useApp()
+  const { pat, savePat, rateLimit, refreshRateLimit } = useApp()
   const [draft, setDraft] = useState(pat)
   const [show, setShow] = useState(false)
   const [saved, setSaved] = useState(false)
   const [cleared, setCleared] = useState(false)
-
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [refreshError, setRefreshError] = useState(false)
   const handleSave = () => {
     savePat(draft.trim())
     setSaved(true)
@@ -207,7 +208,43 @@ export default function SettingsPage() {
           <div style={C.card}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <div style={{ fontWeight: 600, fontSize: 15, letterSpacing: '.03em' }}>API Quota</div>
-              <FiRefreshCw size={14} color="var(--text2)" style={{ cursor: 'pointer' }} />
+              <button
+                type="button"
+                disabled={isRefreshing}
+                onClick={async () => {
+                  if (isRefreshing) return;
+                  setIsRefreshing(true);
+                  setRefreshError(false);
+                  try {
+                    const success = await refreshRateLimit();
+                    if (!success) {
+                      setRefreshError(true);
+                      setTimeout(() => setRefreshError(false), 2000);
+                    }
+                  } finally {
+                    setTimeout(() => setIsRefreshing(false), 500); // Minimum spin duration for visual feedback
+                  }
+                }}
+                style={{ 
+                  background: 'none', 
+                  border: 'none', 
+                  padding: '4px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: '4px'
+                }}
+                aria-label="Refresh API Quota"
+                title={refreshError ? "Failed to refresh" : "Refresh API Quota"}
+                className="hover:bg-(--bg) transition"
+              >
+                <FiRefreshCw 
+                  size={14} 
+                  color={refreshError ? "var(--red)" : "var(--text2)"} 
+                  style={{ transition: 'transform 0.3s ease', transform: isRefreshing ? 'rotate(180deg)' : 'none' }} 
+                />
+              </button>
             </div>
 
             {rateLimit ? (
