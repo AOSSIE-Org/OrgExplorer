@@ -7,9 +7,10 @@ import { computeBusFactor, exportContributorsCSV } from '../services/analytics'
 import { useNavigate } from 'react-router-dom'
 import EmptyStateCard from '../components/EmptyStateCard'
 import { AiOutlineInfoCircle } from "react-icons/ai";
+import AnalysisBanner from '../components/AnalysisBanner'
 
 export default function ContributorsPage() {
-  const { model } = useApp()
+  const { model, isComplete, loading, runFullExplore } = useApp()
   const [search, setSearch] = useState('')
   const [shown, setShown] = useState(20)
   const [openInfo, setOpenInfo] = useState(null)
@@ -67,6 +68,15 @@ export default function ContributorsPage() {
 
   return (
     <div style={{ padding: '32px 24px', maxWidth: 1100, margin: '0 auto' }} className="fade-up">
+
+      <AnalysisBanner
+        page="contributors"
+        description="Contributor insights are computed from a representative subset to balance speed and API usage. Connect a PAT to analyze every repository and access complete results."
+        analysisStatus={isComplete ? 'complete' : 'standard'}
+        loading={loading}
+        onRun={runFullExplore}
+      />
+
       <PageTitle
         title="Contributor Intelligence"
         subtitle="Analyzing contribution patterns, coverage risk, and organizational health"
@@ -92,8 +102,8 @@ export default function ContributorsPage() {
             <p>Bus Factor Risk</p>
 
             <button
-              onMouseEnter={()=>setOpenInfo("busfactor")}
-              onMouseLeave={()=>setOpenInfo(null)}
+              onMouseEnter={() => setOpenInfo("busfactor")}
+              onMouseLeave={() => setOpenInfo(null)}
               className="p-2 rounded-full hover:bg-(--bg) transition"
             >
               <AiOutlineInfoCircle className="text-(--text) cursor-pointer" />
@@ -153,8 +163,8 @@ export default function ContributorsPage() {
             <p>Freshness Index</p>
 
             <button
-              onMouseEnter={()=>setOpenInfo("freshness")}
-              onMouseLeave={()=>setOpenInfo(null)}
+              onMouseEnter={() => setOpenInfo("freshness")}
+              onMouseLeave={() => setOpenInfo(null)}
               className="p-2 rounded-full hover:bg-(--bg) transition"
             >
               <AiOutlineInfoCircle className="text-(--text) cursor-pointer" />
@@ -258,8 +268,8 @@ export default function ContributorsPage() {
                       <p>SIGNALS</p>
 
                       <button
-                        onMouseEnter={()=>setOpenInfo("signals")}
-                        onMouseLeave={()=>setOpenInfo(null)}
+                        onMouseEnter={() => setOpenInfo("signals")}
+                        onMouseLeave={() => setOpenInfo(null)}
                         className="p-2 rounded-full hover:bg-(--bg) transition"
                       >
                         <AiOutlineInfoCircle className="text-(--text) cursor-pointer" />
@@ -317,10 +327,10 @@ export default function ContributorsPage() {
                           color: 'inherit',
                         }}
                       >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <img src={c.avatar_url} alt={c.login} style={{ width: 28, height: 28, borderRadius: '50%' }} />
-                        <span style={{ fontSize: 13, fontWeight: 500 }}>{c.login}</span>
-                      </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <img src={c.avatar_url} alt={c.login} style={{ width: 28, height: 28, borderRadius: '50%' }} />
+                          <span style={{ fontSize: 13, fontWeight: 500 }}>{c.login}</span>
+                        </div>
                       </a>
                     </td>
                     <td style={{ padding: '10px 14px' }}>

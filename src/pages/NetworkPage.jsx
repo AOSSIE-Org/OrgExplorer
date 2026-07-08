@@ -5,9 +5,10 @@ import { C, PageTitle } from '../components/UI'
 import EmptyStateCard from '../components/EmptyStateCard'
 import { FiDatabase } from 'react-icons/fi'
 import { useNavigate } from 'react-router-dom'
+import AnalysisBanner from '../components/AnalysisBanner'
 
 export default function NetworkPage() {
-  const { model } = useApp()
+  const { model, isComplete, loading, runFullExplore } = useApp()
   const svgRef   = useRef(null)
   const simRef   = useRef(null)
   const [tooltip,      setTooltip]      = useState(null)
@@ -156,6 +157,13 @@ export default function NetworkPage() {
 
   return (
     <div style={{ padding: '32px 24px', maxWidth: 1100, margin: '0 auto' }} className="fade-up">
+      <AnalysisBanner
+          page="network"
+          description="Network relationships are computed from a representative subset to balance speed and API usage. Connect a PAT to analyze every repository and access complete results."
+          analysisStatus={isComplete ? 'complete' : 'standard'}
+          loading={loading}
+          onRun={runFullExplore}
+      />
       <PageTitle
         title="Contributor-Repository Network"
         subtitle="Visual map of how contributors connect across repositories. Edge thickness = contribution volume. Position encodes recency — recently active nodes rise to the top."
