@@ -37,6 +37,9 @@ export function AppProvider({ children }) {
   const [error, setError] = useState('')
   const [totalRepo, setTotalRepo] = useState(0)
   const [advanceAnalyticsLoading, setAdvanceAnalyticsLoading] = useState(false);
+  const [isComplete, setIsComplete] = useState(false)
+  const [auditComplete, setAuditComplete] = useState(false)
+  const [lastOrgNames, setLastOrgNames] = useState([])
 
   useEffect(() => {
     const handler = e => {
@@ -75,9 +78,15 @@ export function AppProvider({ children }) {
     token ? localStorage.setItem('oe_pat', token) : localStorage.removeItem('oe_pat')
   }, [])
 
-  // Multi-org explore — core of Section 3.2.0
+  // Multi-org explore
   const explore = useCallback(async orgNames => {
-    setLoading(true); setError(''); setModel(null); setOrgs([]); setIssuesData({})
+    setLoading(true);
+    setError('');
+    setModel(null);
+    setOrgs([]);
+    setIssuesData({});
+    setLastOrgNames(orgNames);
+    setAuditComplete(false);
     try {
       setLoadMsg('Fetching organization metadata...')
       const orgRes = await Promise.allSettled(orgNames.map(n => fetchOrg(n, pat)))
@@ -91,17 +100,11 @@ export function AppProvider({ children }) {
         reposPerOrg[org.login] = await fetchRepos(org.login, org.public_repos, pat)
       }))
 
-      const total = Object.values(reposPerOrg).reduce(
-        (sum, repos) => sum + repos.length,
-        0
-      );
-
+      const total = Object.values(reposPerOrg).reduce((sum, repos) => sum + repos.length, 0);
       setTotalRepo(total);
+
       const totalReposPerOrg = Object.fromEntries(
-        Object.entries(reposPerOrg).map(([org, repos]) => [
-          org,
-          [...repos], // copy each array
-        ])
+        Object.entries(reposPerOrg).map(([org, repos]) => [org, [...repos]])
       );
 
       setLoadMsg('Fetching contributor data for top repositories...')
@@ -109,7 +112,7 @@ export function AppProvider({ children }) {
       for (const org of validOrgs) {
 
         const top = pat ? (reposPerOrg[org.login] || []) : getTopRepositories(reposPerOrg[org.login] || [], 10);
-        reposPerOrg[org.login] = top; // Update to only include top repos
+        reposPerOrg[org.login] = top;
 
         await Promise.allSettled(top.map(async repo => {
           contribsPerRepo[`${org.login}/${repo.name}`] = await fetchContributors(org.login, repo.name, pat)
@@ -117,14 +120,16 @@ export function AppProvider({ children }) {
       }
 
       setLoadMsg('Building analytical data model...')
-      setModel(buildAnalyticalModel(validOrgs, reposPerOrg, contribsPerRepo, totalReposPerOrg))
+      const builtModel = buildAnalyticalModel(validOrgs, reposPerOrg, contribsPerRepo, totalReposPerOrg)
+      setModel(builtModel)
 
+      setIsComplete(!!pat)
 
       // Save to recent searches
       const prev = JSON.parse(localStorage.getItem('oe_recent') || '[]')
       const entry = orgNames.join(', ')
       localStorage.setItem('oe_recent', JSON.stringify([...new Set([entry, ...prev])].slice(0, 6)))
-      return true
+      return builtModel
     } catch (err) {
       setError(err.message === 'RATE_LIMIT'
         ? 'GitHub API rate limit reached. Add a PAT in Settings for 5,000 req/hr.'
@@ -135,23 +140,68 @@ export function AppProvider({ children }) {
     }
   }, [pat])
 
-  // Governance audit — parallel batches of 5 (Section 3.2.5)
-  const runAudit = useCallback(async () => {
-    if (!model || govLoading) return
-    setGovLoading(true)
-    const map   = {}
-    const repos = pat? model.totalRepos : model.totalRepos.slice(0, 15)
+  // re-run explore for the same orgs: used by the banner on
+  // Overview / Contributors / Repositories / Network
+  const runFullExplore = useCallback(() => {
+    if (!lastOrgNames.length) return Promise.resolve(false)
+    return explore(lastOrgNames)
+  }, [explore, lastOrgNames])
 
-    // Batches of 5 using Promise.allSettled
+  // Shared issue-fetch logic: same repo-selection rule as contributors
+  const auditRepos = useCallback(async (allRepos) => {
+    const byOrg = {}
+    for (const repo of allRepos) {
+      (byOrg[repo.orgLogin] ??= []).push(repo)
+    }
+    const repos = Object.values(byOrg).flatMap(orgRepos =>
+      pat ? orgRepos : getTopRepositories(orgRepos, 10)
+    )
+
+    const map = {}
     for (let i = 0; i < repos.length; i += 5) {
       const batch = repos.slice(i, i + 5)
       await Promise.allSettled(batch.map(async repo => {
         map[`${repo.orgLogin}/${repo.name}`] = await fetchIssues(repo.orgLogin, repo.name, pat)
       }))
     }
+    return map
+  }, [pat])
+
+  // Governance audit : used directly when repos are already complete
+  const runAudit = useCallback(async () => {
+    if (!model || govLoading) return
+    setGovLoading(true)
+    const map = await auditRepos(model.allRepos)
     setIssuesData(map)
     setGovLoading(false)
-  }, [model, pat, govLoading])
+    setAuditComplete(!!pat)
+  }, [model, pat, govLoading, auditRepos])
+
+  // Entry point for Governance / Analytics "Run Complete Analysis"
+  // - If repos/contributors aren't complete yet -> fetch them first (explore),
+  //   then fetch issues using the freshly-returned model (avoids stale closure).
+  // - If already complete -> skip repo fetching (cache/state already has it),
+  //   just fetch issues.
+  const runGovernanceAnalysis = useCallback(async () => {
+    if (govLoading) return
+
+    let currentModel = model
+    if (!isComplete) {
+      setGovLoading(true) // reflect "working" immediately, explore() also sets its own loading
+      const freshModel = await runFullExplore()
+      setGovLoading(false)
+      if (!freshModel) return
+      currentModel = freshModel
+    }
+
+    if (!currentModel) return
+
+    setGovLoading(true)
+    const map = await auditRepos(currentModel.allRepos)
+    setIssuesData(map)
+    setGovLoading(false)
+    setAuditComplete(!!pat)
+  }, [isComplete, model, runFullExplore, auditRepos, pat, govLoading])
 
   // Advanced analytics — parallel batches of 5 (Section 3.2.5)
   const runAdvanceAnalytics = useCallback(async () => {
@@ -209,7 +259,9 @@ export function AppProvider({ children }) {
     <Ctx.Provider value={{
       pat, savePat, orgs, model, issuesData, pullsData,
       rateLimit, loading, loadMsg, govLoading, error, totalRepo,
-      explore, runAudit, runAdvanceAnalytics, setError, refreshRateLimit, staleRepoStats, advanceAnalyticsLoading
+      runAdvanceAnalytics, refreshRateLimit, advanceAnalyticsLoading,
+      isComplete, auditComplete, lastOrgNames,
+      explore, runFullExplore, runAudit, runGovernanceAnalysis, setError, staleRepoStats
     }}>
       {children}
     </Ctx.Provider>

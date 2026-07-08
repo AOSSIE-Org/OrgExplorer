@@ -8,6 +8,7 @@ import { FaCodeBranch } from 'react-icons/fa'
 import { IoChevronDown } from 'react-icons/io5'
 import { HiCheck, HiOutlineClock } from 'react-icons/hi'
 import { useAdvancedMetrics } from '../hooks/useSortedData'
+import AnalysisBanner from '../components/AnalysisBanner'
 
 const TOOLTIP_STYLE = {
   contentStyle: {
@@ -21,7 +22,8 @@ const TOOLTIP_STYLE = {
 }
 
 export default function AnalyticsPage() {
-  const { model, issuesData, runAudit, govLoading, runAdvanceAnalytics, advanceAnalyticsLoading, pullsData } = useApp()
+  const { model, issuesData, runAudit, govLoading, runAdvanceAnalytics, advanceAnalyticsLoading, pullsData,  auditComplete, loading, runGovernanceAnalysis  } = useApp()
+
   const [granularity,   setGranularity]   = useState('monthly')
   const [selectedRepo, setSelectedRepo] = useState('All')
   const [selectedRepoForAM, setSelectedRepoForAM] = useState("All Repositories");
@@ -91,6 +93,13 @@ export default function AnalyticsPage() {
   return (
     <>
     <div style={{ padding: '32px 24px', maxWidth: 1100, margin: '0 auto' }} className="fade-up">
+      <AnalysisBanner
+        page="governance"
+        description="Activity trends are computed from a representative subset to balance speed and API usage. Connect a PAT to analyze every repository and access complete results."
+        analysisStatus={auditComplete ? 'complete' : 'sample'}
+        loading={loading || govLoading}
+        onRun={runGovernanceAnalysis}
+      />
       <PageTitle
         title="Activity Trends"
         subtitle="How PR and issue velocity is evolving over time — created, merged, and closed per week or month"
