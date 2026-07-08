@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react'
-import { fetchOrg, fetchRepos, fetchContributors, fetchIssues, fetchRateLimit } from '../services/github'
+import { fetchOrg, fetchRepos, fetchContributors, fetchIssues, fetchRateLimit, fetchPulls } from '../services/github'
 import { buildAnalyticalModel, getTopRepositories } from '../services/analytics'
 
 const Ctx = createContext(null)
@@ -29,12 +29,14 @@ export function AppProvider({ children }) {
   const [orgs, setOrgs] = useState([])
   const [model, setModel] = useState(null)
   const [issuesData, setIssuesData] = useState({})
+  const [pullsData, setPullsData] = useState({})
   const [rateLimit, setRateLimit] = useState(getStoredRateLimit)
   const [loading, setLoading] = useState(false)
   const [loadMsg, setLoadMsg] = useState('')
   const [govLoading, setGovLoading] = useState(false)
   const [error, setError] = useState('')
   const [totalRepo, setTotalRepo] = useState(0)
+  const [advanceAnalyticsLoading, setAdvanceAnalyticsLoading] = useState(false);
   const [isComplete, setIsComplete] = useState(false)
   const [auditComplete, setAuditComplete] = useState(false)
   const [lastOrgNames, setLastOrgNames] = useState([])
@@ -201,6 +203,24 @@ export function AppProvider({ children }) {
     setAuditComplete(!!pat)
   }, [isComplete, model, runFullExplore, auditRepos, pat, govLoading])
 
+  // Advanced analytics — parallel batches of 5 (Section 3.2.5)
+  const runAdvanceAnalytics = useCallback(async () => {
+    if (!model || advanceAnalyticsLoading) return
+    setAdvanceAnalyticsLoading(true)
+    const map = {}
+    const repos = model.totalRepos;
+
+    // Batches of 5 using Promise.allSettled
+    for (let i = 0; i < repos.length; i += 5) {
+      const batch = repos.slice(i, i + 5)
+      await Promise.allSettled(batch.map(async repo => {
+        map[`${repo.orgLogin}/${repo.name}`] = await fetchPulls(repo.orgLogin, repo.name, pat)
+      }))
+    }
+    setPullsData(map)
+    setAdvanceAnalyticsLoading(false)
+  }, [model, pat, advanceAnalyticsLoading])
+
   const STALE_DAYS = 90
   
   const staleRepoStats = useMemo(() => {
@@ -237,8 +257,9 @@ export function AppProvider({ children }) {
 
   return (
     <Ctx.Provider value={{
-      pat, savePat, orgs, model, issuesData,
+      pat, savePat, orgs, model, issuesData, pullsData,
       rateLimit, loading, loadMsg, govLoading, error, totalRepo,
+      runAdvanceAnalytics, refreshRateLimit, advanceAnalyticsLoading,
       isComplete, auditComplete, lastOrgNames,
       explore, runFullExplore, runAudit, runGovernanceAnalysis, setError, staleRepoStats
     }}>
