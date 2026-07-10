@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --bg:       #0d0d0d;
-  --surface:  #141414;
+  --bg: #000000;
+  --surface: #141414;
   --surface2: #1a1a1a;
   --border:   #2a2a2a;
   --accent:   #f5c518;
@@ -48,10 +48,26 @@ button { cursor: pointer; font-family: inherit; }
 input, select { font-family: inherit; }
 a { color: var(--accent); text-decoration: none; }
 
-::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: var(--bg); }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+::selection {
+  background: rgba(252, 211, 77, 0.9);
+  color: #000000;
+}
 
+::-moz-selection {
+  background: rgba(252, 211, 77, 0.9);
+  color: #000000;
+}
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
