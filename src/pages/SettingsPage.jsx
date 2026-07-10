@@ -49,7 +49,7 @@ export default function SettingsPage() {
   }, [])
 
   return (
-    <div style={{ padding: '32px 24px', maxWidth: 900, margin: '0 auto' }} className="fade-up">
+    <div style={{ padding: '32px 24px', maxWidth: 1100, margin: '0 auto' }} className="fade-up">
       <h1 style={{ fontSize: 26, fontWeight: 700, marginBottom: 24 }}>Settings</h1>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
