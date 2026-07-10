@@ -22,7 +22,7 @@ const TOOLTIP_STYLE = {
 }
 
 export default function AnalyticsPage() {
-  const { model, issuesData, runAudit, govLoading, runAdvanceAnalytics, advanceAnalyticsLoading, pullsData,  auditComplete, loading, runGovernanceAnalysis  } = useApp()
+  const { model, issuesData, runAudit, govLoading, runAdvanceAnalytics, advanceAnalyticsLoading, advanceAnalyticsComplete, runFullAnalytics, pullsData,  auditComplete, loading, runGovernanceAnalysis, pat  } = useApp()
 
   const [granularity,   setGranularity]   = useState('monthly')
   const [selectedRepo, setSelectedRepo] = useState('All')
@@ -51,9 +51,10 @@ export default function AnalyticsPage() {
     return key ? (pullsData[key] || []) : []
   }, [pullsData, selectedRepoForAM])
 
-  if (!model) return null
 
   const advancedMetrics = useAdvancedMetrics(filteredPulls)
+
+  if (!model) return null
 
   const acceptanceChart = [
     {
@@ -66,8 +67,8 @@ export default function AnalyticsPage() {
     }
   ]
   
-  const repoNames = ['All', ...model.allRepos.slice(0, 12).map(r => r.name)]
-  const allRepoNames = ['All Repositories', ...model.totalRepos.map(r => r.name)];
+  const repoNames = ['All', ...Object.keys(issuesData || {}).map(k => k.split('/')[1])]
+  const allRepoNames = ['All Repositories', ...Object.keys(pullsData || {}).map(k => k.split('/')[1])]
   const hasData = Object.keys(issuesData || {}).length > 0
   const hasPullsData = Object.keys(pullsData || {}).length > 0
   const hasSeries = series.length > 0
@@ -89,20 +90,21 @@ export default function AnalyticsPage() {
     if (days <= 15) return 'var(--amber)'
     return 'var(--red)'
   }
+  const analyticsComplete = auditComplete && advanceAnalyticsComplete
   
   return (
     <>
     <div style={{ padding: '32px 24px', maxWidth: 1100, margin: '0 auto' }} className="fade-up">
       <AnalysisBanner
         page="governance"
-        description="Activity trends are computed from a representative subset to balance speed and API usage. Connect a PAT to analyze every repository and access complete results."
-        analysisStatus={auditComplete ? 'complete' : 'sample'}
-        loading={loading || govLoading}
-        onRun={runGovernanceAnalysis}
+        description="Activity trends and advanced metrics are computed from a representative subset to balance speed and API usage. Connect a PAT to analyze every repository and access complete results."
+        analysisStatus={analyticsComplete ? 'complete' : 'sample'}
+        loading={loading || govLoading || advanceAnalyticsLoading}
+        onRun={runFullAnalytics}
       />
       <PageTitle
         title="Activity Trends"
-        subtitle="How PR and issue velocity is evolving over time — created, merged, and closed per week or month"
+        subtitle="How PR and issue velocity is evolving over time — created, merged, and closed per week or month."
         right={
           hasSeries && (
             <button
@@ -139,12 +141,14 @@ export default function AnalyticsPage() {
 
         {!hasData && (
           <button
-            onClick={runAudit}
-            disabled={govLoading}
+            onClick={() => pat ? runFullAnalytics() : runGovernanceAnalysis()}
+            disabled={govLoading || advanceAnalyticsLoading}
             style={{ ...C.btn('primary'), display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, opacity: govLoading ? 0.7 : 1 }}
           >
             <FiRefreshCw size={13} />
-            {govLoading ? 'Fetching issue history...' : 'Load Issue and PR History'}
+              {(govLoading || advanceAnalyticsLoading)
+              ? (pat ? 'Fetching full data...' : 'Fetching issue history...')
+              : 'Load Issue and PR History'}
           </button>
         )}
       </div>
@@ -168,7 +172,9 @@ export default function AnalyticsPage() {
       {govLoading && (
         <InfoBox>
           <div style={{ fontSize: 14, color: 'var(--text)' }}>
-            Fetching issue and PR history for top 15 repositories in batches of 5...
+            {pat
+            ? 'Fetching issue and PR history for all repositories in batches of 5...'
+            : 'Fetching issue and PR history for top 10 repositories in batches of 5...'}
           </div>
         </InfoBox>
       )}
@@ -225,7 +231,7 @@ export default function AnalyticsPage() {
     <div style={{ padding: '32px 24px', maxWidth: 1100, margin: '0 auto' }} className="fade-up">
       <PageTitle
         title="Advanced Analytics"
-        subtitle="Key metrics and trends for your organization, including PR acceptance rate and PR average merge time, and more (Please run analysis with PAT)."
+        subtitle="Key metrics and trends for your organization, including PR acceptance rate and PR average merge time, and more."
       />
         
       {/* Controls */}
@@ -278,15 +284,43 @@ export default function AnalyticsPage() {
           
         {!hasPullsData && (
           <button
-            onClick={() => runAdvanceAnalytics()}
-            disabled={advanceAnalyticsLoading}
+            onClick={() => pat ? runFullAnalytics() : runAdvanceAnalytics()}
+            disabled={govLoading || advanceAnalyticsLoading}
             style={{ ...C.btn('primary'), display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, opacity: advanceAnalyticsLoading ? 0.7 : 1 }}
           >
             <FiRefreshCw size={13} />
-            {advanceAnalyticsLoading ? 'Collecting...' : 'Collect Advanced Metrics'}
+              {(govLoading || advanceAnalyticsLoading)
+              ? (pat ? 'Fetching full data...' : 'Collecting...')
+              : 'Collect Advanced Metrics'}
           </button>
         )}
       </div>
+
+      {/* Empty state before audit runs */}
+      {!hasPullsData && !advanceAnalyticsLoading && (
+        <InfoBox>
+          <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)', marginBottom: 8 }}>
+            No Pull Request data loaded yet
+          </div>
+          <p style={{ fontSize: 13, marginBottom: 12 }}>
+            Click "Collect Advanced Metrics" above to fetch pull request data for the top repositories.
+          </p>
+          <p style={{ fontSize: 12 }}>
+            This computes average merge time and PR acceptance rate from each repository's pull
+            request history, with no additional API calls beyond the fetch itself.
+          </p>
+        </InfoBox>
+      )}
+
+      {advanceAnalyticsLoading && (
+        <InfoBox>
+          <div style={{ fontSize: 14, color: 'var(--text)' }}>
+            {pat
+            ? 'Fetching pull request history for all repositories in batches of 5...'
+            : 'Fetching pull request history for top 10 repositories in batches of 5...'}
+          </div>
+        </InfoBox>
+      )}
 
       {hasPullsData &&
         (<div

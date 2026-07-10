@@ -37,6 +37,7 @@ export function AppProvider({ children }) {
   const [error, setError] = useState('')
   const [totalRepo, setTotalRepo] = useState(0)
   const [advanceAnalyticsLoading, setAdvanceAnalyticsLoading] = useState(false);
+  const [advanceAnalyticsComplete, setAdvanceAnalyticsComplete] = useState(false) 
   const [isComplete, setIsComplete] = useState(false)
   const [auditComplete, setAuditComplete] = useState(false)
   const [lastOrgNames, setLastOrgNames] = useState([])
@@ -87,6 +88,7 @@ export function AppProvider({ children }) {
     setIssuesData({});
     setLastOrgNames(orgNames);
     setAuditComplete(false);
+    setAdvanceAnalyticsComplete(false);
     try {
       setLoadMsg('Fetching organization metadata...')
       const orgRes = await Promise.allSettled(orgNames.map(n => fetchOrg(n, pat)))
@@ -147,15 +149,19 @@ export function AppProvider({ children }) {
     return explore(lastOrgNames)
   }, [explore, lastOrgNames])
 
-  // Shared issue-fetch logic: same repo-selection rule as contributors
-  const auditRepos = useCallback(async (allRepos) => {
+  const selectAnalysisRepos = useCallback((allRepos) => {
     const byOrg = {}
     for (const repo of allRepos) {
       (byOrg[repo.orgLogin] ??= []).push(repo)
     }
-    const repos = Object.values(byOrg).flatMap(orgRepos =>
+    return Object.values(byOrg).flatMap(orgRepos =>
       pat ? orgRepos : getTopRepositories(orgRepos, 10)
     )
+  }, [pat])
+
+  // Shared issue-fetch logic: same repo-selection rule as contributors
+  const auditRepos = useCallback(async (allRepos) => {
+    const repos = selectAnalysisRepos(allRepos)
 
     const map = {}
     for (let i = 0; i < repos.length; i += 5) {
@@ -165,7 +171,7 @@ export function AppProvider({ children }) {
       }))
     }
     return map
-  }, [pat])
+  }, [pat, selectAnalysisRepos])
 
   // Governance audit : used directly when repos are already complete
   const runAudit = useCallback(async () => {
@@ -204,13 +210,28 @@ export function AppProvider({ children }) {
   }, [isComplete, model, runFullExplore, auditRepos, pat, govLoading])
 
   // Advanced analytics — parallel batches of 5 (Section 3.2.5)
+  // Entry point for Analytics "Run Complete Analysis"
+  // - If repos/contributors aren't complete yet -> fetch them first (explore),
+  //   then fetch pulls using the freshly-returned model (avoids stale closure).
+  // - If already complete -> skip repo fetching, just fetch pulls.
   const runAdvanceAnalytics = useCallback(async () => {
-    if (!model || advanceAnalyticsLoading) return
+    if (advanceAnalyticsLoading) return
+
+    let currentModel = model
+    if (!isComplete) {
+      setAdvanceAnalyticsLoading(true) // reflect "working" immediately
+      const freshModel = await runFullExplore()
+      setAdvanceAnalyticsLoading(false)
+      if (!freshModel) return
+      currentModel = freshModel
+    }
+
+    if (!currentModel) return
+
     setAdvanceAnalyticsLoading(true)
     const map = {}
-    const repos = model.totalRepos;
+    const repos = selectAnalysisRepos(currentModel.totalRepos)
 
-    // Batches of 5 using Promise.allSettled
     for (let i = 0; i < repos.length; i += 5) {
       const batch = repos.slice(i, i + 5)
       await Promise.allSettled(batch.map(async repo => {
@@ -219,7 +240,52 @@ export function AppProvider({ children }) {
     }
     setPullsData(map)
     setAdvanceAnalyticsLoading(false)
-  }, [model, pat, advanceAnalyticsLoading])
+    setAdvanceAnalyticsComplete(!!pat)
+  }, [isComplete, model, runFullExplore, selectAnalysisRepos, pat, advanceAnalyticsLoading])
+
+  // Combined entry point for the whole Analytics page banner
+  // Runs explore() once if needed, then fetches issues + pulls in parallel
+  const runFullAnalytics = useCallback(async () => {
+    if (govLoading || advanceAnalyticsLoading) return
+
+    let currentModel = model
+    if (!isComplete) {
+      setGovLoading(true)
+      setAdvanceAnalyticsLoading(true)
+      const freshModel = await runFullExplore()
+      setGovLoading(false)
+      setAdvanceAnalyticsLoading(false)
+      if (!freshModel) return
+      currentModel = freshModel
+    }
+
+    if (!currentModel) return
+
+    setGovLoading(true)
+    setAdvanceAnalyticsLoading(true)
+
+    const [issuesMap, pullsMap] = await Promise.all([
+      auditRepos(currentModel.allRepos),
+      (async () => {
+        const repos = selectAnalysisRepos(currentModel.totalRepos)
+        const map = {}
+        for (let i = 0; i < repos.length; i += 5) {
+          const batch = repos.slice(i, i + 5)
+          await Promise.allSettled(batch.map(async repo => {
+            map[`${repo.orgLogin}/${repo.name}`] = await fetchPulls(repo.orgLogin, repo.name, pat)
+          }))
+        }
+        return map
+      })()
+    ])
+
+    setIssuesData(issuesMap)
+    setPullsData(pullsMap)
+    setGovLoading(false)
+    setAdvanceAnalyticsLoading(false)
+    setAuditComplete(!!pat)
+    setAdvanceAnalyticsComplete(!!pat)
+  }, [model, isComplete, runFullExplore, auditRepos, selectAnalysisRepos, pat, govLoading, advanceAnalyticsLoading])
 
   const STALE_DAYS = 90
   
@@ -259,7 +325,8 @@ export function AppProvider({ children }) {
     <Ctx.Provider value={{
       pat, savePat, orgs, model, issuesData, pullsData,
       rateLimit, loading, loadMsg, govLoading, error, totalRepo,
-      runAdvanceAnalytics, refreshRateLimit, advanceAnalyticsLoading,
+      runAdvanceAnalytics, refreshRateLimit, advanceAnalyticsLoading, advanceAnalyticsComplete,
+      runFullAnalytics,
       isComplete, auditComplete, lastOrgNames,
       explore, runFullExplore, runAudit, runGovernanceAnalysis, setError, staleRepoStats
     }}>

@@ -52,7 +52,6 @@ export default function GovernancePage() {
     const start = (stalePage - 1) * ITEMS_PER_PAGE
     return staleRepoStats.slice(start, start + ITEMS_PER_PAGE)
   }, [staleRepoStats, stalePage])
-  console.log(paginatedStaleRepos);
   // Flatten all issues and tag with repo/org
   const allIssues = useMemo(() => {
     const arr = []
