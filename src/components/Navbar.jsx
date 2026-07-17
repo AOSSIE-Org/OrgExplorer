@@ -3,8 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { FiSettings, FiZap } from 'react-icons/fi'
 import { useApp } from '../context/AppContext'
 import ThemeToggle from './ThemeToggle'
-import ogLogoWhite from "../assests/og-logo.png";
-import ogLogoDark from "../assests/og-logo-dark.png";
+import Logo from "../assests/og-logo.svg?react";
 import { useTheme } from '../context/ThemeContext'
 
 const LINKS = [
@@ -31,19 +30,13 @@ export default function Navbar() {
       borderBottom: '1px solid var(--border)',
       padding: '0 24px',
       display: 'flex', alignItems: 'center', gap: 24, height: 56,
+      justifyContent: 'space-between',
     }}>
       {/* Wordmark */}
       <span
         onClick={() => navigate('/')}
       >
-        {
-          theme === "dark" &&
-          <img src={ogLogoDark} alt="Logo" className='h-15' />
-        }
-        {
-          theme === "light" &&
-          <img src={ogLogoWhite} alt="Logo" className='h-15' />
-        }
+        <Logo className="h-15 w-auto"/>
       </span>
 
       {/* Nav links — only visible when data is loaded */}

@@ -7,8 +7,7 @@ import {
   FaXTwitter,
 } from "react-icons/fa6";
 import { HiOutlineMail } from "react-icons/hi";
-import ogLogoWhite from "../../assests/og-logo.png";
-import ogLogoDark from "../../assests/og-logo-dark.png";
+import Logo from "../../assests/og-logo.svg?react";
 import { useTheme } from "../../context/ThemeContext";
 
 const footerLinks = [
@@ -129,20 +128,11 @@ export default function Footer() {
         <div className="flex flex-col items-start gap-2 text-left lg:items-end lg:text-right">
           <p
             className=" flex items-center
-              text-xs tracking-[0.2em]
-              text-zinc-500
-            "
+              text-xs tracking-[0.2em]"
           >
             © {new Date().getFullYear()}
             <span>
-              {
-                theme === "dark" &&
-                  <img src={ogLogoDark} alt="Logo" className='h-20' />
-              }
-              {
-                theme === "light" &&
-                  <img src={ogLogoWhite} alt="Logo" className='h-20' />
-              }
+              <Logo className="h-15 w-auto"/>
             </span>
           </p>
 

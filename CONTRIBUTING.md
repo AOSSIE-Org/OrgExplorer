@@ -267,7 +267,7 @@ See PR template.
 
 ## Questions?
 
-- 💬 **Discord**: Ask on [AOSSIE server](https://discord.gg/hjUhu33uAn)
+- 💬 **Discord**: Ask on [AOSSIE server](https://discord.com/channels/1022871757289422898/1465651557445144586)
 - 🐛 **Bug reports**: Open an [issue](https://github.com/AOSSIE-Org/OrgExplorer/issues)
 - 💡 **Ideas**: Start a [discussion](https://github.com/AOSSIE-Org/OrgExplorer/discussions)
 
