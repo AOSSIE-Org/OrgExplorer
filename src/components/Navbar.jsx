@@ -1,6 +1,6 @@
 import React from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import { FiSettings, FiZap } from 'react-icons/fi'
+import { FiHeart, FiSettings, FiZap } from 'react-icons/fi'
 import { useApp } from '../context/AppContext'
 import ThemeToggle from './ThemeToggle'
 import Logo from "../assests/og-logo.svg?react";
@@ -72,6 +72,13 @@ export default function Navbar() {
           className='h-[-webkit-fill-available]'
         >
           <FiSettings size={13} /> Settings
+        </button>
+        <button
+          onClick={() => navigate('/support-us')}
+          className="flex items-center gap-2 rounded-md bg-emerald-500 px-4 py-2 text-sm font-medium text-white shadow transition-all duration-200 hover:bg-emerald-600 hover:shadow-lg active:scale-95"
+        >
+          <FiHeart size={13} />
+          Support Us
         </button>
       </div>
     </nav>

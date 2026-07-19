@@ -14,6 +14,7 @@ import AnalyticsPage   from './pages/AnalyticsPage'
 import GovernancePage  from './pages/GovernancePage'
 import SettingsPage    from './pages/SettingsPage'
 import Footer from './components/layout/Footer'
+import Support from './pages/Support'
 
 function Layout({ children }) {
   return (
@@ -39,6 +40,7 @@ function AppContent() {
         <Route path="/analytics"    element={<AnalyticsPage />} />
         <Route path="/governance"   element={<GovernancePage />} />
         <Route path="/settings"     element={<SettingsPage />} />
+        <Route path="/support-us"      element={<Support />} />
         <Route path="*"             element={<Navigate to="/" replace />} />
       </Routes>
     </Layout>

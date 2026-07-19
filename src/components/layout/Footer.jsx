@@ -29,6 +29,10 @@ const footerLinks = [
     label: "API Status",
     href: "/settings#api-status",
   },
+  {
+    label: "Support Us",
+    href:"/support-us"
+  }
 ];
 
 const socialLinks = [
