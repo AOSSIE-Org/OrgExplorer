@@ -9,6 +9,8 @@ import {
 import { HiOutlineMail } from "react-icons/hi";
 import Logo from "../../assests/og-logo.svg?react";
 import { useTheme } from "../../context/ThemeContext";
+import { BsHeart, BsHeartFill } from "react-icons/bs";
+import { color } from "d3";
 
 const footerLinks = [
   {
@@ -66,46 +68,44 @@ export default function Footer() {
   const { theme } = useTheme();
   return (
     <footer role="contentinfo" style={{ borderTop: "1px solid var(--border)" }}>
-      <div className="flex w-full flex-col gap-8 px-4 py-8 md:px-6 lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex w-full flex-col gap-8 px-4 py-8 md:px-6 lg:flex-row lg:items-center lg:justify-around">
+
         {/* LEFT SECTION */}
-        <div className="flex flex-col gap-6">
-          {/* NAVIGATION */}
-          <nav
-            aria-label="Footer Navigation"
-            className="flex flex-wrap items-center gap-x-6 gap-y-3"
-          >
-            {footerLinks.map((item) => (
-              <Link
-                key={item.label}
-                to={item.href}
-                style={{
-                  color: "var(--text2)",
-                  transition: "color 0.2s ease",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.color = "var(--accent)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.color = "var(--text2)";
-                }}
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
+        <div className="flex items-center gap-8 justify-center">
+          {/* Logo */}
+          <img
+            src="/aossie-logo.svg"
+            alt="AOSSIE"
+            className="h-16 w-auto"/>
 
-          {/* SOCIAL LINKS */}
-          <div className="flex items-center gap-6">
-            {socialLinks.map((item) => {
-              const Icon = item.icon;
+          {/* Separator */}
+          <div className="h-20 w-px bg-zinc-700" />
 
-              return (
-                <a
+          {/* Description */}
+          <div className="max-w-sm">
+            <p className="mt-2 text-sm leading-5" style={{color: "var(--text2)"}}>
+              AOSSIE is a non-profit organization dedicated to building
+              impactful open-source software, mentoring contributors,
+              and fostering innovation through global collaboration.
+            </p>
+          </div>
+        </div>
+
+        {/* MIDDLE SECTION */}
+        <div className="flex flex-col lg:flex-row lg:gap-8 items-center">
+          {/* Separator */}
+          <div className="h-25 w-px bg-zinc-700 rotate-90 lg:rotate-180" />
+        
+          <div className="flex flex-col gap-6">
+            {/* NAVIGATION */}
+            <nav
+              aria-label="Footer Navigation"
+              className="flex flex-wrap items-center gap-x-6 gap-y-3 justify-center"
+            >
+              {footerLinks.map((item) => (
+                <Link
                   key={item.label}
-                  href={item.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label={`Visit our ${item.label}`}
+                  to={item.href}
                   style={{
                     color: "var(--text2)",
                     transition: "color 0.2s ease",
@@ -117,33 +117,75 @@ export default function Footer() {
                     e.currentTarget.style.color = "var(--text2)";
                   }}
                 >
-                  <Icon size={18} />
-                </a>
-              );
-            })}
+                  {item.label}
+                </Link>
+              ))}
+            </nav>
+
+            {/* SOCIAL LINKS */}
+            <div className="flex items-center gap-6 justify-center">
+              {socialLinks.map((item) => {
+                const Icon = item.icon;
+
+                return (
+                  <a
+                    key={item.label}
+                    href={item.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={`Visit our ${item.label}`}
+                    style={{
+                      color: "var(--text2)",
+                      transition: "color 0.2s ease",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.color = "var(--accent)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.color = "var(--text2)";
+                    }}
+                  >
+                    <Icon size={18} />
+                  </a>
+                );
+              })}
+            </div>
           </div>
         </div>
-
+        
         {/* RIGHT SECTION */}
-        <div className="flex flex-col items-start gap-2 text-left lg:items-end lg:text-right">
-          <p
-            className=" flex items-center
-              text-xs tracking-[0.2em]"
-          >
-            © {new Date().getFullYear()}
-            <span>
-              <Logo className="h-15 w-auto"/>
-            </span>
-          </p>
+        <div className="flex flex-col lg:flex-row lg:gap-8 items-center">
+          {/* Separator */}
+          <div className="h-25 w-px bg-zinc-700 rotate-90 lg:rotate-180" />
+          
+          <div className="flex flex-col gap-2 items-end text-right">
+            <p
+              className=" flex items-center
+                text-xs tracking-[0.2em]"
+            >
+              © {new Date().getFullYear()}
+              <span>
+                <Logo className="h-15 w-auto"/>
+              </span>
+            </p>
 
-          <p
-            className="
-              text-xs uppercase tracking-[0.2em]
-              text-zinc-600
-            "
-          >
-            Built for open source communities
-          </p>
+            <p
+              className="
+                text-xs uppercase tracking-[0.2em]
+                text-zinc-600
+              "
+            >
+              Built for open source communities
+            </p>
+
+            <p className="flex items-center justify-center gap-2 text-sm font-normal">
+              <span>Made with</span>
+              <BsHeartFill className="text-yellow-400" size={14} />
+              <span>
+                by <a href="https://github.com/AOSSIE-Org" target="_blank" rel="noreferrer" aria-label="AOSSIE GitHub link" className="font-semibold">AOSSIE</a>
+              </span>
+            </p>
+          </div>
         </div>
       </div>
     </footer>
