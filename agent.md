@@ -14,7 +14,7 @@ browser (no backend server).
 ## Project Philosophy
 
 This project originates from AOSSIE's GSoC idea proposal (see
-[project brief link/reference]), which set three hard requirements:
+[https://github.com/AOSSIE-Org/OrgExplorer]), which set three hard requirements:
 
 - No backend — must run entirely in the browser.
 - Local storage / IndexedDB only for persistence.
@@ -121,8 +121,9 @@ output, no randomness, no hidden weighting.
 Never modify a metric's formula without updating both its documentation
 here and every page that consumes it.
 
-Note: if additional metrics exist in the codebase beyond this list, add them here with their formula reference
-— don't let an agent infer meaning from variable names alone.
+Note: if additional metrics exist in the codebase beyond this list, add them
+here with their formula reference — don't let an agent infer meaning from
+variable names alone.
 
 ## Stable Contracts
 
@@ -171,24 +172,7 @@ Single context provider (`AppProvider`) holds all cross-page state. Key pieces:
 - **`lastOrgNames`** — remembers the last searched org(s) so any page can
   re-trigger `explore()` without the user re-entering names.
 
-## Security
-
-Handling of the GitHub PAT:
-
-- Never log the PAT, in console output, error messages, or analytics.
-- Never send the PAT anywhere except directly to `api.github.com`.
-- Never persist the PAT outside `localStorage` (no cookies, no query
-  params, no external storage).
-- Never expose the PAT in a URL, including in `Link` headers or debug
-  output.
-
-Note: the PAT is currently stored as plaintext in `localStorage`
-(`oe_pat`), which is readable by any script able to execute in this origin.
-This is a known, accepted trade-off for a backend-less app — do not "fix"
-it by adding a server or remote storage without discussing it first, since
-that would violate the no-backend requirement.
-
-### Entry points and when to use which
+## Entry points and when to use which
 
 | Function | Fetches | Use when |
 |---|---|---|
@@ -273,6 +257,23 @@ Note: as of the current codebase, `PATModal` is missing dialog semantics
 (`role="dialog"`, `aria-modal`, focus trap, Escape-to-close) — this is a
 known gap, not a pattern to replicate in new modals.
 
+## Security
+
+Handling of the GitHub PAT:
+
+- Never log the PAT, in console output, error messages, or analytics.
+- Never send the PAT anywhere except directly to `api.github.com`.
+- Never persist the PAT outside `localStorage` (no cookies, no query
+  params, no external storage).
+- Never expose the PAT in a URL, including in `Link` headers or debug
+  output.
+
+Note: the PAT is currently stored as plaintext in `localStorage`
+(`oe_pat`), which is readable by any script able to execute in this origin.
+This is a known, accepted trade-off for a backend-less app — do not "fix"
+it by adding a server or remote storage without discussing it first, since
+that would violate the no-backend requirement.
+
 ## Caching
 
 `services/cache.js` wraps every GitHub request in an IndexedDB cache
@@ -333,7 +334,7 @@ rest of the app, causing silent data mismatches between pages.
 
 - `context/AppContext.jsx` — all shared state and data-fetching orchestration
 - `services/github.js` — raw GitHub API calls, PAT-aware pagination
-- `services/analytics.js` — `buildAnalyticalModel`, `getTopRepositories`, `time-series builders`
+- `services/analytics.js` — `buildAnalyticalModel`, `getTopRepositories`, time-series builders
 - `services/cache.js` — IndexedDB L2 cache wrapper
 - `components/AnalysisBanner.jsx` — shared standard/complete banner + PAT gate
 - `components/PATModal.jsx` — PAT entry/save/delete UI
@@ -341,20 +342,27 @@ rest of the app, causing silent data mismatches between pages.
 - `pages/*.jsx` — Overview, Repositories, Contributors, Network, Governance,
   Analytics, Settings
 
-## Before submitting a change
+## Performance Constraints
 
-- If you touched fetch logic, re-check the fetch-cap table above stays
-  consistent across contributors/issues/pulls.
-- If you touched a page's loading/empty state, check whether a sibling
-  section on the same page has an equivalent state that should match (see
-  the Activity Trends / Advanced Analytics consistency pass in git history
-  for the expected pattern).
-- Don't hand-roll a new top-N repo cutoff — use `selectAnalysisRepos` /
-  `getTopRepositories`.
+Target:
+
+- Initial load < 3 seconds
+- Cached navigation < 100ms
+- Network graph should remain responsive above 1,000 edges
+- Zero unnecessary re-renders
+
+Avoid:
+
+- Nested loops over repositories where a single pass would do
+- Duplicate API requests for data already in `model` or the IndexedDB cache
+- Rebuilding graphs/models on every render instead of memoizing
 
 ## Testing
 
-Every new feature should include:
+No automated test suite currently exists in this codebase. This section
+applies once one is introduced.
+
+When it is, every new feature should include:
 
 - Utility/unit tests for pure functions (`services/analytics.js`,
   `services/github.js` helpers)
@@ -363,6 +371,22 @@ Every new feature should include:
 Avoid snapshot-only tests. Prefer tests that assert on actual behavior
 (e.g. "given these repos and no PAT, the top 10 by score are selected")
 over tests that just lock in current output.
+
+## Before submitting a change
+
+- Keep PRs focused — avoid unrelated refactors bundled into a feature or fix.
+- If you touched fetch logic, re-check the fetch-cap table above stays
+  consistent across contributors/issues/pulls.
+- If you touched a page's loading/empty state, check whether a sibling
+  section on the same page has an equivalent state that should match (see
+  the Activity Trends / Advanced Analytics consistency pass in git history
+  for the expected pattern).
+- Update this file if the architecture, stable contracts, or metrics
+  formulas change.
+- Buttons should have explicit `type="button"` unless they're meant to
+  submit a form (rare in this codebase).
+- Don't hand-roll a new top-N repo cutoff — use `selectAnalysisRepos` /
+  `getTopRepositories`.
 
 ## When in Doubt
 
