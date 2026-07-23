@@ -71,7 +71,7 @@ export default function GovernancePage() {
 
   // Health check 1 — Dead Issues (>90 days open, not a PR)
   const deadIssues = allIssues
-    .filter(i => !i.pull_request && daysSince(i.created_at) >= 90)
+    .filter(i => !i.pull_request && i.state === 'open' && daysSince(i.created_at) >= 90)
     .sort((a, b) => daysSince(b.created_at) - daysSince(a.created_at))
 
   // Health check 2 — Percentage of dead issues relative to all issues
@@ -79,7 +79,7 @@ export default function GovernancePage() {
 
   // Health check 3 — Zombie PRs (>90 days open)
   const zombiePRs = allIssues
-    .filter(i => i.pull_request && daysSince(i.created_at) >= 90)
+    .filter(i => i.pull_request && i.state === 'open' && daysSince(i.created_at) >= 90)
     .sort((a, b) => daysSince(b.created_at) - daysSince(a.created_at))
 
   // Health check 4 — No license
