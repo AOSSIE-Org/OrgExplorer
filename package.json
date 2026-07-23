@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "validate-api": "node scripts/validate-api.js"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.0",
@@ -19,7 +20,11 @@
     "tailwindcss": "^4.3.0"
   },
   "devDependencies": {
+    "@octokit/graphql-schema": "^15.26.1",
     "@vitejs/plugin-react": "^4.3.1",
-    "vite": "^5.4.6"
+    "dotenv": "^17.4.2",
+    "graphql": "^17.0.2",
+    "vite": "^5.4.6",
+    "zod": "^4.4.3"
   }
 }
