@@ -3,7 +3,7 @@
 
 <!-- Organization Logo -->
 <div align="center" style="display: flex; align-items: center; justify-content: center; gap: 16px;">
-  <img src="./public/org-explorer-logo.svg" width="175" />
+  <img src="./public/org-explorer-logo.png" width="175" />
   <img alt="AOSSIE" src="public/aossie-logo.svg" width="175">
 </div>
 

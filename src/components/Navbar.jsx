@@ -3,6 +3,9 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { FiSettings, FiZap } from 'react-icons/fi'
 import { useApp } from '../context/AppContext'
 import ThemeToggle from './ThemeToggle'
+import ogLogoWhite from "../assests/og-logo.png";
+import ogLogoDark from "../assests/og-logo-dark.png";
+import { useTheme } from '../context/ThemeContext'
 
 const LINKS = [
   { to: '/overview',     label: 'Overview'     },
@@ -15,6 +18,7 @@ const LINKS = [
 
 export default function Navbar() {
   const { orgs, rateLimit } = useApp()
+  const { theme } = useTheme();
   const navigate = useNavigate()
   const hasData  = orgs.length > 0
   const lowLimit = rateLimit && rateLimit.remaining < 15
@@ -31,9 +35,15 @@ export default function Navbar() {
       {/* Wordmark */}
       <span
         onClick={() => navigate('/')}
-        style={{ fontWeight: 800, fontSize: 15, letterSpacing: '.1em', color: 'var(--accent)', cursor: 'pointer', flexShrink: 0 }}
       >
-        OrgExplorer
+        {
+          theme === "dark" &&
+          <img src={ogLogoDark} alt="Logo" className='h-15' />
+        }
+        {
+          theme === "light" &&
+          <img src={ogLogoWhite} alt="Logo" className='h-15' />
+        }
       </span>
 
       {/* Nav links — only visible when data is loaded */}

@@ -5,13 +5,14 @@ import { useApp } from '../context/AppContext'
 import { C, StatCard, HealthBar } from '../components/UI'
 import SocialShareButton from '../components/SocialShareButton';
 import { AiOutlineInfoCircle } from "react-icons/ai";
-
+import AnalysisBanner from '../components/AnalysisBanner'
+import { OverviewSkeleton } from '../components/Orgexplorerskeletons'
 
 const LANG_COLORS = ['#22c55e', '#f5c518', '#3b82f6', '#ef4444', '#a855f7', '#f97316', '#06b6d4']
 const fmt = n => n > 999 ? (n / 1000).toFixed(1) + 'k' : String(n)
 
 export default function OverviewPage() {
-  const { orgs, model, totalRepo } = useApp()
+  const { orgs, model, totalRepo, isComplete, loading, runFullExplore } = useApp()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const infoRef = useRef(null)
@@ -28,6 +29,7 @@ export default function OverviewPage() {
     }
   }, [])
 
+  if(loading) return <OverviewSkeleton />
   if (!model) return null
 
   const { totalRepos } = model
@@ -60,6 +62,14 @@ export default function OverviewPage() {
 
   return (
     <div style={{ padding: '32px 24px', maxWidth: 1100, margin: '0 auto' }} className="fade-up">
+
+      <AnalysisBanner
+        page="overview"
+        description="Organization insights are computed from a representative subset to balance speed and API usage. Connect a PAT to analyze every repository and access complete results."
+        analysisStatus={isComplete ? 'complete' : 'standard'}
+        loading={loading}
+        onRun={runFullExplore}
+      />
 
       {/* Org identity bar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 28 }}>

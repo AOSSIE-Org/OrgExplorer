@@ -7,6 +7,9 @@ import {
   FaXTwitter,
 } from "react-icons/fa6";
 import { HiOutlineMail } from "react-icons/hi";
+import ogLogoWhite from "../../assests/og-logo.png";
+import ogLogoDark from "../../assests/og-logo-dark.png";
+import { useTheme } from "../../context/ThemeContext";
 
 const footerLinks = [
   {
@@ -61,6 +64,7 @@ const socialLinks = [
 ];
 
 export default function Footer() {
+  const { theme } = useTheme();
   return (
     <footer role="contentinfo" style={{ borderTop: "1px solid var(--border)" }}>
       <div className="flex w-full flex-col gap-8 px-4 py-8 md:px-6 lg:flex-row lg:items-center lg:justify-between">
@@ -124,12 +128,22 @@ export default function Footer() {
         {/* RIGHT SECTION */}
         <div className="flex flex-col items-start gap-2 text-left lg:items-end lg:text-right">
           <p
-            className="
+            className=" flex items-center
               text-xs tracking-[0.2em]
               text-zinc-500
             "
           >
-            © 2026 OrgExplorer
+            © {new Date().getFullYear()}
+            <span>
+              {
+                theme === "dark" &&
+                  <img src={ogLogoDark} alt="Logo" className='h-20' />
+              }
+              {
+                theme === "light" &&
+                  <img src={ogLogoWhite} alt="Logo" className='h-20' />
+              }
+            </span>
           </p>
 
           <p
