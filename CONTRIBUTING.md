@@ -1,58 +1,54 @@
 # Contributing to OrgExplorer
 
-Thank you for considering a contribution to **OrgExplorer**, an AOSSIE project. This guide describes how the repository is set up today and how we expect contributions to flow.
+Thank you for your interest in contributing to **OrgExplorer**—an AOSSIE project. This guide outlines how to report issues, suggest features, and submit code changes.
 
-By participating, you agree to communicate respectfully with maintainers and other contributors, in line with AOSSIE community norms on Discord and GitHub.
+By participating in this project, you agree to abide by our community standards and communicate respectfully with maintainers and fellow contributors.
 
-## Discord communication
+## Quick Links
 
-**Project coordination happens on Discord.** GitHub is used for code and issue tracking; important updates and questions should also reach maintainers on Discord.
+- **Discord**: [AOSSIE Community](https://discord.gg/hjUhu33uAn) — Join for discussions and announcements
+- **Issues**: [GitHub Issues](https://github.com/AOSSIE-Org/OrgExplorer/issues) — Report bugs and request features
+- **Discussions**: Use Discord for architecture questions and early-stage ideas
 
-- Join the [AOSSIE Discord server](https://discord.gg/hjUhu33uAn) before you start substantial work.
-- Share a link to your PR in the relevant channel so reviewers can find it.
-- PRs that are hard to discover or lack context may be delayed—see also the [pull request template](.github/PULL_REQUEST_TEMPLATE.md).
 
-## Table of contents
+## How to Contribute
 
-- [How you can contribute](#how-you-can-contribute)
-- [Project overview](#project-overview)
-- [Getting started](#getting-started)
-- [Development workflow](#development-workflow)
-- [Pull request guidelines](#pull-request-guidelines)
-- [Code style](#code-style)
-- [Community notes](#community-notes)
+### Report a Bug
 
-## How you can contribute
+Before opening an issue, search for existing ones to avoid duplicates. A good bug report includes:
 
-### Reporting bugs
+- **Clear title** — Brief, descriptive summary
+- **Steps to reproduce** — Exact steps to trigger the issue
+- **Expected vs actual behavior** — What should happen vs what happens
+- **Screenshots/recordings** — For UI-related bugs
+- **Environment** — OS, browser, Node.js version if relevant
 
-Before opening an issue, search existing ones to avoid duplicates. Useful bug reports include:
+### Request a Feature
 
-- A clear title and short summary
-- Steps to reproduce
-- Expected vs actual behavior
-- Screenshots or recordings if the UI is involved
-- Environment (OS, browser, Node.js version if relevant)
+1. Check existing [issues](https://github.com/AOSSIE-Org/OrgExplorer/issues) to see if it's already suggested
+2. Describe the feature and the problem it solves
+3. Provide examples or mockups if helpful
+4. Discuss on Discord for early feedback before extensive work
 
-### Suggesting features
+### Submit Code
 
-- Check whether the idea already exists as an issue
-- Describe the feature and the problem it solves
-- Add examples or mockups if helpful
+1. **Claim an issue** — Comment on the issue (or a [discussion](https://github.com/AOSSIE-Org/OrgExplorer/discussions)) before starting work
+2. **Get alignment** — Wait for maintainer confirmation on approach for significant changes
+3. **Fork & branch** — Create a feature branch from `main`
+4. **Make changes** — Keep commits focused and messages clear
+5. **Test locally** — Run lint and build before submitting
+6. **Open a PR** — Use the PR template and link related issues
+7. **Engage on Discord** — Share your PR link for visibility
 
-### Contributing code
 
-1. **Open or pick an issue** — For non-trivial work, tie your change to an issue (feature, bug, or docs).
-2. **Comment / get aligned** — Prefer waiting for maintainer assignment or confirmation on Discord before large efforts, to avoid duplicate or rejected work.
-3. **Open a PR** — Keep the change focused; unrelated drive-by edits make review harder.
 
-## Project overview
+## Project Architecture
 
-OrgExplorer is a **single-package frontend** application:
+OrgExplorer is a **single-package frontend** React application with the following tech stack:
 
 | Component | Technology |
 |-----------|-----------|
-| **UI Framework** | React 18 with JavaScript |
+| **UI Framework** | React 18 with TypeScript |
 | **Styling** | TailwindCSS |
 | **Build Tool** | Vite |
 | **Linting** | ESLint 9 |
@@ -60,215 +56,209 @@ OrgExplorer is a **single-package frontend** application:
 | **Visualizations** | D3.js & Recharts |
 | **Storage** | IndexedDB (browser-based) |
 
-Approximate layout:
+### Project Structure
 
-```text
+```
 OrgExplorer/
-├── public/           # Static assets (e.g. logos)
+├── public/              # Static assets (logos, etc.)
 ├── src/
-│   ├── App.jsx         # Root component
-│   ├── main.jsx        # React entry point
+│   ├── App.tsx         # Root component
+│   ├── main.tsx        # React entry point
 │   ├── components/     # Reusable components
 │   ├── pages/          # Page components
-│   ├── context/        # Context providers
-│   ├── hooks/          # Custom hooks
-│   ├── services/       # API clients and utility functions
+│   ├── utils/          # Helper functions
 │   └── styles/         # Global & module styles
 ├── index.html          # HTML entry point
-├── vite.config.js      # Vite configuration
+├── vite.config.ts      # Vite configuration
 ├── eslint.config.js    # ESLint rules
 ├── tsconfig.json       # TypeScript config
 └── package.json        # Dependencies & scripts
 ```
 
-There is **no `test` script** in `package.json` yet. Before opening a PR, run **lint** and **build** locally (see below).
+**Note**: No test script yet. Run `npm run lint` and `npm run build` before submitting PRs.
+
+
 
 ## Getting Started
 
 ### Prerequisites
 
-- **[Node.js](https://nodejs.org/)** — Use a current LTS release (for example 20.x or 22.x). If `npm run dev` or `npm run build` fails, try upgrading Node first.
-- **npm** — Comes with Node; this repo uses `package-lock.json`, so prefer `npm install` for consistent dependency trees.
+- **Node.js**: Current LTS version (20.x or 22.x). If commands fail, upgrade Node first.
+- **npm**: Comes with Node; this repo uses `package-lock.json` for consistency.
 
-### Clone and install
+### Setup Steps
 
-1. **Fork** the repository on GitHub (if you do not have write access to the org repo).
+1. **Fork the repository** on GitHub (if you don't have push access)
 
-2. **Clone your fork** and enter the project root:
-
+2. **Clone your fork**:
    ```bash
    git clone https://github.com/YOUR_USERNAME/OrgExplorer.git
    cd OrgExplorer
    ```
 
-3. **Add `upstream`** (replace the URL if the canonical remote differs):
-
+3. **Add upstream remote**:
    ```bash
    git remote add upstream https://github.com/AOSSIE-Org/OrgExplorer.git
    ```
 
-4. **Install dependencies:**
-
+4. **Install dependencies**:
    ```bash
    npm install
    ```
 
-5. **Run the dev server:**
-
+5. **Start development server**:
    ```bash
    npm run dev
    ```
+   Opens on http://localhost:5173 (Vite default)
 
-   Vite prints a local URL (typically `http://localhost:5173`). Open it in your browser.
-
-6. **Production build (sanity check):**
-
+6. **Verify build works**:
    ```bash
    npm run build
-   ```
-
-7. **Preview the production build (optional):**
-
-   ```bash
    npm run preview
    ```
 
-### Environment variables
+### Environment Setup
 
-If the project later adds a `.env.example`, copy it to `.env` and fill in values as documented. Until then, the default setup does not require env files for local development.
+If `.env.example` exists, copy it to `.env` and fill in values as documented. Otherwise, no environment files are required for local development.
 
-## Development workflow
 
-### 1. Branch from the default branch
 
-Create a branch from the latest default branch (usually `main`):
+## Development Workflow
+
+### 1. Create a Feature Branch
 
 ```bash
 git fetch upstream
-git checkout main
-git pull upstream main
-git checkout -b docs/your-change-description
-# or: fix/issue-42-short-name
-# or: feat/short-feature-name
+git checkout upstream/main
+git checkout -b feat/short-description
+# or: fix/issue-number-short-description
+# or: docs/your-change
 ```
 
-### 2. Make changes
+### 2. Make Your Changes
 
-- Prefer small, reviewable commits with clear messages.
-- Update docs when behavior or setup changes.
-- Remove stray `console.log` and debug code before submitting.
+- Write focused, reviewable commits
+- Use clear commit messages (see conventions below)
+- Update documentation if behavior changes
+- Remove console logs and debug code before committing
 
-### 3. Verify locally
+### 3. Verify Locally
 
 ```bash
-npm run lint
-npm run build
+npm run lint      # Check code style and TypeScript
+npm run build     # Ensure production build succeeds
 ```
 
-Fix any ESLint or TypeScript errors reported by these commands.
+Fix any errors reported before proceeding.
 
-### 4. Commit messages
+### 4. Commit Message Conventions
 
-Conventional prefixes help scan history:
-
-| Prefix | Use for |
+| Prefix | Purpose |
 |--------|---------|
-| `feat:` | New user-facing behavior |
-| `fix:` | Bug fixes |
+| `feat:` | New user-facing feature |
+| `fix:` | Bug fix |
 | `docs:` | Documentation only |
-| `style:` | Formatting, no logic change |
-| `refactor:` | Internal restructuring |
-| `chore:` | Tooling, config, dependencies |
+| `style:` | Formatting changes (no logic change) |
+| `refactor:` | Code restructuring |
+| `chore:` | Dependencies, config, tooling |
 
-Example:
-
-```bash
-git commit -m "docs: refine CONTRIBUTING for Vite and React setup"
+**Example**:
+```
+feat: add repository network graph visualization
+docs: update CONTRIBUTING with setup steps
 ```
 
-### 5. Push and open a PR
+### 5. Push and Create a Pull Request
 
 ```bash
-git push origin docs/your-change-description
+git push origin feat/short-description
 ```
 
-On GitHub, open a pull request against the upstream default branch. Use the PR template, link the issue (e.g. `Fixes #23`), and post on Discord as requested in the checklist.
+On GitHub:
+1. Open a PR against `upstream/main`
+2. Fill in the [PR template](.github/PULL_REQUEST_TEMPLATE.md)
+3. Link related issues using `Fixes #123` or `Related to #123`
+4. Add screenshots for UI changes
+5. Share the PR link on [Discord](https://discord.gg/hjUhu33uAn)
 
-### 6. Keep your branch up to date
+### 6. Keep Your Branch Updated
 
 ```bash
 git fetch upstream
 git rebase upstream/main
-# resolve conflicts if any, then:
-git push --force-with-lease origin docs/your-change-description
+git push --force-with-lease origin feat/short-description
 ```
 
-Use rebase or merge according to what maintainers prefer; rebasing keeps history linear.
 
-## Pull request guidelines
 
-### Before you submit
+## Pull Request Checklist
+
+Before submitting your PR, ensure:
 
 - [ ] `npm run lint` passes
-- [ ] `npm run build` passes
-- [ ] Documentation updated when setup or behavior changes
-- [ ] Commits are understandable without reading every file
-- [ ] Branch is reasonably up to date with upstream
+- [ ] `npm run build` succeeds
+- [ ] Documentation is updated for behavior changes
+- [ ] Commits are clear and well-described
+- [ ] Branch is up to date with `upstream/main`
+- [ ] Related issues are linked
 
-### PR contents
+### PR Contents
 
-1. Fill in [`.github/PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md).
-2. Link related issues (`Fixes #123` or `Related to #123`).
-3. Add screenshots or recordings for visible UI changes.
-4. Mention anything reviewers should know (breaking changes, follow-ups).
+1. **Use the PR template** — Fill in all sections in [`.github/PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md)
+2. **Link issues** — Use `Fixes #123` or `Related to #456`
+3. **Add visuals** — Screenshots/recordings for UI changes
+4. **Explain trade-offs** — Mention anything reviewers should know
+5. **Disclose AI usage** — If you used AI tools, mention it (required by template)
 
-### After submission
+### After Submission
 
-- Share the PR link on Discord.
-- Respond to review feedback; additional commits on the same branch are fine.
-- The PR template includes an **AI notice**: if you used AI-assisted tooling, you are still responsible for correctness, build, and lint.
+- Check back regularly for review feedback
+- Push additional commits to the same branch (no need to force-push)
+- Respond to comments promptly
+- Share the PR on Discord for visibility
 
-### Suggested PR description snippet
 
-```markdown
-## Description
-Brief summary of changes.
 
-## Related issue
-Fixes #23
+## Code Style & Standards
 
-### JavaScript & React
+### TypeScript & React
 
-## Checklist
-See PR template.
-```
+- Follow existing **ESLint** configuration (`eslint.config.js`)
+- Use `const` by default; only use `let` when reassignment is needed
+- Write meaningful names; keep components focused and reusable
+- Match patterns in nearby files for consistency
 
-## Code style
+### Best Practices
 
 - **No unnecessary dependencies** — Use browser APIs when possible
 - **No secrets or large artifacts** — Don't commit API keys, build outputs, or node_modules
 - **Keep it simple** — Avoid over-engineering; favor readability
+- **Type safety** — Use TypeScript for new code; avoid `any` when possible
 
-- Avoid unnecessary dependencies.
-- Do not commit secrets or large generated artifacts unrelated to the feature.
+### Formatting
 
-## Community notes
+- ESLint is configured and will catch most issues
+- Run `npm run lint` frequently during development
+- Format imports and maintain consistent style with the codebase
 
-- Be respectful and constructive.
-- If you cannot finish an issue, say so on Discord so it can be reassigned.
-- If a PR has no response after a reasonable time, follow up on Discord rather than only pinging on GitHub.
 
-### Issue assignment
 
-- One primary assignee per issue unless maintainers say otherwise.
-- Check for an existing PR before duplicating work.
+## Community Guidelines
+
+- **Be respectful** — Treat all contributors with courtesy
+- **Communicate clearly** — Use clear language in issues and PRs
+- **Ask for help** — If stuck or can't finish, reach out on Discord
+- **Follow up** — If a PR is inactive, ping on Discord rather than only commenting on GitHub
+- **One assignee per issue** — Avoid duplicate efforts; check for existing PRs first
 
 ---
 
 ## Questions?
 
-- 💬 **Discord**: Ask on [AOSSIE server](https://discord.com/channels/1022871757289422898/1465651557445144586)
+- 💬 **Discord**: Ask on [AOSSIE server](https://discord.gg/hjUhu33uAn)
 - 🐛 **Bug reports**: Open an [issue](https://github.com/AOSSIE-Org/OrgExplorer/issues)
 - 💡 **Ideas**: Start a [discussion](https://github.com/AOSSIE-Org/OrgExplorer/discussions)
 
 Thank you for contributing to OrgExplorer! 🎉
+

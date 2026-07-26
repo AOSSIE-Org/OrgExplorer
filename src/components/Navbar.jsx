@@ -77,7 +77,7 @@ export default function Navbar() {
           onClick={() => navigate('/support-us')}
           className="flex items-center gap-2 rounded-md bg-emerald-500 px-4 py-2 text-sm font-medium text-white shadow transition-all duration-200 hover:bg-emerald-600 hover:shadow-lg active:scale-95"
         >
-          <FiHeart size={13} />
+          <FiHeart size={13} fill='white'/>
           Support Us
         </button>
       </div>
