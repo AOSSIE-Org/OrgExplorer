@@ -98,6 +98,13 @@ const cell = (val) => {
     .replace(/\|/g, '\\|')
 }
 
+// Helper to extract owner/repo from GitHub API repository URL
+const getFullRepoFromUrl = (url) => {
+  if (!url) return ''
+  const parts = url.split('/')
+  return parts.slice(-2).join('/')
+}
+
 export default function ContributorProfilePage() {
   const { username } = useParams()
   const navigate = useNavigate()
@@ -134,6 +141,10 @@ export default function ContributorProfilePage() {
 
   // Fetch contributor issues & PRs from GitHub Search API (Supports pagination & cleanup)
   useEffect(() => {
+    // Reset data states to prevent rendering stale profile info
+    setRawContributions([])
+    setMergedPRKeys(new Set())
+
     if (!username) {
       setLoading(false)
       return
@@ -171,7 +182,7 @@ export default function ContributorProfilePage() {
 
         const mergedKeys = new Set(
           mergedItems.map(item => {
-            const repo = item.repository_url ? item.repository_url.split('/').pop() : ''
+            const repo = getFullRepoFromUrl(item.repository_url)
             return `${repo}/${item.number}`
           })
         )
@@ -257,11 +268,12 @@ export default function ContributorProfilePage() {
         if (item.pull_request?.merged_at !== undefined && item.pull_request?.merged_at !== null) {
           merged = true
         } else {
-          const localMatch = localPulls.find(p => p.number === item.number && p.base?.repo?.name === repoName)
+          const fullRepo = getFullRepoFromUrl(item.repository_url)
+          const localMatch = localPulls.find(p => p.number === item.number && p.base?.repo?.full_name === fullRepo)
           if (localMatch) {
             merged = Boolean(localMatch.merged_at)
           } else {
-            merged = mergedPRKeys.has(`${repoName}/${item.number}`)
+            merged = mergedPRKeys.has(`${fullRepo}/${item.number}`)
           }
         }
 
