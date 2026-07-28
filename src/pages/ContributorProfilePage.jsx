@@ -13,6 +13,7 @@ export default function ContributorProfilePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [rawContributions, setRawContributions] = useState([])
+  const [mergedPRKeys, setMergedPRKeys] = useState(new Set())
   const [tab, setTab] = useState('prs')
 
   // Date Range Filters
@@ -44,22 +45,41 @@ export default function ContributorProfilePage() {
       try {
         const orgQuery = searchOrgs.map(org => `org:${org}`).join('+')
         const url = `https://api.github.com/search/issues?q=author:${username}+${orgQuery}&per_page=100`
+        const mergedUrl = `https://api.github.com/search/issues?q=author:${username}+is:pr+is:merged+${orgQuery}&per_page=100`
 
         const headers = { Accept: 'application/vnd.github.v3+json' }
         if (pat) {
           headers.Authorization = `token ${pat}`
         }
 
-        const res = await fetch(url, { headers })
+        const [res, resMerged] = await Promise.all([
+          fetch(url, { headers }),
+          fetch(mergedUrl, { headers })
+        ])
 
-        if (res.status === 403) {
+        if (res.status === 403 || resMerged.status === 403) {
           throw new Error('RATE_LIMIT')
         }
         if (!res.ok) {
           throw new Error(`HTTP_${res.status}`)
         }
+        if (!resMerged.ok) {
+          throw new Error(`HTTP_${resMerged.status}`)
+        }
 
-        const data = await res.json()
+        const [data, dataMerged] = await Promise.all([
+          res.json(),
+          resMerged.json()
+        ])
+
+        const mergedKeys = new Set(
+          (dataMerged.items || []).map(item => {
+            const repo = item.repository_url ? item.repository_url.split('/').pop() : ''
+            return `${repo}/${item.number}`
+          })
+        )
+
+        setMergedPRKeys(mergedKeys)
         setRawContributions(data.items || [])
       } catch (err) {
         if (err.message === 'RATE_LIMIT') {
@@ -129,9 +149,9 @@ export default function ContributorProfilePage() {
         
         if (localMatch) {
           merged = Boolean(localMatch.merged_at)
-        } else if (item.state === 'closed') {
-          // Fallback heuristic if we don't have local pullsData
-          merged = true // Most closed GSoC PRs are merged
+        } else {
+          // Cross-reference with the fetched set of merged PRs
+          merged = mergedPRKeys.has(`${repoName}/${item.number}`)
         }
 
         prList.push({
@@ -144,7 +164,7 @@ export default function ContributorProfilePage() {
     })
 
     return { prs: prList, issues: issueList }
-  }, [filteredContribs, pullsData])
+  }, [filteredContribs, pullsData, mergedPRKeys])
 
   // Time-series charting data (Monthly)
   const chartData = useMemo(() => {
