@@ -6,13 +6,13 @@ describe("formatNumber", () => {
         expect(formatNumber(500)).toBe("500");
     });
     it("formats numbers in the thousands as K", () => {
-        expect(formatNumber(1200)).toBe("1.2K")
+        expect(formatNumber(999_949)).toBe("999.9K")
     });
     it("formats numbers in the millions as M", () => {
-        expect(formatNumber(2_500_000)).toBe("2.5M");
+        expect(formatNumber(999_950)).toBe("1.0M");
     });
     it("formats numbers in the billions as B", () => {
-        expect(formatNumber(2_500_000_044)).toBe("2.5B");
+        expect(formatNumber(999_950_000)).toBe("1.0B");
     });
 
     it("handles exactly 1000", () => {
