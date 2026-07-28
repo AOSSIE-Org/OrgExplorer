@@ -1,10 +1,10 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react'
-import { FiDatabase, FiDownload } from 'react-icons/fi'
+import { FiDatabase, FiDownload, FiExternalLink } from 'react-icons/fi'
 import { useApp } from '../context/AppContext'
 import { C, SortTh, PageTitle, LoadMore } from '../components/UI'
 import { useSortedData } from '../hooks/useSortedData'
 import { computeBusFactor, exportContributorsCSV } from '../services/analytics'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import EmptyStateCard from '../components/EmptyStateCard'
 import { AiOutlineInfoCircle } from "react-icons/ai";
 import AnalysisBanner from '../components/AnalysisBanner'
@@ -317,23 +317,31 @@ export default function ContributorsPage() {
                 {visible.map((c, i) => (
                   <tr key={c.login} style={{ borderBottom: '1px solid var(--border)', background: i % 2 ? 'var(--surface2)' : 'transparent' }}>
                     <td style={{ padding: '10px 14px' }}>
-                      <a
-                        href={`https://github.com/${c.login}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 8,
-                          textDecoration: 'none',
-                          color: 'inherit',
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                        <Link
+                          to={`/contributors/${c.login}`}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            textDecoration: 'none',
+                            color: 'inherit',
+                          }}
+                        >
                           <img src={c.avatar_url} alt={c.login} style={{ width: 28, height: 28, borderRadius: '50%' }} />
-                          <span style={{ fontSize: 13, fontWeight: 500 }}>{c.login}</span>
-                        </div>
-                      </a>
+                          <span style={{ fontSize: 13, fontWeight: 500 }} className="hover:text-(--accent) transition">{c.login}</span>
+                        </Link>
+                        <a
+                          href={`https://github.com/${c.login}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ display: 'inline-flex', alignItems: 'center', color: 'var(--text2)', opacity: 0.7 }}
+                          title="View GitHub profile"
+                          className="hover:opacity-100 hover:text-(--accent)"
+                        >
+                          <FiExternalLink size={12} />
+                        </a>
+                      </div>
                     </td>
                     <td style={{ padding: '10px 14px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
