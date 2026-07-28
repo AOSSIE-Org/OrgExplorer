@@ -5,6 +5,99 @@ import { useApp } from '../context/AppContext'
 import { C, PageTitle, Spinner, StatCard } from '../components/UI'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
+// GSoC Preset Dates Constants
+const GSOC_PRESETS = {
+  start: '2026-05-18',
+  end: '2026-08-24'
+}
+
+// Reusable ContributionTable component
+function ContributionTable({ items, dateHeader, resolveStatus }) {
+  if (!items.length) {
+    return (
+      <div style={{ padding: '40px 24px', textAlign: 'center', color: 'var(--text2)' }}>
+        <FiBriefcase size={28} style={{ marginBottom: 12, opacity: 0.5 }} />
+        <div>No items found for this reporting period.</div>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ overflowX: 'auto' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <thead>
+          <tr>
+            <th style={{ padding: '8px 14px', textAlign: 'left', fontSize: 11, color: 'var(--text2)', fontWeight: 600, borderBottom: '1px solid var(--border)', background: 'var(--surface2)' }}>TITLE / NUMBER</th>
+            <th style={{ padding: '8px 14px', textAlign: 'left', fontSize: 11, color: 'var(--text2)', fontWeight: 600, borderBottom: '1px solid var(--border)', background: 'var(--surface2)' }}>REPOSITORY</th>
+            <th style={{ padding: '8px 14px', textAlign: 'left', fontSize: 11, color: 'var(--text2)', fontWeight: 600, borderBottom: '1px solid var(--border)', background: 'var(--surface2)' }}>{dateHeader}</th>
+            <th style={{ padding: '8px 14px', textAlign: 'left', fontSize: 11, color: 'var(--text2)', fontWeight: 600, borderBottom: '1px solid var(--border)', background: 'var(--surface2)' }}>STATUS</th>
+            <th style={{ padding: '8px 14px', textAlign: 'left', fontSize: 11, color: 'var(--text2)', fontWeight: 600, borderBottom: '1px solid var(--border)', background: 'var(--surface2)' }}>LINK</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((item, i) => {
+            const { status, color, bg } = resolveStatus(item)
+            return (
+              <tr key={item.id} style={{ borderBottom: '1px solid var(--border)', background: i % 2 ? 'var(--surface2)' : 'transparent' }}>
+                <td style={{ padding: '12px 14px', fontSize: 13, fontWeight: 500 }}>
+                  <div>{item.title}</div>
+                  <span style={{ fontSize: 11, color: 'var(--text2)' }}>#{item.number}</span>
+                </td>
+                <td style={{ padding: '12px 14px', fontSize: 13 }}>
+                  <span style={C.pill('var(--accent)', 'rgba(245,197,24,.1)')}>{item.repoName}</span>
+                </td>
+                <td style={{ padding: '12px 14px', fontSize: 12, color: 'var(--text2)' }}>{item.created_at.slice(0, 10)}</td>
+                <td style={{ padding: '12px 14px' }}>
+                  <span style={C.pill(color, bg)}>{status.toUpperCase()}</span>
+                </td>
+                <td style={{ padding: '12px 14px' }}>
+                  <a href={item.html_url} target="_blank" rel="noreferrer" style={{ fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    <FiExternalLink size={12} /> GitHub
+                  </a>
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+// Pagination helper to fetch up to 10 pages (1,000 results maximum)
+async function fetchAllPages(initialUrl, headers, signal) {
+  let items = []
+  let url = initialUrl
+  for (let page = 1; page <= 10; page++) {
+    const res = await fetch(url, { headers, signal })
+    if (res.status === 403) {
+      throw new Error('RATE_LIMIT')
+    }
+    if (!res.ok) {
+      throw new Error(`HTTP_${res.status}`)
+    }
+    const data = await res.json()
+    items = items.concat(data.items || [])
+
+    const linkHeader = res.headers.get('Link')
+    if (!linkHeader) break
+
+    const match = linkHeader.match(/<([^>]+)>;\s*rel="next"/)
+    if (!match) break
+
+    url = match[1]
+  }
+  return items
+}
+
+// Helper to escape table cell values for markdown
+const cell = (val) => {
+  if (val === null || val === undefined) return ''
+  return String(val)
+    .replace(/\r?\n/g, ' ')
+    .replace(/\|/g, '\\|')
+}
+
 export default function ContributorProfilePage() {
   const { username } = useParams()
   const navigate = useNavigate()
@@ -20,120 +113,137 @@ export default function ContributorProfilePage() {
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
 
-  // Determine organizations to search
+  // Determine organizations to search with hardened local storage fallback
   const searchOrgs = useMemo(() => {
     let list = orgs.map(o => o.login)
     if (!list.length) {
-      const recent = JSON.parse(localStorage.getItem('oe_recent') || '[]')
-      if (recent.length) {
-        list = recent[0].split(',').map(s => s.trim())
+      try {
+        const rawRecent = localStorage.getItem('oe_recent')
+        if (rawRecent) {
+          const recent = JSON.parse(rawRecent)
+          if (Array.isArray(recent) && recent.length && typeof recent[0] === 'string') {
+            list = recent[0].split(',').map(s => s.trim()).filter(Boolean)
+          }
+        }
+      } catch (e) {
+        console.error('Failed to parse oe_recent from localStorage:', e)
       }
     }
     return list
   }, [orgs])
 
-  // Fetch contributor issues & PRs from GitHub Search API
+  // Fetch contributor issues & PRs from GitHub Search API (Supports pagination & cleanup)
   useEffect(() => {
-    if (!username || !searchOrgs.length) {
+    if (!username) {
       setLoading(false)
       return
     }
+
+    if (!searchOrgs.length) {
+      setError('No organizations found. Please explore at least one organization to view the contributor profile.')
+      setLoading(false)
+      return
+    }
+
+    let active = true
+    const controller = new AbortController()
 
     async function fetchData() {
       setLoading(true)
       setError('')
       try {
-        const orgQuery = searchOrgs.map(org => `org:${org}`).join('+')
-        const url = `https://api.github.com/search/issues?q=author:${username}+${orgQuery}&per_page=100`
-        const mergedUrl = `https://api.github.com/search/issues?q=author:${username}+is:pr+is:merged+${orgQuery}&per_page=100`
+        const encodedUser = encodeURIComponent(username)
+        const orgQuery = searchOrgs.map(org => `org:${encodeURIComponent(org)}`).join('+')
+        const url = `https://api.github.com/search/issues?q=author:${encodedUser}+${orgQuery}&per_page=100`
+        const mergedUrl = `https://api.github.com/search/issues?q=author:${encodedUser}+is:pr+is:merged+${orgQuery}&per_page=100`
 
         const headers = { Accept: 'application/vnd.github.v3+json' }
         if (pat) {
           headers.Authorization = `token ${pat}`
         }
 
-        const [res, resMerged] = await Promise.all([
-          fetch(url, { headers }),
-          fetch(mergedUrl, { headers })
+        const [items, mergedItems] = await Promise.all([
+          fetchAllPages(url, headers, controller.signal),
+          fetchAllPages(mergedUrl, headers, controller.signal)
         ])
 
-        if (res.status === 403 || resMerged.status === 403) {
-          throw new Error('RATE_LIMIT')
-        }
-        if (!res.ok) {
-          throw new Error(`HTTP_${res.status}`)
-        }
-        if (!resMerged.ok) {
-          throw new Error(`HTTP_${resMerged.status}`)
-        }
-
-        const [data, dataMerged] = await Promise.all([
-          res.json(),
-          resMerged.json()
-        ])
+        if (!active) return
 
         const mergedKeys = new Set(
-          (dataMerged.items || []).map(item => {
+          mergedItems.map(item => {
             const repo = item.repository_url ? item.repository_url.split('/').pop() : ''
             return `${repo}/${item.number}`
           })
         )
 
         setMergedPRKeys(mergedKeys)
-        setRawContributions(data.items || [])
+        setRawContributions(items)
       } catch (err) {
+        if (!active) return
+        if (err.name === 'AbortError') return
         if (err.message === 'RATE_LIMIT') {
           setError('GitHub API search rate limit reached. Please wait a minute or configure a PAT in Settings.')
         } else {
           setError(`Failed to fetch contributor details: ${err.message}`)
         }
       } finally {
-        setLoading(false)
+        if (active) {
+          setLoading(false)
+        }
       }
     }
 
     fetchData()
+
+    return () => {
+      active = false
+      controller.abort()
+    }
   }, [username, searchOrgs, pat])
 
-  // Presets
+  // Presets using local date offsets
   const setPreset = (type) => {
-    const today = new Date().toISOString().split('T')[0]
+    const d = new Date()
+    const pad = (n) => String(n).padStart(2, '0')
+    const todayStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+
     if (type === 'gsoc') {
-      // Standard GSoC Coding Period
-      setStartDate('2026-05-18')
-      setEndDate('2026-08-24')
+      setStartDate(GSOC_PRESETS.start)
+      setEndDate(GSOC_PRESETS.end)
     } else if (type === 'month') {
-      const thirtyDaysAgo = new Date(Date.now() - 30 * 86_400_000).toISOString().split('T')[0]
-      setStartDate(thirtyDaysAgo)
-      setEndDate(today)
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 86_400_000)
+      const thirtyDaysAgoStr = `${thirtyDaysAgo.getFullYear()}-${pad(thirtyDaysAgo.getMonth() + 1)}-${pad(thirtyDaysAgo.getDate())}`
+      setStartDate(thirtyDaysAgoStr)
+      setEndDate(todayStr)
     } else {
       setStartDate('')
       setEndDate('')
     }
   }
 
-  // Filter contributions by date range
+  // Filter contributions by UTC date range limits
   const filteredContribs = useMemo(() => {
     return rawContributions.filter(item => {
-      const date = new Date(item.created_at)
-      if (startDate && date < new Date(startDate)) return false
+      const itemTime = new Date(item.created_at).getTime()
+      if (startDate) {
+        const startTime = Date.parse(startDate + 'T00:00:00.000Z')
+        if (isNaN(startTime) || itemTime < startTime) return false
+      }
       if (endDate) {
-        // Include the entire end date day
-        const endLimit = new Date(endDate)
-        endLimit.setHours(23, 59, 59, 999)
-        if (date > endLimit) return false
+        const endTime = Date.parse(endDate + 'T23:59:59.999Z')
+        if (isNaN(endTime) || itemTime > endTime) return false
       }
       return true
     })
   }, [rawContributions, startDate, endDate])
 
-  // Categorize contributions
+  // Categorize contributions (Precomputes pulls calculations outside loop)
   const { prs, issues } = useMemo(() => {
     const prList = []
     const issueList = []
+    const localPulls = Object.values(pullsData || {}).flat()
 
     filteredContribs.forEach(item => {
-      // Parse repository name
       const repoName = item.repository_url ? item.repository_url.split('/').pop() : 'Unknown'
       const parsedItem = {
         ...item,
@@ -142,16 +252,17 @@ export default function ContributorProfilePage() {
       }
 
       if (parsedItem.isPR) {
-        // Cross-reference with pullsData to determine if merged
         let merged = false
-        const localPulls = Object.values(pullsData || {}).flat()
-        const localMatch = localPulls.find(p => p.number === item.number && p.base?.repo?.name === repoName)
-        
-        if (localMatch) {
-          merged = Boolean(localMatch.merged_at)
+        // Prioritize explicit merged_at property on PR item
+        if (item.pull_request?.merged_at !== undefined && item.pull_request?.merged_at !== null) {
+          merged = true
         } else {
-          // Cross-reference with the fetched set of merged PRs
-          merged = mergedPRKeys.has(`${repoName}/${item.number}`)
+          const localMatch = localPulls.find(p => p.number === item.number && p.base?.repo?.name === repoName)
+          if (localMatch) {
+            merged = Boolean(localMatch.merged_at)
+          } else {
+            merged = mergedPRKeys.has(`${repoName}/${item.number}`)
+          }
         }
 
         prList.push({
@@ -166,36 +277,32 @@ export default function ContributorProfilePage() {
     return { prs: prList, issues: issueList }
   }, [filteredContribs, pullsData, mergedPRKeys])
 
-  // Time-series charting data (Monthly)
+  // Time-series charting data (Chronological sorting by YYYY-MM)
   const chartData = useMemo(() => {
     const monthlyBuckets = {}
     
     filteredContribs.forEach(item => {
       const date = new Date(item.created_at)
-      const monthKey = date.toLocaleString('default', { month: 'short', year: '2-digit' }) // e.g. "May 26"
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const yyyymm = `${year}-${month}`
+      const displayName = date.toLocaleString('default', { month: 'short', year: '2-digit' }) // e.g. "May 26"
       
-      if (!monthlyBuckets[monthKey]) {
-        monthlyBuckets[monthKey] = { name: monthKey, PRs: 0, Issues: 0 }
+      if (!monthlyBuckets[yyyymm]) {
+        monthlyBuckets[yyyymm] = { yyyymm, name: displayName, PRs: 0, Issues: 0 }
       }
       
       if (item.pull_request) {
-        monthlyBuckets[monthKey].PRs++
+        monthlyBuckets[yyyymm].PRs++
       } else {
-        monthlyBuckets[monthKey].Issues++
+        monthlyBuckets[yyyymm].Issues++
       }
     })
 
-    // Sort chronologically (rough sort by date parser key)
-    return Object.values(monthlyBuckets).sort((a, b) => {
-      const parseDate = str => {
-        const [m, y] = str.split(' ')
-        return new Date(Date.parse(`${m} 1, 20${y}`))
-      }
-      return parseDate(a.name) - parseDate(b.name)
-    })
+    return Object.values(monthlyBuckets).sort((a, b) => a.yyyymm.localeCompare(b.yyyymm))
   }, [filteredContribs])
 
-  // Export to Markdown Report
+  // Export to Markdown Report with pipe & newline escaping
   const exportMarkdown = () => {
     const dateStr = new Date().toLocaleDateString()
     const orgsStr = searchOrgs.join(', ')
@@ -220,7 +327,7 @@ export default function ContributorProfilePage() {
       prs.forEach(p => {
         const status = p.state === 'open' ? 'Open' : p.isMerged ? 'Merged' : 'Closed'
         const date = p.created_at.slice(0, 10)
-        md += `| ${p.repoName} | #${p.number} | ${p.title} | ${date} | **${status}** | [PR Link](${p.html_url}) |\n`
+        md += `| ${cell(p.repoName)} | #${p.number} | ${cell(p.title)} | ${date} | **${status}** | [PR Link](${p.html_url}) |\n`
       })
     } else {
       md += `No pull requests recorded in this period.\n`
@@ -234,7 +341,7 @@ export default function ContributorProfilePage() {
       issues.forEach(i => {
         const status = i.state === 'open' ? 'Open' : 'Closed'
         const date = i.created_at.slice(0, 10)
-        md += `| ${i.repoName} | #${i.number} | ${i.title} | ${date} | **${status}** | [Issue Link](${i.html_url}) |\n`
+        md += `| ${cell(i.repoName)} | #${i.number} | ${cell(i.title)} | ${date} | **${status}** | [Issue Link](${i.html_url}) |\n`
       })
     } else {
       md += `No issues opened in this period.\n`
@@ -244,15 +351,19 @@ export default function ContributorProfilePage() {
     md += `---\n`
     md += `*Report generated automatically by **OrgExplorer**.*\n`
 
-    // File download trigger
+    // File download trigger (Hardened cleanup & revocation)
     const blob = new Blob([md], { type: 'text/markdown' })
     const url = URL.createObjectURL(blob)
     const a = Object.assign(document.createElement('a'), {
       href: url,
       download: `gsoc-report-${username}-${new Date().toISOString().slice(0, 10)}.md`
     })
+    document.body.appendChild(a)
     a.click()
-    URL.revokeObjectURL(url)
+    setTimeout(() => {
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    }, 100)
   }
 
   if (loading) {
@@ -324,8 +435,9 @@ export default function ContributorProfilePage() {
 
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <label style={{ fontSize: 11, color: 'var(--text2)', fontWeight: 500 }}>START DATE</label>
+            <label htmlFor="start-date-input" style={{ fontSize: 11, color: 'var(--text2)', fontWeight: 500 }}>START DATE</label>
             <input
+              id="start-date-input"
               type="date"
               value={startDate}
               onChange={e => setStartDate(e.target.value)}
@@ -334,8 +446,9 @@ export default function ContributorProfilePage() {
           </div>
           <span style={{ color: 'var(--text2)', marginTop: 18 }}>to</span>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <label style={{ fontSize: 11, color: 'var(--text2)', fontWeight: 500 }}>END DATE</label>
+            <label htmlFor="end-date-input" style={{ fontSize: 11, color: 'var(--text2)', fontWeight: 500 }}>END DATE</label>
             <input
+              id="end-date-input"
               type="date"
               value={endDate}
               onChange={e => setEndDate(e.target.value)}
@@ -353,7 +466,7 @@ export default function ContributorProfilePage() {
         <StatCard 
           label="Active Repositories" 
           value={new Set(filteredContribs.map(i => i.repository_url?.split('/').pop())).size} 
-          sub="Queried Organizations"
+          sub="distinct repositories"
           accent="var(--green)"
         />
       </div>
@@ -424,103 +537,27 @@ export default function ContributorProfilePage() {
         </div>
 
         {tab === 'prs' ? (
-          prs.length > 0 ? (
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr>
-                    <th style={{ padding: '8px 14px', textAlign: 'left', fontSize: 11, color: 'var(--text2)', fontWeight: 600, borderBottom: '1px solid var(--border)', background: 'var(--surface2)' }}>TITLE / NUMBER</th>
-                    <th style={{ padding: '8px 14px', textAlign: 'left', fontSize: 11, color: 'var(--text2)', fontWeight: 600, borderBottom: '1px solid var(--border)', background: 'var(--surface2)' }}>REPOSITORY</th>
-                    <th style={{ padding: '8px 14px', textAlign: 'left', fontSize: 11, color: 'var(--text2)', fontWeight: 600, borderBottom: '1px solid var(--border)', background: 'var(--surface2)' }}>SUBMITTED ON</th>
-                    <th style={{ padding: '8px 14px', textAlign: 'left', fontSize: 11, color: 'var(--text2)', fontWeight: 600, borderBottom: '1px solid var(--border)', background: 'var(--surface2)' }}>STATUS</th>
-                    <th style={{ padding: '8px 14px', textAlign: 'left', fontSize: 11, color: 'var(--text2)', fontWeight: 600, borderBottom: '1px solid var(--border)', background: 'var(--surface2)' }}>LINK</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {prs.map((p, i) => {
-                    const status = p.state === 'open' ? 'Open' : p.isMerged ? 'Merged' : 'Closed'
-                    const statusColor = status === 'Merged' ? 'var(--green)' : status === 'Open' ? 'var(--blue)' : 'var(--text2)'
-                    const statusBg = status === 'Merged' ? 'rgba(34,197,94,.12)' : status === 'Open' ? 'rgba(59,130,246,.12)' : 'var(--surface2)'
-                    
-                    return (
-                      <tr key={p.id} style={{ borderBottom: '1px solid var(--border)', background: i % 2 ? 'var(--surface2)' : 'transparent' }}>
-                        <td style={{ padding: '12px 14px', fontSize: 13, fontWeight: 500 }}>
-                          <div>{p.title}</div>
-                          <span style={{ fontSize: 11, color: 'var(--text2)' }}>#{p.number}</span>
-                        </td>
-                        <td style={{ padding: '12px 14px', fontSize: 13 }}>
-                          <span style={C.pill('var(--accent)', 'rgba(245,197,24,.1)')}>{p.repoName}</span>
-                        </td>
-                        <td style={{ padding: '12px 14px', fontSize: 12, color: 'var(--text2)' }}>{p.created_at.slice(0, 10)}</td>
-                        <td style={{ padding: '12px 14px' }}>
-                          <span style={C.pill(statusColor, statusBg)}>{status.toUpperCase()}</span>
-                        </td>
-                        <td style={{ padding: '12px 14px' }}>
-                          <a href={p.html_url} target="_blank" rel="noreferrer" style={{ fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                            <FiExternalLink size={12} /> GitHub
-                          </a>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div style={{ padding: '40px 24px', textAlign: 'center', color: 'var(--text2)' }}>
-              <FiBriefcase size={28} style={{ marginBottom: 12, opacity: 0.5 }} />
-              <div>No pull requests found for this reporting period.</div>
-            </div>
-          )
+          <ContributionTable
+            items={prs}
+            dateHeader="SUBMITTED ON"
+            resolveStatus={(p) => {
+              const status = p.state === 'open' ? 'Open' : p.isMerged ? 'Merged' : 'Closed'
+              const color = status === 'Merged' ? 'var(--green)' : status === 'Open' ? 'var(--blue)' : 'var(--text2)'
+              const bg = status === 'Merged' ? 'rgba(34,197,94,.12)' : status === 'Open' ? 'rgba(59,130,246,.12)' : 'var(--surface2)'
+              return { status, color, bg }
+            }}
+          />
         ) : (
-          issues.length > 0 ? (
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr>
-                    <th style={{ padding: '8px 14px', textAlign: 'left', fontSize: 11, color: 'var(--text2)', fontWeight: 600, borderBottom: '1px solid var(--border)', background: 'var(--surface2)' }}>TITLE / NUMBER</th>
-                    <th style={{ padding: '8px 14px', textAlign: 'left', fontSize: 11, color: 'var(--text2)', fontWeight: 600, borderBottom: '1px solid var(--border)', background: 'var(--surface2)' }}>REPOSITORY</th>
-                    <th style={{ padding: '8px 14px', textAlign: 'left', fontSize: 11, color: 'var(--text2)', fontWeight: 600, borderBottom: '1px solid var(--border)', background: 'var(--surface2)' }}>CREATED ON</th>
-                    <th style={{ padding: '8px 14px', textAlign: 'left', fontSize: 11, color: 'var(--text2)', fontWeight: 600, borderBottom: '1px solid var(--border)', background: 'var(--surface2)' }}>STATUS</th>
-                    <th style={{ padding: '8px 14px', textAlign: 'left', fontSize: 11, color: 'var(--text2)', fontWeight: 600, borderBottom: '1px solid var(--border)', background: 'var(--surface2)' }}>LINK</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {issues.map((issue, i) => {
-                    const status = issue.state === 'open' ? 'Open' : 'Closed'
-                    const statusColor = status === 'Open' ? 'var(--blue)' : 'var(--text2)'
-                    const statusBg = status === 'Open' ? 'rgba(59,130,246,.12)' : 'var(--surface2)'
-                    
-                    return (
-                      <tr key={issue.id} style={{ borderBottom: '1px solid var(--border)', background: i % 2 ? 'var(--surface2)' : 'transparent' }}>
-                        <td style={{ padding: '12px 14px', fontSize: 13, fontWeight: 500 }}>
-                          <div>{issue.title}</div>
-                          <span style={{ fontSize: 11, color: 'var(--text2)' }}>#{issue.number}</span>
-                        </td>
-                        <td style={{ padding: '12px 14px', fontSize: 13 }}>
-                          <span style={C.pill('var(--accent)', 'rgba(245,197,24,.1)')}>{issue.repoName}</span>
-                        </td>
-                        <td style={{ padding: '12px 14px', fontSize: 12, color: 'var(--text2)' }}>{issue.created_at.slice(0, 10)}</td>
-                        <td style={{ padding: '12px 14px' }}>
-                          <span style={C.pill(statusColor, statusBg)}>{status.toUpperCase()}</span>
-                        </td>
-                        <td style={{ padding: '12px 14px' }}>
-                          <a href={issue.html_url} target="_blank" rel="noreferrer" style={{ fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                            <FiExternalLink size={12} /> GitHub
-                          </a>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div style={{ padding: '40px 24px', textAlign: 'center', color: 'var(--text2)' }}>
-              <FiBriefcase size={28} style={{ marginBottom: 12, opacity: 0.5 }} />
-              <div>No issues found for this reporting period.</div>
-            </div>
-          )
+          <ContributionTable
+            items={issues}
+            dateHeader="CREATED ON"
+            resolveStatus={(i) => {
+              const status = i.state === 'open' ? 'Open' : 'Closed'
+              const color = status === 'Open' ? 'var(--blue)' : 'var(--text2)'
+              const bg = status === 'Open' ? 'rgba(59,130,246,.12)' : 'var(--surface2)'
+              return { status, color, bg }
+            }}
+          />
         )}
       </div>
     </div>

@@ -337,6 +337,7 @@ export default function ContributorsPage() {
                           rel="noopener noreferrer"
                           style={{ display: 'inline-flex', alignItems: 'center', color: 'var(--text2)', opacity: 0.7 }}
                           title="View GitHub profile"
+                          aria-label="View GitHub profile"
                           className="hover:opacity-100 hover:text-(--accent)"
                         >
                           <FiExternalLink size={12} />
