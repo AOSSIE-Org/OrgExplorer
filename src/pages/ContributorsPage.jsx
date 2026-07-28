@@ -327,6 +327,8 @@ export default function ContributorsPage() {
                             textDecoration: 'none',
                             color: 'inherit',
                           }}
+                          title="View contributor profile"
+                          aria-label="View contributor profile"
                         >
                           <img src={c.avatar_url} alt={c.login} style={{ width: 28, height: 28, borderRadius: '50%' }} />
                           <span style={{ fontSize: 13, fontWeight: 500 }} className="hover:text-(--accent) transition">{c.login}</span>
