@@ -222,12 +222,14 @@ export default function ContributorProfilePage() {
     const todayStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 
     if (type === 'week') {
-      const lastWeek = new Date(Date.now() - 7 * 86_400_000)
+      const lastWeek = new Date(d)
+      lastWeek.setDate(lastWeek.getDate() - 6)
       const lastWeekStr = `${lastWeek.getFullYear()}-${pad(lastWeek.getMonth() + 1)}-${pad(lastWeek.getDate())}`
       setStartDate(lastWeekStr)
       setEndDate(todayStr)
     } else if (type === 'month') {
-      const thirtyDaysAgo = new Date(Date.now() - 30 * 86_400_000)
+      const thirtyDaysAgo = new Date(d)
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29)
       const thirtyDaysAgoStr = `${thirtyDaysAgo.getFullYear()}-${pad(thirtyDaysAgo.getMonth() + 1)}-${pad(thirtyDaysAgo.getDate())}`
       setStartDate(thirtyDaysAgoStr)
       setEndDate(todayStr)
