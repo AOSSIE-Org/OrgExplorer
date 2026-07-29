@@ -5,12 +5,6 @@ import { useApp } from '../context/AppContext'
 import { C, PageTitle, Spinner, StatCard } from '../components/UI'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
-// GSoC Preset Dates Constants
-const GSOC_PRESETS = {
-  start: '2026-05-18',
-  end: '2026-08-24'
-}
-
 // Reusable ContributionTable component
 function ContributionTable({ items, dateHeader, resolveStatus }) {
   if (!items.length) {
@@ -116,9 +110,18 @@ export default function ContributorProfilePage() {
   const [mergedPRKeys, setMergedPRKeys] = useState(new Set())
   const [tab, setTab] = useState('prs')
 
-  // Date Range Filters
-  const [startDate, setStartDate] = useState('')
-  const [endDate, setEndDate] = useState('')
+  // Date Range Filters (Defaults to Last 1 Year)
+  const [startDate, setStartDate] = useState(() => {
+    const d = new Date()
+    d.setFullYear(d.getFullYear() - 1)
+    const pad = (n) => String(n).padStart(2, '0')
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+  })
+  const [endDate, setEndDate] = useState(() => {
+    const d = new Date()
+    const pad = (n) => String(n).padStart(2, '0')
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+  })
 
   // Determine organizations to search with hardened local storage fallback
   const searchOrgs = useMemo(() => {
@@ -218,13 +221,21 @@ export default function ContributorProfilePage() {
     const pad = (n) => String(n).padStart(2, '0')
     const todayStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 
-    if (type === 'gsoc') {
-      setStartDate(GSOC_PRESETS.start)
-      setEndDate(GSOC_PRESETS.end)
+    if (type === 'week') {
+      const lastWeek = new Date(Date.now() - 7 * 86_400_000)
+      const lastWeekStr = `${lastWeek.getFullYear()}-${pad(lastWeek.getMonth() + 1)}-${pad(lastWeek.getDate())}`
+      setStartDate(lastWeekStr)
+      setEndDate(todayStr)
     } else if (type === 'month') {
       const thirtyDaysAgo = new Date(Date.now() - 30 * 86_400_000)
       const thirtyDaysAgoStr = `${thirtyDaysAgo.getFullYear()}-${pad(thirtyDaysAgo.getMonth() + 1)}-${pad(thirtyDaysAgo.getDate())}`
       setStartDate(thirtyDaysAgoStr)
+      setEndDate(todayStr)
+    } else if (type === 'year') {
+      const lastYear = new Date()
+      lastYear.setFullYear(d.getFullYear() - 1)
+      const lastYearStr = `${lastYear.getFullYear()}-${pad(lastYear.getMonth() + 1)}-${pad(lastYear.getDate())}`
+      setStartDate(lastYearStr)
       setEndDate(todayStr)
     } else {
       setStartDate('')
@@ -320,7 +331,7 @@ export default function ContributorProfilePage() {
     const orgsStr = searchOrgs.join(', ')
     const dateRangeStr = (startDate || 'Beginning') + ' to ' + (endDate || 'Present')
 
-    let md = `# GSoC Contribution Report: ${username}\n\n`
+    let md = `# Contribution Report: ${username}\n\n`
     md += `* **Generated on:** ${dateStr}\n`
     md += `* **Organizations explored:** ${orgsStr}\n`
     md += `* **Reporting Period:** ${dateRangeStr}\n\n`
@@ -368,7 +379,7 @@ export default function ContributorProfilePage() {
     const url = URL.createObjectURL(blob)
     const a = Object.assign(document.createElement('a'), {
       href: url,
-      download: `gsoc-report-${username}-${new Date().toISOString().slice(0, 10)}.md`
+      download: `contribution-report-${username}-${new Date().toISOString().slice(0, 10)}.md`
     })
     document.body.appendChild(a)
     a.click()
@@ -413,7 +424,7 @@ export default function ContributorProfilePage() {
             disabled={!filteredContribs.length}
             style={{ ...C.btn('primary'), display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}
           >
-            <FiDownload size={13} /> Export GSoC Report (.md)
+            <FiDownload size={13} /> Export Contribution Report (.md)
           </button>
         }
       />
@@ -433,11 +444,14 @@ export default function ContributorProfilePage() {
             <span style={{ fontWeight: 600, fontSize: 13 }}>Reporting Window & Date Presets</span>
           </div>
           <div style={{ display: 'flex', gap: 6 }}>
-            <button onClick={() => setPreset('gsoc')} style={{ ...C.btn('ghost'), fontSize: 11, padding: '4px 10px' }}>
-              GSoC Coding Period
+            <button onClick={() => setPreset('week')} style={{ ...C.btn('ghost'), fontSize: 11, padding: '4px 10px' }}>
+              Last Week
             </button>
             <button onClick={() => setPreset('month')} style={{ ...C.btn('ghost'), fontSize: 11, padding: '4px 10px' }}>
               Last 30 Days
+            </button>
+            <button onClick={() => setPreset('year')} style={{ ...C.btn('ghost'), fontSize: 11, padding: '4px 10px' }}>
+              Last 1 Year
             </button>
             <button onClick={() => setPreset('all')} style={{ ...C.btn('ghost'), fontSize: 11, padding: '4px 10px' }}>
               All Time
