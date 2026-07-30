@@ -33,8 +33,8 @@ function Support() {
       sponsorLink: [
         {
           name: "Support Now",
-          url: "https://opencollective.com/aossie",
-        }
+          url: "https://buymeacoffee.com/aossie",
+        },
       ],
     },
     Logo: true,
