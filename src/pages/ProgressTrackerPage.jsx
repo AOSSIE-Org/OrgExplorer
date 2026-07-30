@@ -60,6 +60,8 @@ export default function ProgressTrackerPage() {
 
   // Detail Modal State
   const [modalData, setModalData] = useState(null)
+  const triggerRef = useRef(null)
+  const modalRef = useRef(null)
 
   // Orgs to search
   const searchOrgs = useMemo(() => {
@@ -103,7 +105,7 @@ export default function ProgressTrackerPage() {
     while (current < endLimit) {
       const weekStart = new Date(current)
       const weekEnd = new Date(current.getTime() + 6 * 24 * 60 * 60 * 1000)
-      weekEnd.setHours(23, 59, 59, 999)
+      weekEnd.setUTCHours(23, 59, 59, 999)
 
       list.push({
         number: wNum++,
@@ -117,6 +119,17 @@ export default function ProgressTrackerPage() {
 
   // AbortController refs to cancel pending fetches
   const abortControllersRef = useRef({})
+  const inFlightRef = useRef({})
+
+  // Clear cache and abort any running fetches when range changes
+  useEffect(() => {
+    setCache({})
+    setLoadingMap({})
+    setErrorMap({})
+    Object.values(abortControllersRef.current).forEach(ctrl => ctrl.abort())
+    abortControllersRef.current = {}
+    inFlightRef.current = {}
+  }, [startDate, endDate])
 
   // Cleanup fetches on unmount
   useEffect(() => {
@@ -125,24 +138,74 @@ export default function ProgressTrackerPage() {
     }
   }, [])
 
+  // Handle accessible dialog lifecycle (Esc key, backdrop, focus trap, and return focus)
+  useEffect(() => {
+    if (!modalData) return
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setModalData(null)
+        triggerRef.current?.focus()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+
+    // Focus first focusable item in modal
+    const modalElement = modalRef.current
+    const focusable = modalElement?.querySelectorAll(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    )
+    if (focusable && focusable.length > 0) {
+      focusable[0].focus()
+    }
+
+    const handleTab = (e) => {
+      if (e.key !== 'Tab') return
+      if (!focusable || focusable.length === 0) return
+
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+
+      if (e.shiftKey) {
+        if (document.activeElement === first) {
+          e.preventDefault()
+          last.focus()
+        }
+      } else {
+        if (document.activeElement === last) {
+          e.preventDefault()
+          first.focus()
+        }
+      }
+    }
+    modalElement?.addEventListener('keydown', handleTab)
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      modalElement?.removeEventListener('keydown', handleTab)
+    }
+  }, [modalData])
+
   // Trigger parallel data fetching for selected contributors
   useEffect(() => {
     if (!searchOrgs.length) return
 
     selectedLogins.forEach(login => {
-      // Skip if already in cache or currently loading
-      if (cache[login] || loadingMap[login]) return
+      // Skip if already in cache or currently loading (using ref for in-flight safety)
+      if (cache[login] || inFlightRef.current[login]) return
 
       const ctrl = new AbortController()
       abortControllersRef.current[login] = ctrl
+      inFlightRef.current[login] = true
 
       setLoadingMap(prev => ({ ...prev, [login]: true }))
       setErrorMap(prev => ({ ...prev, [login]: '' }))
 
       const encodedUser = encodeURIComponent(login)
       const orgQuery = searchOrgs.map(org => `org:${encodeURIComponent(org)}`).join('+')
-      const url = `https://api.github.com/search/issues?q=author:${encodedUser}+${orgQuery}&per_page=100`
-      const mergedUrl = `https://api.github.com/search/issues?q=author:${encodedUser}+is:pr+is:merged+${orgQuery}&per_page=100`
+      const dateRangeQuery = `+created:${startDate}..${endDate}`
+      const url = `https://api.github.com/search/issues?q=author:${encodedUser}+${orgQuery}${dateRangeQuery}&per_page=100`
+      const mergedUrl = `https://api.github.com/search/issues?q=author:${encodedUser}+is:pr+is:merged+${orgQuery}${dateRangeQuery}&per_page=100`
 
       const headers = { Accept: 'application/vnd.github.v3+json' }
       if (pat) {
@@ -195,25 +258,35 @@ export default function ProgressTrackerPage() {
 
         setCache(prev => ({ ...prev, [login]: parsed }))
         setLoadingMap(prev => ({ ...prev, [login]: false }))
+        delete inFlightRef.current[login]
+        delete abortControllersRef.current[login]
       }).catch(err => {
+        // Safe check for abort cancelations
+        setLoadingMap(prev => ({ ...prev, [login]: false }))
+        delete inFlightRef.current[login]
+        delete abortControllersRef.current[login]
         if (err.name === 'AbortError') return
+
         console.error(`Failed loading progress for ${login}:`, err)
         setErrorMap(prev => ({ ...prev, [login]: err.message === 'RATE_LIMIT' ? 'Rate Limit' : 'Failed' }))
-        setLoadingMap(prev => ({ ...prev, [login]: false }))
       })
     })
-  }, [selectedLogins, searchOrgs, pat, pullsData])
+  }, [selectedLogins, searchOrgs, pat, pullsData, startDate, endDate, cache])
 
   // Contributor selection handlers
   const toggleSelect = (login) => {
+    const isSelected = selectedLogins.has(login)
+    if (isSelected) {
+      if (abortControllersRef.current[login]) {
+        abortControllersRef.current[login].abort()
+        delete abortControllersRef.current[login]
+      }
+      delete inFlightRef.current[login]
+    }
     setSelectedLogins(prev => {
       const next = new Set(prev)
       if (next.has(login)) {
         next.delete(login)
-        if (abortControllersRef.current[login]) {
-          abortControllersRef.current[login].abort()
-          delete abortControllersRef.current[login]
-        }
       } else {
         next.add(login)
       }
@@ -227,6 +300,11 @@ export default function ProgressTrackerPage() {
     } else if (type === 'top10') {
       setSelectedLogins(new Set(contributors.slice(0, 10).map(c => c.login)))
     } else {
+      // Abort all in-flight requests when clearing selections
+      Object.values(abortControllersRef.current).forEach(ctrl => ctrl.abort())
+      abortControllersRef.current = {}
+      inFlightRef.current = {}
+      setLoadingMap({})
       setSelectedLogins(new Set())
     }
   }
@@ -236,28 +314,54 @@ export default function ProgressTrackerPage() {
     return contributors.filter(c => c.login.toLowerCase().includes(searchFilter.toLowerCase()))
   }, [contributors, searchFilter])
 
-  // Group metrics by week for a contributor
-  const getWeeklyStats = (login, week) => {
-    const list = cache[login] || []
-    const weekStart = week.start.getTime()
-    const weekEnd = week.end.getTime()
+  // Precompute weekly stats for performance optimization
+  const precomputedStats = useMemo(() => {
+    const stats = {}
+    if (weeks.length === 0) return stats
 
-    const weekItems = list.filter(item => {
-      const time = new Date(item.created_at).getTime()
-      return time >= weekStart && time <= weekEnd
+    const weekRanges = weeks.map(w => ({
+      number: w.number,
+      start: w.start.getTime(),
+      end: w.end.getTime()
+    }))
+
+    selectedLogins.forEach(login => {
+      const list = cache[login] || []
+      const parsedItems = list.map(item => ({
+        ...item,
+        time: new Date(item.created_at).getTime()
+      }))
+
+      stats[login] = weekRanges.map(w => {
+        const weekItems = parsedItems.filter(item => item.time >= w.start && item.time <= w.end)
+        const mergedPRs = weekItems.filter(item => item.isPR && item.isMerged)
+        const openPRs = weekItems.filter(item => item.isPR && item.state === 'open')
+        const closedPRs = weekItems.filter(item => item.isPR && !item.isMerged && item.state === 'closed')
+        const issuesList = weekItems.filter(item => !item.isPR)
+
+        return {
+          weekNumber: w.number,
+          merged: mergedPRs.length,
+          open: openPRs.length,
+          closed: closedPRs.length,
+          issues: issuesList.length,
+          items: weekItems
+        }
+      })
     })
 
-    const mergedPRs = weekItems.filter(item => item.isPR && item.isMerged)
-    const openPRs = weekItems.filter(item => item.isPR && item.state === 'open')
-    const closedPRs = weekItems.filter(item => item.isPR && !item.isMerged && item.state === 'closed')
-    const issuesList = weekItems.filter(item => !item.isPR)
+    return stats
+  }, [cache, weeks, selectedLogins])
 
-    return {
-      merged: mergedPRs.length,
-      open: openPRs.length,
-      closed: closedPRs.length,
-      issues: issuesList.length,
-      items: weekItems
+  // Look up stats from the precomputed map
+  const getWeeklyStats = (login, week) => {
+    const userStats = precomputedStats[login] || []
+    return userStats.find(s => s.weekNumber === week.number) || {
+      merged: 0,
+      open: 0,
+      closed: 0,
+      issues: 0,
+      items: []
     }
   }
 
@@ -422,12 +526,22 @@ export default function ProgressTrackerPage() {
                 <div 
                   key={c.login} 
                   onClick={() => toggleSelect(c.login)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      toggleSelect(c.login)
+                    }
+                  }}
+                  role="checkbox"
+                  tabIndex={0}
+                  aria-checked={checked}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px',
                     borderRadius: 4, cursor: 'pointer', fontSize: 12,
-                    background: checked ? 'var(--surface2)' : 'transparent'
+                    background: checked ? 'var(--surface2)' : 'transparent',
+                    outline: 'none'
                   }}
-                  className="hover:bg-(--surface2) transition"
+                  className="hover:bg-(--surface2) focus:bg-(--surface2) transition"
                 >
                   {checked ? <FiCheckSquare color="var(--accent)" /> : <FiSquare color="var(--text2)" />}
                   <span style={{ fontWeight: checked ? 500 : 400, color: checked ? 'var(--text)' : 'var(--text2)' }}>
@@ -510,32 +624,47 @@ export default function ProgressTrackerPage() {
                         return (
                           <td 
                             key={w.number} 
-                            onClick={() => {
-                              if (total > 0) {
-                                setModalData({
-                                  contributor: login,
-                                  week: w.number,
-                                  range: `${w.start.toLocaleDateString()} - ${w.end.toLocaleDateString()}`,
-                                  items: stats.items
-                                })
-                              }
-                            }}
                             style={{ 
                               padding: '12px 16px', 
                               textAlign: 'center',
-                              cursor: total > 0 ? 'pointer' : 'default',
                               background: total > 0 ? 'rgba(59,130,246,.02)' : 'transparent'
                             }}
-                            className={total > 0 ? "hover:bg-blue-50/10 transition" : ""}
                           >
                             {total > 0 ? (
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center' }}>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  triggerRef.current = e.currentTarget
+                                  setModalData({
+                                    contributor: login,
+                                    week: w.number,
+                                    range: `${w.start.toLocaleDateString()} - ${w.end.toLocaleDateString()}`,
+                                    items: stats.items
+                                  })
+                                }}
+                                style={{
+                                  background: 'none',
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                  padding: 0,
+                                  font: 'inherit',
+                                  display: 'inline-flex',
+                                  flexDirection: 'column',
+                                  gap: 4,
+                                  alignItems: 'center',
+                                  width: '100%',
+                                  justifyContent: 'center',
+                                  outline: 'none'
+                                }}
+                                aria-label={`View Week ${w.number} contributions for ${login}`}
+                                className="hover:opacity-80 transition"
+                              >
                                 <div style={{ display: 'flex', gap: 3 }}>
                                   {stats.merged > 0 && <span style={{ ...C.pill('var(--green)', 'rgba(34,197,94,.1)'), fontSize: 10 }}>{stats.merged}M</span>}
                                   {stats.open > 0 && <span style={{ ...C.pill('var(--blue)', 'rgba(59,130,246,.1)'), fontSize: 10 }}>{stats.open}O</span>}
                                   {stats.issues > 0 && <span style={{ ...C.pill('var(--amber)', 'rgba(245,158,11,.1)'), fontSize: 10 }}>{stats.issues}I</span>}
                                 </div>
-                              </div>
+                              </button>
                             ) : (
                               <span style={{ color: 'var(--text2)', opacity: 0.4 }}>-</span>
                             )}
@@ -553,17 +682,31 @@ export default function ProgressTrackerPage() {
 
       {/* Weekly Details Modal Popup */}
       {modalData && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,.6)', zIndex: 1000,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          backdropFilter: 'blur(4px)'
-        }}>
-          <div style={{
-            ...C.card, width: '100%', maxWidth: 700, maxHeight: '80vh',
-            display: 'flex', flexDirection: 'column', gap: 16, padding: 24,
-            boxShadow: '0 10px 30px rgba(0,0,0,.3)', border: '1px solid var(--border)'
-          }} className="fade-up">
+        <div 
+          onClick={() => {
+            setModalData(null)
+            triggerRef.current?.focus()
+          }}
+          style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,.6)', zIndex: 1000,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            backdropFilter: 'blur(4px)'
+          }}
+        >
+          <div 
+            ref={modalRef}
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Weekly Contributions Details for ${modalData.contributor}`}
+            style={{
+              ...C.card, width: '100%', maxWidth: 700, maxHeight: '80vh',
+              display: 'flex', flexDirection: 'column', gap: 16, padding: 24,
+              boxShadow: '0 10px 30px rgba(0,0,0,.3)', border: '1px solid var(--border)'
+            }} 
+            className="fade-up"
+          >
             
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
               <div>
@@ -573,7 +716,10 @@ export default function ProgressTrackerPage() {
                 </span>
               </div>
               <button 
-                onClick={() => setModalData(null)}
+                onClick={() => {
+                  setModalData(null)
+                  triggerRef.current?.focus()
+                }}
                 style={{ ...C.btn('ghost'), padding: '4px 8px', fontSize: 11 }}
               >
                 Close
