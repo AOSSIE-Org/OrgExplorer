@@ -8,6 +8,7 @@ import HomePage        from './pages/HomePage'
 import OverviewPage    from './pages/OverviewPage'
 import RepositoriesPage from './pages/RepositoriesPage'
 import ContributorsPage from './pages/ContributorsPage'
+import ProgressTrackerPage from './pages/ProgressTrackerPage'
 import NetworkPage     from './pages/NetworkPage'
 import AnalyticsPage   from './pages/AnalyticsPage'
 import GovernancePage  from './pages/GovernancePage'
@@ -33,6 +34,7 @@ function AppContent() {
         <Route path="/overview"     element={<OverviewPage />} />
         <Route path="/repositories" element={<RepositoriesPage />} />
         <Route path="/contributors" element={<ContributorsPage />} />
+        <Route path="/progress"     element={<ProgressTrackerPage />} />
         <Route path="/network"      element={<NetworkPage />} />
         <Route path="/analytics"    element={<AnalyticsPage />} />
         <Route path="/governance"   element={<GovernancePage />} />

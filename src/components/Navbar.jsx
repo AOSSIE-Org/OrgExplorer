@@ -11,6 +11,7 @@ const LINKS = [
   { to: '/overview',     label: 'Overview'     },
   { to: '/repositories', label: 'Repositories' },
   { to: '/contributors', label: 'Contributors' },
+  { to: '/progress',     label: 'Progress Tracker' },
   { to: '/network',      label: 'Network'      },
   { to: '/analytics',    label: 'Analytics'    },
   { to: '/governance',   label: 'Governance'   },
