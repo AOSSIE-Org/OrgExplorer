@@ -1,14 +1,14 @@
 import SupportUsButton from "support-us-button";
 import "support-us-button/style.css";
 import { useTheme } from "../context/ThemeContext";
-
+import logo from "../assests/og-logo.svg";
 function Support() {
   const { theme } = useTheme();
   const supportUsButtonProps = {
     Theme: theme,
     projectInformation: {
       name: "OrgExplorer",
-      image: "org-explorer-logo.png",
+      image: logo,
       description:
         "OrgExplorer is an open-source tool that visualizes GitHub organization activity, helping teams analyze repositories, contributors, and project health through interactive insights.",
     },
@@ -38,17 +38,6 @@ function Support() {
       ],
     },
     Logo: true,
-    className: "overflow-hidden",
-    border: {
-      TopX1: "-10",
-      TopX2: "110",
-      BottomX1: "-10",
-      BottomX2: "110",
-      LeftY1: "-10",
-      LeftY2: "115",
-      RightY1: "-10",
-      RightY2: "115",
-    },
   };
 
   return (
