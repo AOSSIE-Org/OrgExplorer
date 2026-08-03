@@ -1,10 +1,9 @@
 import React from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import { FiSettings, FiZap } from 'react-icons/fi'
+import { FiHeart, FiSettings, FiZap } from 'react-icons/fi'
 import { useApp } from '../context/AppContext'
 import ThemeToggle from './ThemeToggle'
-import ogLogoWhite from "../assests/og-logo.png";
-import ogLogoDark from "../assests/og-logo-dark.png";
+import Logo from "../assests/og-logo.svg?react";
 import { useTheme } from '../context/ThemeContext'
 
 const LINKS = [
@@ -32,19 +31,13 @@ export default function Navbar() {
       borderBottom: '1px solid var(--border)',
       padding: '0 24px',
       display: 'flex', alignItems: 'center', gap: 24, height: 56,
+      justifyContent: 'space-between',
     }}>
       {/* Wordmark */}
       <span
         onClick={() => navigate('/')}
       >
-        {
-          theme === "dark" &&
-          <img src={ogLogoDark} alt="Logo" className='h-15' />
-        }
-        {
-          theme === "light" &&
-          <img src={ogLogoWhite} alt="Logo" className='h-15' />
-        }
+        <Logo className="h-15 w-auto"/>
       </span>
 
       {/* Nav links — only visible when data is loaded */}
@@ -80,6 +73,13 @@ export default function Navbar() {
           className='h-[-webkit-fill-available]'
         >
           <FiSettings size={13} /> Settings
+        </button>
+        <button
+          onClick={() => navigate('/support-us')}
+          className="flex items-center gap-2 rounded-md bg-emerald-500 px-4 py-2 text-sm font-medium text-white shadow transition-all duration-200 hover:bg-emerald-600 hover:shadow-lg active:scale-95"
+        >
+          <FiHeart size={13} fill='white'/>
+          Support Us
         </button>
       </div>
     </nav>

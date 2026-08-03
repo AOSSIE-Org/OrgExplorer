@@ -7,6 +7,7 @@ import SocialShareButton from '../components/SocialShareButton';
 import { AiOutlineInfoCircle } from "react-icons/ai";
 import AnalysisBanner from '../components/AnalysisBanner'
 import { OverviewSkeleton } from '../components/Orgexplorerskeletons'
+import {formatNumber} from '../utils/formatNumber'
 
 const LANG_COLORS = ['#22c55e', '#f5c518', '#3b82f6', '#ef4444', '#a855f7', '#f97316', '#06b6d4']
 const fmt = n => n > 999 ? (n / 1000).toFixed(1) + 'k' : String(n)
@@ -113,10 +114,10 @@ export default function OverviewPage() {
 
       {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 24 }}>
-        <StatCard label="Total Repos" value={totalRepo.toLocaleString()} />
-        <StatCard label="Total Stars" value={fmt(totalStars)} />
-        <StatCard label="Total Forks" value={fmt(totalForks)} />
-        <StatCard label="Active Repos" value={activeRepos} sub={`${Math.round(activeRepos / totalRepo * 100)}% of total`} />
+        <StatCard label="Total Repos" value={formatNumber(totalRepo)} />
+        <StatCard label="Total Stars" value={formatNumber(totalStars)} />
+        <StatCard label="Total Forks" value={formatNumber(totalForks)} />
+        <StatCard label="Active Repos" value={formatNumber(activeRepos)} sub={`${Math.round(activeRepos / totalRepo * 100)}% of total`} />
       </div>
 
       {/* Language + top repos */}
