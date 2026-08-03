@@ -1,5 +1,5 @@
 import React from 'react'
-import { NavLink, useNavigate } from 'react-router-dom'
+import { NavLink, useNavigate, Link } from 'react-router-dom'
 import { FiHeart, FiSettings, FiZap } from 'react-icons/fi'
 import { useApp } from '../context/AppContext'
 import ThemeToggle from './ThemeToggle'
@@ -34,11 +34,13 @@ export default function Navbar() {
       justifyContent: 'space-between',
     }}>
       {/* Wordmark */}
-      <span
-        onClick={() => navigate('/')}
+      <Link
+        to="/"
+        aria-label="OrgExplorer Home"
+        style={{ display: 'flex', alignItems: 'center' }}
       >
-        <Logo className="h-15 w-auto"/>
-      </span>
+        <Logo className="h-15 w-auto" />
+      </Link>
 
       {/* Nav links — only visible when data is loaded */}
       <div style={{ display: 'flex', gap: 2, flex: 1, overflowX: 'auto' }}>
