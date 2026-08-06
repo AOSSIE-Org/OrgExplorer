@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { FiArrowLeft, FiDownload, FiExternalLink, FiCalendar, FiBriefcase, FiAlertTriangle } from 'react-icons/fi'
+import { FiArrowLeft, FiDownload, FiExternalLink, FiCalendar, FiBriefcase, FiAlertTriangle, FiGithub } from 'react-icons/fi'
 import { useApp } from '../context/AppContext'
 import { C, PageTitle, Spinner, StatCard } from '../components/UI'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
@@ -102,13 +102,14 @@ const getFullRepoFromUrl = (url) => {
 export default function ContributorProfilePage() {
   const { username } = useParams()
   const navigate = useNavigate()
-  const { orgs, pat, pullsData } = useApp()
+  const { orgs, pat, pullsData, model } = useApp()
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [rawContributions, setRawContributions] = useState([])
   const [mergedPRKeys, setMergedPRKeys] = useState(new Set())
   const [tab, setTab] = useState('prs')
+  const [avatarFailed, setAvatarFailed] = useState(false)
 
   // Date Range Filters (Defaults to Last 1 Year)
   const [startDate, setStartDate] = useState(() => {
@@ -327,6 +328,16 @@ export default function ContributorProfilePage() {
     return Object.values(monthlyBuckets).sort((a, b) => a.yyyymm.localeCompare(b.yyyymm))
   }, [filteredContribs])
 
+  const contributorAvatar = model?.contributors?.find(
+    contributor => contributor.login.toLowerCase() === username.toLowerCase()
+  )?.avatar_url
+  const contributionAvatar = rawContributions.find(item => item.user?.avatar_url)?.user.avatar_url
+  const avatarUrl = contributorAvatar || contributionAvatar
+
+  useEffect(() => {
+    setAvatarFailed(false)
+  }, [avatarUrl, username])
+
   // Export to Markdown Report with pipe & newline escaping
   const exportMarkdown = () => {
     const dateStr = new Date().toLocaleDateString()
@@ -405,23 +416,63 @@ export default function ContributorProfilePage() {
       {/* Back navigation & page header */}
       <div style={{ marginBottom: 20 }}>
         <button
+          type="button"
           onClick={() => navigate('/contributors')}
           style={{
-            background: 'none', border: 'none', color: 'var(--text2)',
-            display: 'flex', alignItems: 'center', gap: 6, fontSize: 13,
-            cursor: 'pointer', padding: '6px 0', marginBottom: 12
+            ...C.btn('primary'), display: 'inline-flex',
+            alignItems: 'center', gap: 7, padding: '8px 14px', marginBottom: 12,
           }}
-          className="hover:text-(--text) transition"
         >
-          <FiArrowLeft size={14} /> Back to Contributor Intelligence
+          <FiArrowLeft size={14} /> Back
         </button>
       </div>
 
       <PageTitle
-        title={`Contributor Profile: @${username}`}
-        subtitle={`Analyzing contributions across ${searchOrgs.join(', ')}`}
+        title={
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 12 }}>
+            {avatarUrl && !avatarFailed ? (
+              <img
+                src={avatarUrl}
+                alt=""
+                width="48"
+                height="48"
+                onError={() => setAvatarFailed(true)}
+                style={{ borderRadius: '50%', border: '1px solid var(--border)', objectFit: 'cover' }}
+              />
+            ) : (
+              <span
+                aria-hidden="true"
+                style={{
+                  width: 48, height: 48, borderRadius: '50%', border: '1px solid var(--border)',
+                  background: 'var(--surface2)', color: 'var(--accent)', display: 'inline-flex',
+                  alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 700,
+                }}
+              >
+                {username.charAt(0).toUpperCase()}
+              </span>
+            )}
+            <span>{username}</span>
+            <a
+              href={`https://github.com/${encodeURIComponent(username)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`View ${username} on GitHub`}
+              title="View GitHub profile"
+              onMouseEnter={event => { event.currentTarget.style.color = 'var(--accent)' }}
+              onMouseLeave={event => { event.currentTarget.style.color = 'var(--text2)' }}
+              style={{
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                width: 32, height: 32, flex: '0 0 32px', alignSelf: 'center',
+                lineHeight: 0, color: 'var(--text2)',
+              }}
+            >
+              <FiGithub size={20} />
+            </a>
+          </span>
+        }
         right={
           <button
+            type="button"
             onClick={exportMarkdown}
             disabled={!filteredContribs.length}
             style={{ ...C.btn('primary'), display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}
