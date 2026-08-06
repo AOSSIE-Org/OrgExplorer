@@ -23,7 +23,7 @@ export default function Navbar() {
   const lowLimit = rateLimit && rateLimit.remaining < 15
 
   return (
-    <nav style={{
+    <nav className="app-navbar" style={{
       position: 'sticky', top: 0, zIndex: 100,
       background: 'var(--bg)',
       backdropFilter: 'blur(10px)',
@@ -40,7 +40,7 @@ export default function Navbar() {
       </span>
 
       {/* Nav links — only visible when data is loaded */}
-      <div style={{ display: 'flex', gap: 2, flex: 1, overflowX: 'auto' }}>
+      <div className="app-navbar-links" style={{ display: 'flex', gap: 2, flex: 1, overflowX: 'auto' }}>
         {hasData && LINKS.map(({ to, label }) => (
           <NavLink
             key={to} to={to}
@@ -58,7 +58,7 @@ export default function Navbar() {
       </div>
 
       {/* Right side */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0 }}>
+      <div className="app-navbar-actions" style={{ display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0 }}>
         {rateLimit && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: lowLimit ? 'var(--red)' : 'var(--text2)' }}>
             <FiZap size={12} />
@@ -67,18 +67,22 @@ export default function Navbar() {
         )}
         <ThemeToggle />
         <button
+          type="button"
+          aria-label="Settings"
           onClick={() => navigate('/settings')}
           style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: 6, padding: '5px 10px', fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}
-          className='h-[-webkit-fill-available]'
+          className="navbar-icon-action h-[-webkit-fill-available]"
         >
-          <FiSettings size={13} /> Settings
+          <FiSettings size={13} /> <span className="navbar-action-label">Settings</span>
         </button>
         <button
+          type="button"
+          aria-label="Support Us"
           onClick={() => navigate('/support-us')}
-          className="flex items-center gap-2 rounded-md bg-emerald-500 px-4 py-2 text-sm font-medium text-white shadow transition-all duration-200 hover:bg-emerald-600 hover:shadow-lg active:scale-95"
+          className="navbar-icon-action flex items-center gap-2 rounded-md bg-emerald-500 px-4 py-2 text-sm font-medium text-white shadow transition-all duration-200 hover:bg-emerald-600 hover:shadow-lg active:scale-95"
         >
           <FiHeart size={13} fill='white'/>
-          Support Us
+          <span className="navbar-action-label">Support Us</span>
         </button>
       </div>
     </nav>

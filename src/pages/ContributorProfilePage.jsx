@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { FiArrowLeft, FiDownload, FiExternalLink, FiCalendar, FiBriefcase, FiAlertTriangle } from 'react-icons/fi'
 import { useApp } from '../context/AppContext'
 import { C, PageTitle, Spinner, StatCard } from '../components/UI'
+import SocialShareButton from '../components/SocialShareButton'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
 // Reusable ContributionTable component
@@ -102,13 +103,14 @@ const getFullRepoFromUrl = (url) => {
 export default function ContributorProfilePage() {
   const { username } = useParams()
   const navigate = useNavigate()
-  const { orgs, pat, pullsData } = useApp()
+  const { orgs, pat, pullsData, model } = useApp()
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [rawContributions, setRawContributions] = useState([])
   const [mergedPRKeys, setMergedPRKeys] = useState(new Set())
   const [tab, setTab] = useState('prs')
+  const [avatarFailed, setAvatarFailed] = useState(false)
 
   // Date Range Filters (Defaults to Last 1 Year)
   const [startDate, setStartDate] = useState(() => {
@@ -327,6 +329,16 @@ export default function ContributorProfilePage() {
     return Object.values(monthlyBuckets).sort((a, b) => a.yyyymm.localeCompare(b.yyyymm))
   }, [filteredContribs])
 
+  const contributorAvatar = model?.contributors?.find(
+    contributor => contributor.login.toLowerCase() === username.toLowerCase()
+  )?.avatar_url
+  const contributionAvatar = rawContributions.find(item => item.user?.avatar_url)?.user.avatar_url
+  const avatarUrl = contributorAvatar || contributionAvatar
+
+  useEffect(() => {
+    setAvatarFailed(false)
+  }, [avatarUrl, username])
+
   // Export to Markdown Report with pipe & newline escaping
   const exportMarkdown = () => {
     const dateStr = new Date().toLocaleDateString()
@@ -405,31 +417,73 @@ export default function ContributorProfilePage() {
       {/* Back navigation & page header */}
       <div style={{ marginBottom: 20 }}>
         <button
+          type="button"
           onClick={() => navigate('/contributors')}
           style={{
-            background: 'none', border: 'none', color: 'var(--text2)',
-            display: 'flex', alignItems: 'center', gap: 6, fontSize: 13,
-            cursor: 'pointer', padding: '6px 0', marginBottom: 12
+            ...C.btn('ghost'), color: 'var(--text2)', display: 'inline-flex',
+            alignItems: 'center', gap: 7, padding: '8px 14px', marginBottom: 12,
           }}
-          className="hover:text-(--text) transition"
+          className="contributor-profile-back"
         >
           <FiArrowLeft size={14} /> Back to Contributor Intelligence
         </button>
       </div>
 
-      <PageTitle
-        title={`Contributor Profile: @${username}`}
-        subtitle={`Analyzing contributions across ${searchOrgs.join(', ')}`}
-        right={
-          <button
-            onClick={exportMarkdown}
-            disabled={!filteredContribs.length}
-            style={{ ...C.btn('primary'), display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}
-          >
-            <FiDownload size={13} /> Export Contribution Report (.md)
-          </button>
-        }
-      />
+      <div className="contributor-profile-heading">
+        <PageTitle
+          title={
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 12 }}>
+              {avatarUrl && !avatarFailed ? (
+                <img
+                  src={avatarUrl}
+                  alt=""
+                  width="48"
+                  height="48"
+                  onError={() => setAvatarFailed(true)}
+                  style={{ borderRadius: '50%', border: '1px solid var(--border)', objectFit: 'cover' }}
+                />
+              ) : (
+                <span
+                  aria-hidden="true"
+                  style={{
+                    width: 48, height: 48, borderRadius: '50%', border: '1px solid var(--border)',
+                    background: 'var(--surface2)', color: 'var(--accent)', display: 'inline-flex',
+                    alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 700,
+                  }}
+                >
+                  {username.charAt(0).toUpperCase()}
+                </span>
+              )}
+              <span>{username}</span>
+            </span>
+          }
+          right={
+            <div className="contributor-profile-actions" style={{ display: 'flex', alignItems: 'center', gap: 8, alignSelf: 'center' }}>
+              <SocialShareButton
+                url={`${window.location.origin}/contributors/${encodeURIComponent(username)}`}
+                title={`${username} — Contributor Profile | OrgExplorer`}
+                description={`View ${username}'s open-source contributions on OrgExplorer.`}
+                buttonText="Share Profile"
+                buttonStyle="ghost"
+              />
+              <button
+                type="button"
+                className="contributor-profile-export"
+                onClick={exportMarkdown}
+                disabled={!filteredContribs.length}
+                style={{
+                  ...C.btn('primary'), height: 44, display: 'flex', alignItems: 'center',
+                  justifyContent: 'center', gap: 6, fontSize: 12,
+                  boxShadow: '0 4px 14px rgba(245,197,24,.18)',
+                  transition: 'transform 0.2s ease, box-shadow 0.2s ease, opacity 0.15s ease',
+                }}
+              >
+                <FiDownload size={13} /> Export Contribution Report (.md)
+              </button>
+            </div>
+          }
+        />
+      </div>
 
       {error && (
         <div style={{ ...C.card, display: 'flex', alignItems: 'center', gap: 12, borderColor: 'var(--red)', background: 'rgba(239,68,68,.05)', marginBottom: 20 }}>
@@ -487,7 +541,7 @@ export default function ContributorProfilePage() {
       </div>
 
       {/* Key Metrics Stats Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 24 }}>
+      <div className="contributor-profile-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 24 }}>
         <StatCard label="Total Contributions" value={filteredContribs.length} sub="Filtered timeframe" />
         <StatCard label="Pull Requests" value={prs.length} sub={`${prs.filter(p => p.isMerged).length} Merged`} accent="var(--blue)" />
         <StatCard label="Issues Opened" value={issues.length} sub={`${issues.filter(i => i.state === 'closed').length} Closed`} accent="var(--amber)" />
