@@ -90,6 +90,24 @@ a { color: var(--accent); text-decoration: none; }
   color: var(--text) !important;
 }
 
+.contributor-profile-github {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  align-self: center;
+  line-height: 0;
+  color: var(--text2);
+  transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.contributor-profile-github:hover {
+  color: var(--accent);
+  transform: translateY(-1px);
+}
+
 @media (max-width: 600px) {
   .app-navbar {
     padding-left: 12px !important;

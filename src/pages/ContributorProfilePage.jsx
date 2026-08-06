@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { FiArrowLeft, FiDownload, FiExternalLink, FiCalendar, FiBriefcase, FiAlertTriangle } from 'react-icons/fi'
+import { FiArrowLeft, FiDownload, FiExternalLink, FiCalendar, FiBriefcase, FiAlertTriangle, FiGithub } from 'react-icons/fi'
 import { useApp } from '../context/AppContext'
 import { C, PageTitle, Spinner, StatCard } from '../components/UI'
 import SocialShareButton from '../components/SocialShareButton'
@@ -455,6 +455,16 @@ export default function ContributorProfilePage() {
                 </span>
               )}
               <span>{username}</span>
+              <a
+                href={`https://github.com/${encodeURIComponent(username)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="contributor-profile-github"
+                aria-label={`View ${username} on GitHub`}
+                title="View GitHub profile"
+              >
+                <FiGithub size={20} />
+              </a>
             </span>
           }
           right={
