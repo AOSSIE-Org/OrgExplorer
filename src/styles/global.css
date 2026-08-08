@@ -76,6 +76,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 /* Light theme */
 [data-theme="light"] input[type="date"]::-webkit-calendar-picker-indicator {
   filter: none;
+}
+
 .navbar-link:hover {
   color: var(--accent) !important;
 }
