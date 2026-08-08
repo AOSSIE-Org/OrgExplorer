@@ -19,11 +19,11 @@ const footerLinks = [
   },
   {
     label: "Terms of Service",
-    href: "/terms",
+    href: "https://github.com/AOSSIE-Org/OrgExplorer/blob/main/terms-of-service.md",
   },
   {
     label: "Privacy Policy",
-    href: "/privacy",
+    href: "https://github.com/AOSSIE-Org/OrgExplorer/blob/main/privacy-policy.md",
   },
   {
     label: "API Status",
@@ -110,6 +110,8 @@ export default function Footer() {
                 <Link
                   key={item.label}
                   to={item.href}
+                  target={item.href.startsWith("http") ? "_blank" : "_self"}
+                  rel={item.href.startsWith("http") ? "noopener noreferrer" : undefined}
                   style={{
                     color: "var(--text2)",
                     transition: "color 0.2s ease",
