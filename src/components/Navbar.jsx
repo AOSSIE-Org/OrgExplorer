@@ -7,19 +7,19 @@ import Logo from "../assests/og-logo.svg?react";
 import { useTheme } from '../context/ThemeContext'
 
 const LINKS = [
-  { to: '/overview',     label: 'Overview'     },
+  { to: '/overview', label: 'Overview' },
   { to: '/repositories', label: 'Repositories' },
   { to: '/contributors', label: 'Contributors' },
-  { to: '/network',      label: 'Network'      },
-  { to: '/analytics',    label: 'Analytics'    },
-  { to: '/governance',   label: 'Governance'   },
+  { to: '/network', label: 'Network' },
+  { to: '/analytics', label: 'Analytics' },
+  { to: '/governance', label: 'Governance' },
 ]
 
 export default function Navbar() {
   const { orgs, rateLimit } = useApp()
   const { theme } = useTheme();
   const navigate = useNavigate()
-  const hasData  = orgs.length > 0
+  const hasData = orgs.length > 0
   const lowLimit = rateLimit && rateLimit.remaining < 15
 
   return (
@@ -36,7 +36,7 @@ export default function Navbar() {
       <span
         onClick={() => navigate('/')}
       >
-        <Logo className="h-15 w-auto"/>
+        <Logo className="h-15 w-auto" />
       </span>
 
       {/* Nav links — only visible when data is loaded */}
@@ -44,12 +44,17 @@ export default function Navbar() {
         {hasData && LINKS.map(({ to, label }) => (
           <NavLink
             key={to} to={to}
+            className="navbar-link"
             style={({ isActive }) => ({
-              display: 'block', padding: '6px 10px',
-              fontSize: 13, whiteSpace: 'nowrap', textDecoration: 'none',
+              display: 'block',
+              padding: '6px 10px',
+              fontSize: 13,
+              whiteSpace: 'nowrap',
+              textDecoration: 'none',
               fontWeight: isActive ? 600 : 400,
               color: isActive ? 'var(--accent)' : 'var(--text2)',
               borderBottom: isActive ? '2px solid var(--accent)' : '2px solid transparent',
+              transition: 'color 0.2s ease',
             })}
           >
             {label}
@@ -77,7 +82,7 @@ export default function Navbar() {
           onClick={() => navigate('/support-us')}
           className="flex items-center gap-2 rounded-md bg-emerald-500 px-4 py-2 text-sm font-medium text-white shadow transition-all duration-200 hover:bg-emerald-600 hover:shadow-lg active:scale-95"
         >
-          <FiHeart size={13} fill='white'/>
+          <FiHeart size={13} fill='white' />
           Support Us
         </button>
       </div>
