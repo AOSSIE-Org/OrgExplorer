@@ -62,3 +62,7 @@ a { color: var(--accent); text-decoration: none; }
 .fade-up {
   animation: fadeUp 0.22s ease;
 }
+
+.navbar-link:hover {
+  color: var(--accent) !important;
+}
