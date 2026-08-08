@@ -110,7 +110,9 @@ This includes loss of locally cached data, as OrgExplorer does not store user da
 
 ### Contributor License
 
-By contributing code, documentation, or other materials to the Project, you grant the maintainers a perpetual, irrevocable, non-exclusive, worldwide license to use your contributions under the terms of the repository's open-source license.
+By contributing code, documentation, or other materials to the Project, you grant the maintainers a perpetual, worldwide, non-exclusive license to use, modify, distribute, and include your contributions as part of OrgExplorer under the project's open-source license.
+
+You retain ownership of your contributions.
 
 ### Code of Conduct
 
@@ -160,7 +162,7 @@ Data stored locally for performance purposes, including:
 
 is stored only within your browser's local storage or browser databases.
 
-For complete details, see our [Privacy Policy](https://github.com/AOSSIE-Org/OrgExplorer/blob/main/privacy-policy.md").
+For complete details, see our [Privacy Policy](https://github.com/AOSSIE-Org/OrgExplorer/blob/main/privacy-policy.md).
 
 ### Compliance
 

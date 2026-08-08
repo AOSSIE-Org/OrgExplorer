@@ -53,7 +53,9 @@ This data is stored only in your browser's:
 - `localStorage`
 - `IndexedDB`
 
-This information never leaves your device and is never sent to OrgExplorer.
+OrgExplorer does not transmit this data to any server operated by us.
+
+When a GitHub Personal Access Token is provided, your browser uses it to authenticate requests directly with GitHub's API. The token is sent only to GitHub for authorized API requests and is never sent to OrgExplorer servers.
 
 #### Standard Hosting Logs
 
