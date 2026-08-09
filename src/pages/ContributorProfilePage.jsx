@@ -407,9 +407,11 @@ export default function ContributorProfilePage() {
         <button
           onClick={() => navigate('/contributors')}
           style={{
-            background: 'none', border: 'none', color: 'var(--text2)',
-            display: 'flex', alignItems: 'center', gap: 6, fontSize: 13,
-            cursor: 'pointer', padding: '6px 0', marginBottom: 12
+            ...C.btn('primary'),
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            fontSize: 12,
           }}
           className="hover:text-(--text) transition"
         >
