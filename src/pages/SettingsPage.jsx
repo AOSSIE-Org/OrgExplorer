@@ -12,15 +12,44 @@ export default function SettingsPage() {
   const [cleared, setCleared] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [refreshError, setRefreshError] = useState(false)
-  const handleSave = () => {
-    savePat(draft.trim())
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+  const [isValidating, setIsValidating] = useState(false)
+  const [tokenError, setTokenError] = useState('')
+
+  const handleSave = async () => {
+    const token = draft.trim();
+    if (!token) return;
+
+    setIsValidating(true);
+    setTokenError('');
+
+    try {
+      const response = await fetch('https://api.github.com/rate_limit', {
+        headers: {
+          Accept: 'application/vnd.github.v3+json',
+          Authorization: `token ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        setTokenError('Invalid Personal Access Token');
+        setIsValidating(false);
+        return;
+      }
+
+      savePat(token);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (err) {
+      setTokenError('Network error verifying token');
+    } finally {
+      setIsValidating(false);
+    }
   }
 
   const handleDelete = () => {
     savePat('')
     setDraft('')
+    setTokenError('')
   }
 
   const handleClear = async () => {
@@ -131,7 +160,10 @@ export default function SettingsPage() {
               <input
                 type={show ? 'text' : 'password'}
                 value={draft}
-                onChange={e => setDraft(e.target.value)}
+                onChange={e => {
+                  setDraft(e.target.value)
+                  setTokenError('')
+                }}
                 placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
                 style={{ ...C.input, flex: 1 }}
                 onKeyDown={e => e.key === 'Enter' && handleSave()}
@@ -143,17 +175,22 @@ export default function SettingsPage() {
                 {show ? <FiEyeOff size={14} /> : <FiEye size={14} />}
               </button>
             </div>
+            {tokenError && (
+              <div style={{ color: 'var(--red)', fontSize: 13, marginBottom: 10, marginTop: -2 }}>
+                {tokenError}
+              </div>
+            )}
             <div style={{ display: 'flex', gap: 8 }}>
               <button
                 onClick={handleSave}
-                disabled={!draft.trim()}
+                disabled={!draft.trim() || isValidating}
                 style={{ ...C.btn('primary'), display: 'flex', alignItems: 'center', gap: 5, fontSize: 13 }}
               >
-                <FiSave size={13} /> {saved ? 'Saved' : 'Save'}
+                <FiSave size={13} /> {isValidating ? 'Validating...' : saved ? 'Saved' : 'Save'}
               </button>
               <button
                 onClick={handleDelete}
-                disabled={!draft.trim()}
+                disabled={!draft.trim() || isValidating}
                 style={{ ...C.btn('danger'), display: 'flex', alignItems: 'center', gap: 5, fontSize: 13 }}
               >
                 <FiTrash2 size={13} /> Delete
