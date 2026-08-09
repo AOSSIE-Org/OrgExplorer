@@ -413,7 +413,6 @@ export default function ContributorProfilePage() {
             gap: 6,
             fontSize: 12,
           }}
-          className="hover:text-(--text) transition"
         >
           <FiArrowLeft size={14} /> Back to Contributor Intelligence
         </button>
