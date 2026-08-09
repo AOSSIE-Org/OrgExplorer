@@ -143,3 +143,29 @@ export async function fetchRateLimit(pat) {
     return data.rate
   } catch { return null }
 }
+
+export const fetchOrgTeams = (org, pat) =>
+  fetchWithCache(`https://api.github.com/orgs/${org}/teams`, pat)
+
+export const fetchTeamMembers = (org, teamSlug, pat) =>
+  fetchWithCache(`https://api.github.com/orgs/${org}/teams/${teamSlug}/members`, pat)
+
+export const fetchTeamRepos = (org, teamSlug, pat) =>
+  fetchWithCache(`https://api.github.com/orgs/${org}/teams/${teamSlug}/repos`, pat)
+
+export async function updateTeamMembership(org, teamSlug, username, pat, role = 'member') {
+  if (!pat) throw new Error('Authentication (PAT) required to manage team memberships.')
+  const headers = {
+    Accept: 'application/vnd.github.v3+json',
+    Authorization: `token ${pat}`,
+    'Content-Type': 'application/json'
+  }
+  const res = await fetch(`https://api.github.com/orgs/${org}/teams/${teamSlug}/memberships/${username}`, {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify({ role })
+  })
+  if (res.status === 403) throw new Error('Permission denied. Admin/Write access required.')
+  if (!res.ok) throw new Error(`Failed to update membership (HTTP ${res.status})`)
+  return true
+}
