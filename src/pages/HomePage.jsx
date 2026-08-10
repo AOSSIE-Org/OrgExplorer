@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { FiSearch, FiX } from 'react-icons/fi'
 import { useApp } from '../context/AppContext'
 import { C, Spinner } from '../components/UI'
+import OrganizationAutocomplete from '../components/OrganizationAutocomplete'
 
 const QUICK = ['AOSSIE-Org', 'DjedAlliance', 'StabilityNexus']
 
@@ -74,13 +75,14 @@ export default function HomePage() {
               <FiX size={12} style={{ cursor: 'pointer', opacity: .7 }} onClick={() => removeChip(c)} />
             </span>
           ))}
-          <input
+          <OrganizationAutocomplete
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={handleKey}
             onBlur={() => input.trim() && addChip(input)}
+            onSelectOrg={addChip}
             placeholder={chips.length ? 'Add another org...' : 'AOSSIE-Org, StabilityNexus, DjedAlliance...'}
-            style={{ flex: 1, minWidth: 160, background: 'none', color: 'var(--text)', fontSize: 14, padding: '4px 8px', border: 'none', outline: 'none' }}
+            style={{ background: 'none', color: 'var(--text)', fontSize: 14, padding: '4px 8px', border: 'none', outline: 'none' }}
           />
           <button onClick={() => go()} style={{ ...C.btn('primary'), padding: '8px 22px', flexShrink: 0 }}>
             EXPLORE
