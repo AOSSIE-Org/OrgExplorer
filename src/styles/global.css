@@ -62,3 +62,22 @@ a { color: var(--accent); text-decoration: none; }
 .fade-up {
   animation: fadeUp 0.22s ease;
 }
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  transition: filter 0.2s ease;
+}
+
+/* Dark theme */
+:root:not([data-theme="light"]) input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+}
+
+/* Light theme */
+[data-theme="light"] input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: none;
+}
+
+.navbar-link:hover {
+  color: var(--accent) !important;
+}
