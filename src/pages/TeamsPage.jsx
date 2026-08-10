@@ -25,6 +25,7 @@ export default function TeamsPage() {
   // Graph rendering variables
   const svgRef = useRef(null)
   const simRef = useRef(null)
+  const dialogRef = useRef(null)
   const [tooltip, setTooltip] = useState(null)
 
   // Drag-and-drop assign modal state
@@ -40,6 +41,12 @@ export default function TeamsPage() {
   // Lazy load organization teams
   useEffect(() => {
     if (!orgName) return
+    if (!pat) {
+      setTeams([])
+      setLoading(false)
+      setError('')
+      return
+    }
 
     let ignore = false
     setLoading(true)
@@ -105,6 +112,61 @@ export default function TeamsPage() {
       ignore = true
     }
   }, [orgName, pat])
+
+  // Modal key listeners and keyboard focus trap
+  useEffect(() => {
+    if (!assignModal) return
+
+    const activeEl = document.activeElement
+
+    if (dialogRef.current) {
+      const focusables = dialogRef.current.querySelectorAll(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      )
+      if (focusables.length > 0) {
+        focusables[0].focus()
+      } else {
+        dialogRef.current.focus()
+      }
+    }
+
+    function handleKeyDown(e) {
+      if (e.key === 'Escape') {
+        setAssignModal(null)
+        return
+      }
+
+      if (e.key === 'Tab' && dialogRef.current) {
+        const focusables = dialogRef.current.querySelectorAll(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        )
+        if (focusables.length === 0) return
+
+        const first = focusables[0]
+        const last = focusables[focusables.length - 1]
+
+        if (e.shiftKey) {
+          if (document.activeElement === first) {
+            last.focus()
+            e.preventDefault()
+          }
+        } else {
+          if (document.activeElement === last) {
+            first.focus()
+            e.preventDefault()
+          }
+        }
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+      if (activeEl && typeof activeEl.focus === 'function') {
+        activeEl.focus()
+      }
+    }
+  }, [assignModal])
 
   // Filtered teams list based on search
   const filteredTeams = useMemo(() => {
@@ -374,8 +436,10 @@ export default function TeamsPage() {
       node.attr('transform', d => `translate(${d.x},${d.y})`)
     })
 
-    return () => sim.stop()
-  }, [teams, searchQuery])
+    return () => {
+      if (simRef.current) simRef.current.stop()
+    }
+  }, [teams, searchQuery, model, appLoading])
 
   // Trigger Team Membership Assignment
   const handleAssignMembership = async () => {
@@ -643,14 +707,22 @@ export default function TeamsPage() {
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           backdropFilter: 'blur(4px)'
         }}>
-          <div style={{
-            ...C.card, width: '100%', maxWidth: 450, padding: 24,
-            display: 'flex', flexDirection: 'column', gap: 16,
-            boxShadow: '0 10px 30px rgba(0,0,0,.3)', border: '1px solid var(--border)'
-          }} className="fade-up">
+          <div 
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="modal-title"
+            tabIndex={-1}
+            style={{
+              ...C.card, width: '100%', maxWidth: 450, padding: 24,
+              display: 'flex', flexDirection: 'column', gap: 16,
+              boxShadow: '0 10px 30px rgba(0,0,0,.3)', border: '1px solid var(--border)'
+            }} 
+            className="fade-up"
+          >
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <FiUserPlus size={20} color="var(--accent)" />
-              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Assign Team Membership</h3>
+              <h3 id="modal-title" style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Assign Team Membership</h3>
             </div>
 
             <p style={{ fontSize: 13, color: 'var(--text2)', lineHeight: 1.5, margin: 0 }}>

@@ -212,14 +212,31 @@ async function fetchAuthenticatedWithCache(url, pat) {
   return data
 }
 
+async function fetchAuthenticatedPaginated(baseUrl, pat) {
+  const all = []
+  let page = 1
+  while (true) {
+    const separator = baseUrl.includes('?') ? '&' : '?'
+    const url = `${baseUrl}${separator}per_page=100&page=${page}`
+    const data = await fetchAuthenticatedWithCache(url, pat)
+    if (!Array.isArray(data)) {
+      return data
+    }
+    all.push(...data)
+    if (data.length < 100) break
+    page++
+  }
+  return all
+}
+
 export const fetchOrgTeams = (org, pat) =>
-  fetchAuthenticatedWithCache(`https://api.github.com/orgs/${org}/teams`, pat)
+  fetchAuthenticatedPaginated(`https://api.github.com/orgs/${org}/teams`, pat)
 
 export const fetchTeamMembers = (org, teamSlug, pat) =>
-  fetchAuthenticatedWithCache(`https://api.github.com/orgs/${org}/teams/${teamSlug}/members`, pat)
+  fetchAuthenticatedPaginated(`https://api.github.com/orgs/${org}/teams/${teamSlug}/members`, pat)
 
 export async function fetchTeamRepos(org, teamSlug, pat) {
-  const data = await fetchAuthenticatedWithCache(`https://api.github.com/orgs/${org}/teams/${teamSlug}/repos`, pat)
+  const data = await fetchAuthenticatedPaginated(`https://api.github.com/orgs/${org}/teams/${teamSlug}/repos`, pat)
   if (Array.isArray(data)) {
     return data.map(repo => ({
       ...repo,
