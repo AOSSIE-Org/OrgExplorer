@@ -19,7 +19,7 @@ export default function HealthScorecard({ model, issuesData = {}, hasAudit = fal
         ...repo,
         riskTier: risk.tier,
         mainIssue: risk.mainIssue,
-        score: repo.healthScore || 50,
+        score: repo.healthScore ?? 50,
       }
     })
   }, [model, issuesData])
@@ -121,10 +121,12 @@ export default function HealthScorecard({ model, issuesData = {}, hasAudit = fal
             ORGANIZATION RISK CLASSIFICATION
           </div>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            <div
+            <button
+              type="button"
+              aria-pressed={filter === 'critical'}
               onClick={() => setFilter('critical')}
               style={{
-                flex: 1, minWidth: 110, padding: '12px 14px', borderRadius: 8, cursor: 'pointer',
+                flex: 1, minWidth: 110, padding: '12px 14px', borderRadius: 8, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit',
                 background: filter === 'critical' ? 'rgba(239,68,68,.2)' : 'var(--surface2)',
                 border: filter === 'critical' ? '1px solid var(--red)' : '1px solid var(--border)',
                 transition: 'all 0.2s ease',
@@ -134,12 +136,14 @@ export default function HealthScorecard({ model, issuesData = {}, hasAudit = fal
                 <FiAlertTriangle size={13} /> Critical
               </div>
               <div style={{ fontSize: 24, fontWeight: 700, marginTop: 4, color: 'var(--red)' }}>{counts.critical}</div>
-            </div>
+            </button>
 
-            <div
+            <button
+              type="button"
+              aria-pressed={filter === 'warning'}
               onClick={() => setFilter('warning')}
               style={{
-                flex: 1, minWidth: 110, padding: '12px 14px', borderRadius: 8, cursor: 'pointer',
+                flex: 1, minWidth: 110, padding: '12px 14px', borderRadius: 8, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit',
                 background: filter === 'warning' ? 'rgba(245,158,11,.2)' : 'var(--surface2)',
                 border: filter === 'warning' ? '1px solid var(--amber)' : '1px solid var(--border)',
                 transition: 'all 0.2s ease',
@@ -149,12 +153,14 @@ export default function HealthScorecard({ model, issuesData = {}, hasAudit = fal
                 <FiInfo size={13} /> Warning
               </div>
               <div style={{ fontSize: 24, fontWeight: 700, marginTop: 4, color: 'var(--amber)' }}>{counts.warning}</div>
-            </div>
+            </button>
 
-            <div
+            <button
+              type="button"
+              aria-pressed={filter === 'healthy'}
               onClick={() => setFilter('healthy')}
               style={{
-                flex: 1, minWidth: 110, padding: '12px 14px', borderRadius: 8, cursor: 'pointer',
+                flex: 1, minWidth: 110, padding: '12px 14px', borderRadius: 8, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit',
                 background: filter === 'healthy' ? 'rgba(34,197,94,.2)' : 'var(--surface2)',
                 border: filter === 'healthy' ? '1px solid var(--green)' : '1px solid var(--border)',
                 transition: 'all 0.2s ease',
@@ -164,7 +170,7 @@ export default function HealthScorecard({ model, issuesData = {}, hasAudit = fal
                 <FiCheckCircle size={13} /> Healthy
               </div>
               <div style={{ fontSize: 24, fontWeight: 700, marginTop: 4, color: 'var(--green)' }}>{counts.healthy}</div>
-            </div>
+            </button>
           </div>
         </div>
       </div>

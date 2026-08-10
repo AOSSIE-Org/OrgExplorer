@@ -18,7 +18,7 @@ export function computeDimensionScores(model, issuesData = {}, hasAudit = false)
       activity: 0,
       diversity: 0,
       compliance: 0,
-      issueHealth: 0,
+      issueHealth: null,
       hasAudit: false,
     }
   }
@@ -40,8 +40,11 @@ export function computeDimensionScores(model, issuesData = {}, hasAudit = false)
   let diversitySum = 0
   repos.forEach(r => {
     const bf = r.busFactor?.factor || (r.contributors ? r.contributors.length : 0)
-    // Higher score for bus factor >= 2, scaled up to 100
-    const repoDiv = Math.min(100, (bf >= 2 ? 60 : 20) + (r.contributors?.length || 0) * 8)
+    const contribCount = r.contributors?.length || 0
+    // Repositories with bus factor < 2 (bus factor 1) are capped at 50 below maximum diversity
+    const repoDiv = bf >= 2
+      ? Math.min(100, 60 + contribCount * 8)
+      : Math.min(50, 20 + contribCount * 8)
     diversitySum += repoDiv
   })
   const diversityScore = Math.round(diversitySum / repos.length)

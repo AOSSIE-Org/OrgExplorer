@@ -30,7 +30,7 @@ describe('computeDimensionScores', () => {
       activity: 0,
       diversity: 0,
       compliance: 0,
-      issueHealth: 0,
+      issueHealth: null,
       hasAudit: false,
     })
   })
@@ -58,18 +58,32 @@ describe('computeDimensionScores', () => {
     // 1 licensed out of 2 valid repos = 50%
     expect(dimensions.compliance).toBe(50)
   })
+
+  it('caps diversity score below 100 for repositories with bus factor 1 even with 10 contributors', () => {
+    const model = {
+      allRepos: [
+        {
+          name: 'bus-factor-1-repo',
+          busFactor: { factor: 1 },
+          contributors: Array(10).fill({ login: 'contrib' }),
+        },
+      ],
+    }
+    const dimensions = computeDimensionScores(model, {}, false)
+    expect(dimensions.diversity).toBe(50)
+  })
 })
 
 describe('computeOrgHealthSummary', () => {
-  it('bounds score strictly between 0 and 100', () => {
+  it('calculates exact aggregate score and grade for a healthy organization model', () => {
     const model = {
       allRepos: [
         { name: 'repo-1', pushed_at: daysAgoISO(5), license: { key: 'mit' }, busFactor: { factor: 5 }, contributors: [1,2,3,4,5] },
       ],
     }
     const summary = computeOrgHealthSummary(model, {}, false)
-    expect(summary.score).toBeGreaterThanOrEqual(0)
-    expect(summary.score).toBeLessThanOrEqual(100)
+    expect(summary.score).toBe(100)
+    expect(summary.grade).toBe('A+')
   })
 })
 
