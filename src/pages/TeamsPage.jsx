@@ -71,10 +71,13 @@ export default function TeamsPage() {
       })
       .catch((err) => {
         console.error('Failed to load org teams:', err)
-        setError(err.message === 'RATE_LIMIT' 
-          ? 'GitHub rate limit exceeded. Please add a PAT in Settings.' 
-          : 'Failed to load organization teams. Verify your Personal Access Token.'
-        )
+        if (err.message === 'RATE_LIMIT') {
+          setError('GitHub rate limit exceeded. Please check Settings.')
+        } else if (err.message === 'FORBIDDEN') {
+          setError('Access denied. Please ensure your Personal Access Token (PAT) has the "read:org" scope enabled.')
+        } else {
+          setError('Failed to load organization teams. Verify your Personal Access Token and settings.')
+        }
         setLoading(false)
       })
   }, [orgName, pat])

@@ -73,7 +73,13 @@ async function fetchWithCache(url, pat) {
     })
   )
 
-  if (res.status === 403) throw new Error('RATE_LIMIT')
+  if (res.status === 403) {
+    const remaining = res.headers.get('x-ratelimit-remaining')
+    if (remaining !== null && Number(remaining) === 0) {
+      throw new Error('RATE_LIMIT')
+    }
+    throw new Error('FORBIDDEN')
+  }
   if (res.status === 404) throw new Error('NOT_FOUND')
   if (!res.ok) throw new Error(`HTTP_${res.status}`)
 
