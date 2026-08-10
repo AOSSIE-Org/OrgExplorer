@@ -100,6 +100,19 @@ describe('classifyRepositoryRisk', () => {
     expect(risk.tier).toBe('warning')
   })
 
+  it('detects hibernating repo from pushed_at when activityClassification is absent', () => {
+    const repo = {
+      name: 'old-push-repo',
+      orgLogin: 'org',
+      pushed_at: daysAgoISO(200),
+      license: { key: 'mit' },
+      busFactor: { factor: 3 },
+    }
+    const risk = classifyRepositoryRisk(repo)
+    expect(risk.tier).toBe('warning')
+    expect(risk.mainIssue).toContain('Hibernating')
+  })
+
   it('classifies repos without risk signals as Healthy', () => {
     const repo = {
       name: 'healthy-repo',

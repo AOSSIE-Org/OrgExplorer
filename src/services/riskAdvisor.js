@@ -24,7 +24,8 @@ export function classifyRepositoryRisk(repo, issuesData = {}) {
   }
 
   // Signal 2: Warning signals (Hibernating, missing license, high stale ratio)
-  const isHibernating = repo.activityClassification === 'Hibernating'
+  const daysSincePush = repo.pushed_at ? (Date.now() - new Date(repo.pushed_at)) / 86_400_000 : null
+  const isHibernating = repo.activityClassification === 'Hibernating' || (daysSincePush !== null && daysSincePush > 180)
   if (isHibernating) {
     reasons.push('Hibernating (No pushes in >180 days)')
   }
