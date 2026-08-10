@@ -5,9 +5,11 @@ import { C, PageTitle } from '../components/UI'
 import EmptyStateCard from '../components/EmptyStateCard'
 import { FiDatabase } from 'react-icons/fi'
 import { useNavigate } from 'react-router-dom'
+import AnalysisBanner from '../components/AnalysisBanner'
+import { NetworkSkeleton } from '../components/Orgexplorerskeletons'
 
 export default function NetworkPage() {
-  const { model } = useApp()
+  const { model, isComplete, loading, runFullExplore, allRepos } = useApp()
   const svgRef   = useRef(null)
   const simRef   = useRef(null)
   const [tooltip,      setTooltip]      = useState(null)
@@ -27,12 +29,25 @@ export default function NetworkPage() {
     svg.attr('viewBox', `0 0 ${W} ${H}`)
 
     // Top repos and contributors for performance
-    const topRepos    = model.allRepos.slice(0, 30)
+    // Top repos and contributors for performance
+    // allRepos entries don't carry healthScore/activityClassification —
+    // only totalRepos does (see buildAnalyticalModel) — so enrich them here
+    const repoMetaByKey = new Map(
+      model.totalRepos.map(r => [`${r.orgLogin}/${r.name}`, r])
+    )
+    const topRepos = model.allRepos.slice(0, 30).map(r => {
+      const meta = repoMetaByKey.get(`${r.orgLogin}/${r.name}`)
+      return {
+        ...r,
+        healthScore: meta?.healthScore ?? 0,
+        activityClassification: meta?.activityClassification ?? 'Unknown',
+      }
+    })
     const topContribs = model.contributors
 
     const nodes = []
-    if (showRepos)    topRepos.forEach(r => nodes.push({ id: `repo:${r.name}`,    type: 'repo',        data: r, ts: new Date(r.pushed_at).getTime() }))
-    if (showContribs) topContribs.forEach(c => nodes.push({ id: `user:${c.login}`, type: 'contributor', data: c, ts: c.lastActive ? new Date(c.lastActive).getTime() : 0 }))
+    if (showRepos)    topRepos.forEach(r => nodes.push({ id: `repo:${r.name}`,    type: 'repo',        data: r, ts: new Date(r.pushed_at).getTime(), healthScore: r.healthScore }))
+    if (showContribs) topContribs.forEach(c => nodes.push({ id: `user:${c.login}`, type: 'contributor', data: c, ts: c.lastActive ? new Date(c.lastActive).getTime() : 0, healthScore: c.healthScore }))
 
     const nodeSet = new Set(nodes.map(n => n.id))
     const links   = []
@@ -148,14 +163,23 @@ export default function NetworkPage() {
         .attr('x2', d => d.target.x).attr('y2', d => d.target.y)
       node.attr('transform', d => `translate(${d.x},${d.y})`)
     })
+    console.log(tooltip)
 
     return () => sim.stop()
   }, [model, showRepos, showContribs])
 
   const navigate = useNavigate()
-
+  if(loading) return <NetworkSkeleton />
+  
   return (
     <div style={{ padding: '32px 24px', maxWidth: 1100, margin: '0 auto' }} className="fade-up">
+      <AnalysisBanner
+          page="network"
+          description="Network relationships are computed from a representative subset to balance speed and API usage. Connect a PAT to analyze every repository and access complete results."
+          analysisStatus={isComplete ? 'complete' : 'standard'}
+          loading={loading}
+          onRun={runFullExplore}
+      />
       <PageTitle
         title="Contributor-Repository Network"
         subtitle="Visual map of how contributors connect across repositories. Edge thickness = contribution volume. Position encodes recency — recently active nodes rise to the top."
@@ -204,7 +228,7 @@ export default function NetworkPage() {
                   </strong>
                 </div>
                 <div style={{ color: 'var(--text2)', marginBottom: 2 }}>Stars: {tooltip.node.data.stargazers_count?.toLocaleString()}</div>
-                <div style={{ color: 'var(--text2)' }}>Lifecycle: {tooltip.node.data.lifecycle}</div>
+                <div style={{ color: 'var(--text2)' }}>Activity: {tooltip.node.data.activityClassification}</div>
               </>
             ) : (
               <>

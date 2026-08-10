@@ -7,12 +7,14 @@ import { useSortedData } from '../hooks/useSortedData'
 import { exportReposCSV } from '../services/analytics'
 import EmptyStateCard from '../components/EmptyStateCard'
 import { useNavigate } from 'react-router-dom'
+import AnalysisBanner from '../components/AnalysisBanner'
+import { RepositorySkeleton } from '../components/Orgexplorerskeletons';
 
 const ACTIVITY_CLASSIFICATIONS = ['All', 'Thriving', 'Active', 'Dormant', 'Hibernating']
 const ACTIVITY_COLORS = { Thriving: 'var(--green)', Active: 'var(--blue)', Dormant: 'var(--amber)', Hibernating: 'var(--red)' }
 
 export default function RepositoriesPage() {
-  const { model } = useApp()
+  const { model, isComplete, loading, runFullExplore } = useApp()
   const [search, setSearch] = useState('')
   const [activityClassification, setActivityClassification] = useState('All')
   const [lang, setLang] = useState('All Languages')
@@ -52,6 +54,7 @@ export default function RepositoriesPage() {
   const { sorted, sortConfig, onSort } = useSortedData(filtered, 'healthScore', 'desc')
   const visible = sorted.slice(0, shown)
 
+  if(loading) return <RepositorySkeleton />
   if (!model) return null
 
   const TABLE_COLS = [
@@ -65,6 +68,13 @@ export default function RepositoriesPage() {
 
   return (
     <div style={{ padding: '32px 24px', maxWidth: 1100, margin: '0 auto' }} className="fade-up">
+      <AnalysisBanner
+        page="repositories"
+        description="Repository insights are computed from a representative subset to balance speed and API usage. Connect a PAT to analyze every repository and access complete results."
+        analysisStatus={isComplete ? 'complete' : 'standard'}
+        loading={loading}
+        onRun={runFullExplore}
+      />
       <div style={{ position: 'relative' }} ref={infoRef}>
         <PageTitle
           title={
@@ -72,8 +82,8 @@ export default function RepositoriesPage() {
               Repository Explorer
 
               <button
-                onMouseEnter={()=>setOpenInfo(true)}
-                onMouseLeave={()=>setOpenInfo(false)}
+                onMouseEnter={() => setOpenInfo(true)}
+                onMouseLeave={() => setOpenInfo(false)}
                 className="p-3 rounded-full hover:bg-(--bg) transition"
               >
                 <AiOutlineInfoCircle className="text-(--text) cursor-pointer" />
@@ -182,18 +192,18 @@ export default function RepositoriesPage() {
       {allRepos?.length ? (
         <>
           {/* Table view */}
-            <div style={{ ...C.card, padding: 0, overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr>
-                    {TABLE_COLS.map(([k, l]) => (
-                      <SortTh key={k} label={l} sortKey={k} sortConfig={sortConfig} onSort={onSort} />
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {visible.map((r, i) => (
-                    <tr key={r.id} style={{ borderBottom: '1px solid var(--border)', background: i % 2 ? 'var(--surface2)' : 'transparent' }}>
+          <div style={{ ...C.card, padding: 0, overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr>
+                  {TABLE_COLS.map(([k, l]) => (
+                    <SortTh key={k} label={l} sortKey={k} sortConfig={sortConfig} onSort={onSort} />
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {visible.map((r, i) => (
+                  <tr key={r.id} style={{ borderBottom: '1px solid var(--border)', background: i % 2 ? 'var(--surface2)' : 'transparent' }}>
                     <td style={{ padding: '10px 14px' }}>
                       <a
                         href={`${r.html_url}`}
@@ -208,23 +218,23 @@ export default function RepositoriesPage() {
                         {r.orgLogin && <div style={{ fontSize: 11, color: 'var(--text2)' }}>{r.orgLogin}</div>}
                       </a>
                     </td>
-                      <td style={{ padding: '10px 14px', fontSize: 13, color: 'var(--text2)' }}>{r.stargazers_count.toLocaleString()}</td>
-                      <td style={{ padding: '10px 14px', fontSize: 13, color: 'var(--text2)' }}>{r.forks_count.toLocaleString()}</td>
-                      <td style={{ padding: '10px 14px', fontSize: 13, color: r.open_issues_count > 30 ? 'var(--red)' : 'var(--text2)' }}>{r.open_issues_count}</td>
-                      <td style={{ padding: '10px 14px', minWidth: 130 }}><HealthBar score={r.healthScore} /></td>
-                      <td style={{ padding: '10px 14px' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}><Badge text={r.activityClassification} />
-                          <span style={{ fontSize: 11, color: 'var(--text2)' }}>
-                            Last push: {r.pushed_at?.slice(0, 10)}
-                          </span>
-                        </div>
-                      </td>
-                    </tr> 
-                  ))}
-                </tbody>
-              </table>
-              <LoadMore shown={shown} total={sorted.length} onLoad={() => setShown(s => s + 20)} />
-            </div>
+                    <td style={{ padding: '10px 14px', fontSize: 13, color: 'var(--text2)' }}>{r.stargazers_count.toLocaleString()}</td>
+                    <td style={{ padding: '10px 14px', fontSize: 13, color: 'var(--text2)' }}>{r.forks_count.toLocaleString()}</td>
+                    <td style={{ padding: '10px 14px', fontSize: 13, color: r.open_issues_count > 30 ? 'var(--red)' : 'var(--text2)' }}>{r.open_issues_count}</td>
+                    <td style={{ padding: '10px 14px', minWidth: 130 }}><HealthBar score={r.healthScore} /></td>
+                    <td style={{ padding: '10px 14px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}><Badge text={r.activityClassification} />
+                        <span style={{ fontSize: 11, color: 'var(--text2)' }}>
+                          Last push: {r.pushed_at?.slice(0, 10)}
+                        </span>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <LoadMore shown={shown} total={sorted.length} onLoad={() => setShown(s => s + 20)} />
+          </div>
         </>)
         : (
           <div

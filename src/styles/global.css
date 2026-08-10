@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --bg:       #0d0d0d;
+  --bg:       #060606;
   --surface:  #141414;
   --surface2: #1a1a1a;
   --border:   #2a2a2a;
@@ -24,7 +24,7 @@
   --surface2: #ececec;
   --border:   #d5d5d5;
   --accent:   #d4a500;
-  --text:     #0d0d0d;
+  --text:     #060606;
   --text2:    #666666;
   --text3:    #999999;
   --green:    #16a34a;
@@ -61,4 +61,23 @@ a { color: var(--accent); text-decoration: none; }
 }
 .fade-up {
   animation: fadeUp 0.22s ease;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  transition: filter 0.2s ease;
+}
+
+/* Dark theme */
+:root:not([data-theme="light"]) input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+}
+
+/* Light theme */
+[data-theme="light"] input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: none;
+}
+
+.navbar-link:hover {
+  color: var(--accent) !important;
 }

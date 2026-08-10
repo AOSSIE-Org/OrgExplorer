@@ -1,15 +1,17 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react'
-import { FiDatabase, FiDownload } from 'react-icons/fi'
+import { FiDatabase, FiDownload, FiExternalLink } from 'react-icons/fi'
 import { useApp } from '../context/AppContext'
 import { C, SortTh, PageTitle, LoadMore } from '../components/UI'
 import { useSortedData } from '../hooks/useSortedData'
 import { computeBusFactor, exportContributorsCSV } from '../services/analytics'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import EmptyStateCard from '../components/EmptyStateCard'
 import { AiOutlineInfoCircle } from "react-icons/ai";
+import AnalysisBanner from '../components/AnalysisBanner'
+import { ContributorSkeleton } from '../components/Orgexplorerskeletons'
 
 export default function ContributorsPage() {
-  const { model } = useApp()
+  const { model, isComplete, loading, runFullExplore } = useApp()
   const [search, setSearch] = useState('')
   const [shown, setShown] = useState(20)
   const [openInfo, setOpenInfo] = useState(null)
@@ -55,6 +57,7 @@ export default function ContributorsPage() {
   const { sorted, sortConfig, onSort } = useSortedData(filtered, 'totalContribs', 'desc')
   const visible = sorted.slice(0, shown)
 
+  if(loading) return <ContributorSkeleton />
   if (!model) return null
 
   const topActive = contributors.slice(0, 10).filter(c => c.freshness > 50).length
@@ -67,6 +70,15 @@ export default function ContributorsPage() {
 
   return (
     <div style={{ padding: '32px 24px', maxWidth: 1100, margin: '0 auto' }} className="fade-up">
+
+      <AnalysisBanner
+        page="contributors"
+        description="Contributor insights are computed from a representative subset to balance speed and API usage. Connect a PAT to analyze every repository and access complete results."
+        analysisStatus={isComplete ? 'complete' : 'standard'}
+        loading={loading}
+        onRun={runFullExplore}
+      />
+
       <PageTitle
         title="Contributor Intelligence"
         subtitle="Analyzing contribution patterns, coverage risk, and organizational health"
@@ -92,8 +104,8 @@ export default function ContributorsPage() {
             <p>Bus Factor Risk</p>
 
             <button
-              onMouseEnter={()=>setOpenInfo("busfactor")}
-              onMouseLeave={()=>setOpenInfo(null)}
+              onMouseEnter={() => setOpenInfo("busfactor")}
+              onMouseLeave={() => setOpenInfo(null)}
               className="p-2 rounded-full hover:bg-(--bg) transition"
             >
               <AiOutlineInfoCircle className="text-(--text) cursor-pointer" />
@@ -153,8 +165,8 @@ export default function ContributorsPage() {
             <p>Freshness Index</p>
 
             <button
-              onMouseEnter={()=>setOpenInfo("freshness")}
-              onMouseLeave={()=>setOpenInfo(null)}
+              onMouseEnter={() => setOpenInfo("freshness")}
+              onMouseLeave={() => setOpenInfo(null)}
               className="p-2 rounded-full hover:bg-(--bg) transition"
             >
               <AiOutlineInfoCircle className="text-(--text) cursor-pointer" />
@@ -258,8 +270,8 @@ export default function ContributorsPage() {
                       <p>SIGNALS</p>
 
                       <button
-                        onMouseEnter={()=>setOpenInfo("signals")}
-                        onMouseLeave={()=>setOpenInfo(null)}
+                        onMouseEnter={() => setOpenInfo("signals")}
+                        onMouseLeave={() => setOpenInfo(null)}
                         className="p-2 rounded-full hover:bg-(--bg) transition"
                       >
                         <AiOutlineInfoCircle className="text-(--text) cursor-pointer" />
@@ -305,23 +317,34 @@ export default function ContributorsPage() {
                 {visible.map((c, i) => (
                   <tr key={c.login} style={{ borderBottom: '1px solid var(--border)', background: i % 2 ? 'var(--surface2)' : 'transparent' }}>
                     <td style={{ padding: '10px 14px' }}>
-                      <a
-                        href={`https://github.com/${c.login}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 8,
-                          textDecoration: 'none',
-                          color: 'inherit',
-                        }}
-                      >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <img src={c.avatar_url} alt={c.login} style={{ width: 28, height: 28, borderRadius: '50%' }} />
-                        <span style={{ fontSize: 13, fontWeight: 500 }}>{c.login}</span>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                        <Link
+                          to={`/contributors/${c.login}`}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            textDecoration: 'none',
+                            color: 'inherit',
+                          }}
+                          title="View contributor profile"
+                          aria-label="View contributor profile"
+                        >
+                          <img src={c.avatar_url} alt={c.login} style={{ width: 28, height: 28, borderRadius: '50%' }} />
+                          <span style={{ fontSize: 13, fontWeight: 500 }} className="hover:text-(--accent) transition">{c.login}</span>
+                        </Link>
+                        <a
+                          href={`https://github.com/${c.login}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ display: 'inline-flex', alignItems: 'center', color: 'var(--text2)', opacity: 0.7 }}
+                          title="View GitHub profile"
+                          aria-label="View GitHub profile"
+                          className="hover:opacity-100 hover:text-(--accent)"
+                        >
+                          <FiExternalLink size={12} />
+                        </a>
                       </div>
-                      </a>
                     </td>
                     <td style={{ padding: '10px 14px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

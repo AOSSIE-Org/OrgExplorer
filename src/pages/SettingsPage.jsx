@@ -5,21 +5,51 @@ import { C } from '../components/UI'
 import { cacheClear } from '../services/github'
 import { AiOutlineInfoCircle } from "react-icons/ai";
 export default function SettingsPage() {
-  const { pat, savePat, rateLimit } = useApp()
+  const { pat, savePat, rateLimit, refreshRateLimit } = useApp()
   const [draft, setDraft] = useState(pat)
   const [show, setShow] = useState(false)
   const [saved, setSaved] = useState(false)
   const [cleared, setCleared] = useState(false)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [refreshError, setRefreshError] = useState(false)
+  const [isValidating, setIsValidating] = useState(false)
+  const [tokenError, setTokenError] = useState('')
 
-  const handleSave = () => {
-    savePat(draft.trim())
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+  const handleSave = async () => {
+    const token = draft.trim();
+    if (!token) return;
+
+    setIsValidating(true);
+    setTokenError('');
+
+    try {
+      const response = await fetch('https://api.github.com/rate_limit', {
+        headers: {
+          Accept: 'application/vnd.github.v3+json',
+          Authorization: `token ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        setTokenError('Invalid Personal Access Token');
+        setIsValidating(false);
+        return;
+      }
+
+      savePat(token);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (err) {
+      setTokenError('Network error verifying token');
+    } finally {
+      setIsValidating(false);
+    }
   }
 
   const handleDelete = () => {
     savePat('')
     setDraft('')
+    setTokenError('')
   }
 
   const handleClear = async () => {
@@ -48,7 +78,7 @@ export default function SettingsPage() {
   }, [])
 
   return (
-    <div style={{ padding: '32px 24px', maxWidth: 900, margin: '0 auto' }} className="fade-up">
+    <div style={{ padding: '32px 24px', maxWidth: 1100, margin: '0 auto' }} className="fade-up">
       <h1 style={{ fontSize: 26, fontWeight: 700, marginBottom: 24 }}>Settings</h1>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
@@ -130,7 +160,10 @@ export default function SettingsPage() {
               <input
                 type={show ? 'text' : 'password'}
                 value={draft}
-                onChange={e => setDraft(e.target.value)}
+                onChange={e => {
+                  setDraft(e.target.value)
+                  setTokenError('')
+                }}
                 placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
                 style={{ ...C.input, flex: 1 }}
                 onKeyDown={e => e.key === 'Enter' && handleSave()}
@@ -142,17 +175,22 @@ export default function SettingsPage() {
                 {show ? <FiEyeOff size={14} /> : <FiEye size={14} />}
               </button>
             </div>
+            {tokenError && (
+              <div style={{ color: 'var(--red)', fontSize: 13, marginBottom: 10, marginTop: -2 }}>
+                {tokenError}
+              </div>
+            )}
             <div style={{ display: 'flex', gap: 8 }}>
               <button
                 onClick={handleSave}
-                disabled={!draft.trim()}
+                disabled={!draft.trim() || isValidating}
                 style={{ ...C.btn('primary'), display: 'flex', alignItems: 'center', gap: 5, fontSize: 13 }}
               >
-                <FiSave size={13} /> {saved ? 'Saved' : 'Save'}
+                <FiSave size={13} /> {isValidating ? 'Validating...' : saved ? 'Saved' : 'Save'}
               </button>
               <button
                 onClick={handleDelete}
-                disabled={!draft.trim()}
+                disabled={!draft.trim() || isValidating}
                 style={{ ...C.btn('danger'), display: 'flex', alignItems: 'center', gap: 5, fontSize: 13 }}
               >
                 <FiTrash2 size={13} /> Delete
@@ -207,7 +245,43 @@ export default function SettingsPage() {
           <div style={C.card}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <div style={{ fontWeight: 600, fontSize: 15, letterSpacing: '.03em' }}>API Quota</div>
-              <FiRefreshCw size={14} color="var(--text2)" style={{ cursor: 'pointer' }} />
+              <button
+                type="button"
+                disabled={isRefreshing}
+                onClick={async () => {
+                  if (isRefreshing) return;
+                  setIsRefreshing(true);
+                  setRefreshError(false);
+                  try {
+                    const success = await refreshRateLimit();
+                    if (!success) {
+                      setRefreshError(true);
+                      setTimeout(() => setRefreshError(false), 2000);
+                    }
+                  } finally {
+                    setTimeout(() => setIsRefreshing(false), 500); // Minimum spin duration for visual feedback
+                  }
+                }}
+                style={{ 
+                  background: 'none', 
+                  border: 'none', 
+                  padding: '4px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: '4px'
+                }}
+                aria-label="Refresh API Quota"
+                title={refreshError ? "Failed to refresh" : "Refresh API Quota"}
+                className="hover:bg-(--bg) transition"
+              >
+                <FiRefreshCw 
+                  size={14} 
+                  color={refreshError ? "var(--red)" : "var(--text2)"} 
+                  style={{ transition: 'transform 0.3s ease', transform: isRefreshing ? 'rotate(180deg)' : 'none' }} 
+                />
+              </button>
             </div>
 
             {rateLimit ? (
