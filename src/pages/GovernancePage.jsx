@@ -2,6 +2,8 @@ import React, { useState, useMemo } from 'react'
 import { FiRefreshCw, FiExternalLink } from 'react-icons/fi'
 import { useApp } from '../context/AppContext'
 import { C, PageTitle, EmptyOk } from '../components/UI'
+import AnalysisBanner from '../components/AnalysisBanner'
+import { GovernanceSkeleton } from '../components/Orgexplorerskeletons'
 
 const TABS = [
   { key: 'dead',    label: 'Dead Issues' },
@@ -40,7 +42,7 @@ const getStatus = ratio => {
 }
 
 export default function GovernancePage() {
-  const { model, issuesData, runAudit, govLoading, staleRepoStats } = useApp()
+  const { model, issuesData, runAudit, govLoading, auditComplete, loading, runGovernanceAnalysis,staleRepoStats } = useApp()
   const [tab, setTab] = useState('dead')
 
   const ITEMS_PER_PAGE = 10
@@ -51,7 +53,6 @@ export default function GovernancePage() {
     const start = (stalePage - 1) * ITEMS_PER_PAGE
     return staleRepoStats.slice(start, start + ITEMS_PER_PAGE)
   }, [staleRepoStats, stalePage])
-  console.log(paginatedStaleRepos);
   // Flatten all issues and tag with repo/org
   const allIssues = useMemo(() => {
     const arr = []
@@ -62,6 +63,7 @@ export default function GovernancePage() {
     return arr
   }, [issuesData])
 
+  if(loading) return <GovernanceSkeleton />
   if (!model) return null
 
   const hasAudit = Object.keys(issuesData || {}).length > 0
@@ -69,7 +71,7 @@ export default function GovernancePage() {
 
   // Health check 1 — Dead Issues (>90 days open, not a PR)
   const deadIssues = allIssues
-    .filter(i => !i.pull_request && daysSince(i.created_at) >= 90)
+    .filter(i => !i.pull_request && i.state === 'open' && daysSince(i.created_at) >= 90)
     .sort((a, b) => daysSince(b.created_at) - daysSince(a.created_at))
 
   // Health check 2 — Percentage of dead issues relative to all issues
@@ -77,7 +79,7 @@ export default function GovernancePage() {
 
   // Health check 3 — Zombie PRs (>90 days open)
   const zombiePRs = allIssues
-    .filter(i => i.pull_request && daysSince(i.created_at) >= 90)
+    .filter(i => i.pull_request && i.state === 'open' && daysSince(i.created_at) >= 90)
     .sort((a, b) => daysSince(b.created_at) - daysSince(a.created_at))
 
   // Health check 4 — No license
@@ -135,6 +137,13 @@ export default function GovernancePage() {
 
   return (
     <div style={{ padding: '32px 24px', maxWidth: 1100, margin: '0 auto' }} className="fade-up">
+      <AnalysisBanner
+        page="governance"
+        description="Governance insights are computed from a representative subset to balance speed and API usage. Connect a PAT to analyze every repository and access complete results."
+        analysisStatus={auditComplete ? 'complete' : 'standard'}
+        loading={loading || govLoading}
+        onRun={runGovernanceAnalysis}
+      />
       <PageTitle
         title="Governance Audit"
         subtitle="Analyzing structural integrity and compliance across the portfolio"
