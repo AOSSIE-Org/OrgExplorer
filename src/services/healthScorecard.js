@@ -50,12 +50,28 @@ export function computeDimensionScores(model, issuesData = {}, hasAudit = false)
   const diversityScore = Math.round(diversitySum / repos.length)
 
   // 3. Compliance Dimension (0-100)
-  // License presence among non-archived, non-fork repos
+  // License & governance file presence (CODE_OF_CONDUCT, CONTRIBUTING) among non-archived, non-fork repos
   const validRepos = repos.filter(r => !r.archived && !r.fork)
-  const licensedRepos = validRepos.filter(r => Boolean(r.license)).length
-  const complianceScore = validRepos.length > 0
-    ? Math.round((licensedRepos / validRepos.length) * 100)
-    : 100
+  let complianceScore = 100
+  if (validRepos.length > 0) {
+    let repoScoreSum = 0
+    validRepos.forEach(r => {
+      let checksCount = 1
+      let passedCount = Boolean(r.license) ? 1 : 0
+
+      if (r.hasCodeOfConduct !== undefined || r.code_of_conduct !== undefined || r.coc !== undefined) {
+        checksCount++
+        if (r.hasCodeOfConduct || r.code_of_conduct || r.coc) passedCount++
+      }
+      if (r.hasContributing !== undefined || r.contributing !== undefined) {
+        checksCount++
+        if (r.hasContributing || r.contributing) passedCount++
+      }
+
+      repoScoreSum += (passedCount / checksCount)
+    })
+    complianceScore = Math.round((repoScoreSum / validRepos.length) * 100)
+  }
 
   // 4. Issue / PR Health Dimension (0-100)
   // Only calculated if audit has been run, otherwise null to indicate Insufficient Data

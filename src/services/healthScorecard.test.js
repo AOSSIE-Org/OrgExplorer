@@ -72,6 +72,32 @@ describe('computeDimensionScores', () => {
     const dimensions = computeDimensionScores(model, {}, false)
     expect(dimensions.diversity).toBe(50)
   })
+
+  it('calculates issueHealth score and hasAudit value when audit has been run with closed issues, stale open issues, or an empty issue array', () => {
+    const model = {
+      allRepos: [
+        { name: 'repo-1', pushed_at: daysAgoISO(10), license: { key: 'mit' } },
+      ],
+    }
+
+    // 1. Closed issues case
+    const closedData = { 'org/repo-1': [{ state: 'closed', created_at: daysAgoISO(5) }] }
+    const closedRes = computeDimensionScores(model, closedData, true)
+    expect(closedRes.hasAudit).toBe(true)
+    expect(closedRes.issueHealth).toBe(100)
+
+    // 2. Stale open issues case
+    const staleData = { 'org/repo-1': [{ state: 'open', created_at: daysAgoISO(100) }] }
+    const staleRes = computeDimensionScores(model, staleData, true)
+    expect(staleRes.hasAudit).toBe(true)
+    expect(staleRes.issueHealth).toBe(15)
+
+    // 3. Empty audited issue array case
+    const emptyAuditedData = { 'org/repo-1': [] }
+    const emptyAuditedRes = computeDimensionScores(model, emptyAuditedData, true)
+    expect(emptyAuditedRes.hasAudit).toBe(true)
+    expect(emptyAuditedRes.issueHealth).toBe(100)
+  })
 })
 
 describe('computeOrgHealthSummary', () => {
