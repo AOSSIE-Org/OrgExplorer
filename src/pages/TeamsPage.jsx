@@ -41,35 +41,55 @@ export default function TeamsPage() {
   useEffect(() => {
     if (!orgName) return
 
+    let ignore = false
     setLoading(true)
     setError('')
     
     fetchOrgTeams(orgName, pat)
       .then(async (fetchedTeams) => {
+        if (ignore) return
         if (!fetchedTeams || !fetchedTeams.length) {
           setTeams([])
           setLoading(false)
           return
         }
 
-        // Fetch members and repos for each team in parallel batches
-        const enriched = await Promise.all(
-          fetchedTeams.map(async (team) => {
-            try {
-              const [members, repos] = await Promise.all([
-                fetchTeamMembers(orgName, team.slug, pat).catch(() => []),
-                fetchTeamRepos(orgName, team.slug, pat).catch(() => [])
-              ])
-              return { ...team, members, repos }
-            } catch {
-              return { ...team, members: [], repos: [] }
-            }
-          })
-        )
+        // Fetch members and repos for each team in concurrency-limited batches of 5
+        const enriched = []
+        const batchSize = 5
+        for (let i = 0; i < fetchedTeams.length; i += batchSize) {
+          if (ignore) return
+          const batch = fetchedTeams.slice(i, i + batchSize)
+          const results = await Promise.all(
+            batch.map(async (team) => {
+              let members = []
+              let repos = []
+              let partialError = null
+
+              try {
+                members = await fetchTeamMembers(orgName, team.slug, pat)
+              } catch (e) {
+                partialError = e.message || 'Failed to load members'
+              }
+
+              try {
+                repos = await fetchTeamRepos(orgName, team.slug, pat)
+              } catch (e) {
+                partialError = partialError || e.message || 'Failed to load repositories'
+              }
+
+              return { ...team, members, repos, partialError }
+            })
+          )
+          enriched.push(...results)
+        }
+
+        if (ignore) return
         setTeams(enriched)
         setLoading(false)
       })
       .catch((err) => {
+        if (ignore) return
         console.error('Failed to load org teams:', err)
         if (err.message === 'RATE_LIMIT') {
           setError('GitHub rate limit exceeded. Please check Settings.')
@@ -80,6 +100,10 @@ export default function TeamsPage() {
         }
         setLoading(false)
       })
+
+    return () => {
+      ignore = true
+    }
   }, [orgName, pat])
 
   // Filtered teams list based on search
@@ -142,16 +166,23 @@ export default function TeamsPage() {
       team.repos.forEach(repo => {
         const repoId = `repo:${repo.name}`
         if (!nodesMap.has(repoId)) {
-          // Color by composite health score or forks counts
-          const score = repo.healthScore ?? 65
+          // Look up in the analytical model totalRepos list to resolve computed scores
+          const modelRepo = model?.totalRepos?.find(r => r.name === repo.name)
+          const score = modelRepo?.healthScore ?? repo.healthScore ?? 65
           const healthColor = score >= 70 ? '#22c55e' : score >= 40 ? '#f59e0b' : '#ef4444'
+
           nodesMap.set(repoId, {
             id: repoId,
             type: 'repo',
             label: repo.name,
             color: healthColor,
             size: 14,
-            data: repo
+            data: {
+              ...repo,
+              healthScore: score,
+              forks_count: modelRepo?.forks_count ?? repo.forks_count ?? 0,
+              stargazers_count: modelRepo?.stargazers_count ?? repo.stargazers_count ?? 0
+            }
           })
         }
         links.push({ source: repoId, target: teamId })
@@ -498,6 +529,57 @@ export default function TeamsPage() {
 
           {/* Right panel: D3 canvas force graph visualizer */}
           <div style={{ ...C.card, padding: 0, overflow: 'hidden', position: 'relative' }}>
+            {/* Keyboard Assignment Helper for accessibility */}
+            <div style={{ display: 'flex', gap: 10, padding: '12px 16px', borderBottom: '1px solid var(--border)', background: 'var(--bg)', alignItems: 'center', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text2)' }}>ACCESSIBILITY ASSIGNMENT:</span>
+              <select 
+                id="kbd-assign-member"
+                aria-label="Select contributor to assign"
+                style={{ ...C.input, padding: '4px 8px', fontSize: 11, width: 140, background: 'var(--surface)' }}
+              >
+                <option value="">-- Choose Member --</option>
+                {(model?.contributors || []).map(c => <option key={c.login} value={c.login}>{c.login}</option>)}
+              </select>
+              <span style={{ fontSize: 11, color: 'var(--text3)' }}>to</span>
+              <select 
+                id="kbd-assign-team"
+                aria-label="Select target team"
+                style={{ ...C.input, padding: '4px 8px', fontSize: 11, width: 140, background: 'var(--surface)' }}
+              >
+                <option value="">-- Choose Team --</option>
+                {teams.map(t => <option key={t.slug} value={t.slug}>{t.name}</option>)}
+              </select>
+              <button 
+                type="button" 
+                onClick={() => {
+                  const userVal = document.getElementById('kbd-assign-member').value
+                  const teamVal = document.getElementById('kbd-assign-team').value
+                  if (!userVal || !teamVal) return
+
+                  const selectedMember = (model?.contributors || []).find(c => c.login === userVal)
+                  const targetTeam = teams.find(t => t.slug === teamVal)
+
+                  if (selectedMember && targetTeam) {
+                    const isMember = targetTeam.members.some(m => m.login === userVal)
+                    if (isMember) {
+                      alert(`@${userVal} is already a member of ${targetTeam.name}`)
+                      return
+                    }
+                    setAssignError('')
+                    setAssignModal({
+                      username: userVal,
+                      teamName: targetTeam.name,
+                      teamSlug: targetTeam.slug,
+                      avatar: selectedMember.avatar_url || 'https://github.com/identicons/temp.png'
+                    })
+                  }
+                }}
+                style={{ ...C.btn('primary'), padding: '4px 12px', fontSize: 11 }}
+              >
+                Assign via Keyboard
+              </button>
+            </div>
+
             <svg ref={svgRef} style={{ width: '100%', height: 550, display: 'block', background: 'var(--bg)' }} />
 
             {/* D3 tooltip element */}
