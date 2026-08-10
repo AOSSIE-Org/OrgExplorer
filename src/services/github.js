@@ -1,3 +1,5 @@
+import { computeHealthScore } from './analytics'
+
 // IndexedDB Cache (L2) 
 const DB_NAME = 'orgexplorer_cache'
 const STORE = 'cache'
@@ -216,8 +218,16 @@ export const fetchOrgTeams = (org, pat) =>
 export const fetchTeamMembers = (org, teamSlug, pat) =>
   fetchAuthenticatedWithCache(`https://api.github.com/orgs/${org}/teams/${teamSlug}/members`, pat)
 
-export const fetchTeamRepos = (org, teamSlug, pat) =>
-  fetchAuthenticatedWithCache(`https://api.github.com/orgs/${org}/teams/${teamSlug}/repos`, pat)
+export async function fetchTeamRepos(org, teamSlug, pat) {
+  const data = await fetchAuthenticatedWithCache(`https://api.github.com/orgs/${org}/teams/${teamSlug}/repos`, pat)
+  if (Array.isArray(data)) {
+    return data.map(repo => ({
+      ...repo,
+      healthScore: computeHealthScore(repo, 0)
+    }))
+  }
+  return data
+}
 
 export async function updateTeamMembership(org, teamSlug, username, pat, role = 'member') {
   if (!pat) throw new Error('Authentication (PAT) required to manage team memberships.')

@@ -168,7 +168,7 @@ export default function TeamsPage() {
         if (!nodesMap.has(repoId)) {
           // Look up in the analytical model totalRepos list to resolve computed scores
           const modelRepo = model?.totalRepos?.find(r => r.name === repo.name)
-          const score = modelRepo?.healthScore ?? repo.healthScore ?? 65
+          const score = repo.healthScore ?? modelRepo?.healthScore ?? 65
           const healthColor = score >= 70 ? '#22c55e' : score >= 40 ? '#f59e0b' : '#ef4444'
 
           nodesMap.set(repoId, {
