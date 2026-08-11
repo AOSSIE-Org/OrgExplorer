@@ -122,9 +122,9 @@ export default function TeamsPage() {
         description: 'Primary architects and maintainers of AOSSIE repositories.',
         privacy: 'closed',
         members: [
-          { login: 'AbiramiR-27', avatar_url: 'https://github.com/identicons/abirami.png' },
-          { login: 'm-samran', avatar_url: 'https://github.com/identicons/samran.png' },
-          { login: 'aossie-bot', avatar_url: 'https://github.com/identicons/bot.png' }
+          { login: 'AbiramiR-27', avatar_url: 'https://github.com/identicons/abirami.png', html_url: 'https://github.com/AbiramiR-27' },
+          { login: 'm-samran', avatar_url: 'https://github.com/identicons/samran.png', html_url: 'https://github.com/m-samran' },
+          { login: 'aossie-bot', avatar_url: 'https://github.com/identicons/bot.png', html_url: 'https://github.com/aossie-bot' }
         ],
         repos: [
           { name: 'OrgExplorer', healthScore: 92, stargazers_count: 154, forks_count: 42 },
@@ -137,9 +137,9 @@ export default function TeamsPage() {
         description: 'Google Summer of Code contributors and developers.',
         privacy: 'closed',
         members: [
-          { login: 'AbiramiR-27', avatar_url: 'https://github.com/identicons/abirami.png' },
-          { login: 'gsoc-student-1', avatar_url: 'https://github.com/identicons/student1.png' },
-          { login: 'gsoc-student-2', avatar_url: 'https://github.com/identicons/student2.png' }
+          { login: 'AbiramiR-27', avatar_url: 'https://github.com/identicons/abirami.png', html_url: 'https://github.com/AbiramiR-27' },
+          { login: 'gsoc-student-1', avatar_url: 'https://github.com/identicons/student1.png', html_url: 'https://github.com/gsoc-student-1' },
+          { login: 'gsoc-student-2', avatar_url: 'https://github.com/identicons/student2.png', html_url: 'https://github.com/gsoc-student-2' }
         ],
         repos: [
           { name: 'OrgExplorer', healthScore: 92, stargazers_count: 154, forks_count: 42 },
@@ -152,8 +152,8 @@ export default function TeamsPage() {
         description: 'Technical writers and editors managing outreach documentation.',
         privacy: 'closed',
         members: [
-          { login: 'doc-writer-xyz', avatar_url: 'https://github.com/identicons/writer.png' },
-          { login: 'gsoc-student-1', avatar_url: 'https://github.com/identicons/student1.png' }
+          { login: 'doc-writer-xyz', avatar_url: 'https://github.com/identicons/writer.png', html_url: 'https://github.com/doc-writer-xyz' },
+          { login: 'gsoc-student-1', avatar_url: 'https://github.com/identicons/student1.png', html_url: 'https://github.com/gsoc-student-1' }
         ],
         repos: [
           { name: 'AOSSIE-Website', healthScore: 78, stargazers_count: 32, forks_count: 10 }
@@ -168,28 +168,37 @@ export default function TeamsPage() {
 
     const activeEl = document.activeElement
 
-    if (dialogRef.current) {
-      const focusables = dialogRef.current.querySelectorAll(
+    const getFocusables = () => {
+      if (!dialogRef.current) return []
+      const list = dialogRef.current.querySelectorAll(
         'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
       )
-      if (focusables.length > 0) {
-        focusables[0].focus()
-      } else {
-        dialogRef.current.focus()
-      }
+      return Array.from(list).filter(el => !el.disabled && !el.closest(':disabled'))
+    }
+
+    const focusables = getFocusables()
+    if (focusables.length > 0) {
+      focusables[0].focus()
+    } else if (dialogRef.current) {
+      dialogRef.current.focus()
     }
 
     function handleKeyDown(e) {
       if (e.key === 'Escape') {
+        if (assigning) return
         setAssignModal(null)
         return
       }
 
-      if (e.key === 'Tab' && dialogRef.current) {
-        const focusables = dialogRef.current.querySelectorAll(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-        )
-        if (focusables.length === 0) return
+      if (e.key === 'Tab') {
+        const focusables = getFocusables()
+        if (focusables.length === 0) {
+          if (dialogRef.current) {
+            dialogRef.current.focus()
+          }
+          e.preventDefault()
+          return
+        }
 
         const first = focusables[0]
         const last = focusables[focusables.length - 1]
@@ -215,7 +224,7 @@ export default function TeamsPage() {
         activeEl.focus()
       }
     }
-  }, [assignModal])
+  }, [assignModal, assigning])
 
   // Filtered teams list based on search
   const filteredTeams = useMemo(() => {
