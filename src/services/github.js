@@ -1,3 +1,5 @@
+import { computeHealthScore } from './analytics'
+
 // IndexedDB Cache (L2) 
 const DB_NAME = 'orgexplorer_cache'
 const STORE = 'cache'
@@ -73,7 +75,14 @@ async function fetchWithCache(url, pat) {
     })
   )
 
-  if (res.status === 403) throw new Error('RATE_LIMIT')
+  if (res.status === 403) {
+    const remaining = res.headers.get('x-ratelimit-remaining')
+    const retryAfter = res.headers.get('retry-after')
+    if ((remaining !== null && Number(remaining) === 0) || retryAfter) {
+      throw new Error('RATE_LIMIT')
+    }
+    throw new Error('FORBIDDEN')
+  }
   if (res.status === 404) throw new Error('NOT_FOUND')
   if (!res.ok) throw new Error(`HTTP_${res.status}`)
 
@@ -142,4 +151,118 @@ export async function fetchRateLimit(pat) {
     const data = await res.json()
     return data.rate
   } catch { return null }
+}
+
+export async function cacheDelete(key) {
+  try {
+    const db = await openDB()
+    return new Promise(res => {
+      const tx = db.transaction(STORE, 'readwrite')
+      tx.objectStore(STORE).delete(key)
+      tx.oncomplete = () => res(true)
+      tx.onerror = () => res(false)
+    })
+  } catch { return false }
+}
+
+function getPatHash(pat) {
+  if (!pat) return 'unauthenticated'
+  let hash = 0
+  for (let i = 0; i < pat.length; i++) {
+    hash = (hash << 5) - hash + pat.charCodeAt(i)
+    hash |= 0
+  }
+  return String(hash)
+}
+
+async function fetchAuthenticatedWithCache(url, pat) {
+  const cacheKey = `${url}|${getPatHash(pat)}`
+  const cached = await cacheGet(cacheKey)
+  if (cached) return cached
+
+  const headers = { Accept: 'application/vnd.github.v3+json' }
+  if (pat) headers.Authorization = `token ${pat}`
+
+  const res = await fetch(url, { headers })
+
+  window.dispatchEvent(
+    new CustomEvent('rate-limit-update', {
+      detail: {
+        limit: Number(res.headers.get('x-ratelimit-limit')),
+        remaining: Number(res.headers.get('x-ratelimit-remaining')),
+        used: Number(res.headers.get('x-ratelimit-used')),
+        reset: Number(res.headers.get('x-ratelimit-reset'))
+      }
+    })
+  )
+
+  if (res.status === 403) {
+    const remaining = res.headers.get('x-ratelimit-remaining')
+    const retryAfter = res.headers.get('retry-after')
+    if ((remaining !== null && Number(remaining) === 0) || retryAfter) {
+      throw new Error('RATE_LIMIT')
+    }
+    throw new Error('FORBIDDEN')
+  }
+  if (res.status === 404) throw new Error('NOT_FOUND')
+  if (!res.ok) throw new Error(`HTTP_${res.status}`)
+
+  const data = await res.json()
+  cacheSet(cacheKey, data)
+  return data
+}
+
+async function fetchAuthenticatedPaginated(baseUrl, pat) {
+  const all = []
+  let page = 1
+  while (true) {
+    const separator = baseUrl.includes('?') ? '&' : '?'
+    const url = `${baseUrl}${separator}per_page=100&page=${page}`
+    const data = await fetchAuthenticatedWithCache(url, pat)
+    if (!Array.isArray(data)) {
+      return data
+    }
+    all.push(...data)
+    if (data.length < 100) break
+    page++
+  }
+  return all
+}
+
+export const fetchOrgTeams = (org, pat) =>
+  fetchAuthenticatedPaginated(`https://api.github.com/orgs/${org}/teams`, pat)
+
+export const fetchTeamMembers = (org, teamSlug, pat) =>
+  fetchAuthenticatedPaginated(`https://api.github.com/orgs/${org}/teams/${teamSlug}/members`, pat)
+
+export async function fetchTeamRepos(org, teamSlug, pat) {
+  const data = await fetchAuthenticatedPaginated(`https://api.github.com/orgs/${org}/teams/${teamSlug}/repos`, pat)
+  if (Array.isArray(data)) {
+    return data.map(repo => ({
+      ...repo,
+      healthScore: computeHealthScore(repo, 0)
+    }))
+  }
+  return data
+}
+
+export async function updateTeamMembership(org, teamSlug, username, pat, role = 'member') {
+  if (!pat) throw new Error('Authentication (PAT) required to manage team memberships.')
+  const headers = {
+    Accept: 'application/vnd.github.v3+json',
+    Authorization: `token ${pat}`,
+    'Content-Type': 'application/json'
+  }
+  const res = await fetch(`https://api.github.com/orgs/${org}/teams/${teamSlug}/memberships/${username}`, {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify({ role })
+  })
+  if (res.status === 403) throw new Error('Permission denied. Admin/Write access required.')
+  if (!res.ok) throw new Error(`Failed to update membership (HTTP ${res.status})`)
+
+  const cacheKey = `https://api.github.com/orgs/${org}/teams/${teamSlug}/members|${getPatHash(pat)}`
+  await cacheDelete(cacheKey)
+
+  return true
 }
