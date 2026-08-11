@@ -113,6 +113,55 @@ export default function TeamsPage() {
     }
   }, [orgName, pat])
 
+  const loadDemoData = () => {
+    setError('')
+    setTeams([
+      {
+        name: 'Core Maintainers',
+        slug: 'core-maintainers',
+        description: 'Primary architects and maintainers of AOSSIE repositories.',
+        privacy: 'closed',
+        members: [
+          { login: 'AbiramiR-27', avatar_url: 'https://github.com/identicons/abirami.png' },
+          { login: 'm-samran', avatar_url: 'https://github.com/identicons/samran.png' },
+          { login: 'aossie-bot', avatar_url: 'https://github.com/identicons/bot.png' }
+        ],
+        repos: [
+          { name: 'OrgExplorer', healthScore: 92, stargazers_count: 154, forks_count: 42 },
+          { name: 'Social-Street-Smart', healthScore: 84, stargazers_count: 85, forks_count: 21 }
+        ]
+      },
+      {
+        name: 'GSoC Developers',
+        slug: 'gsoc-developers',
+        description: 'Google Summer of Code contributors and developers.',
+        privacy: 'closed',
+        members: [
+          { login: 'AbiramiR-27', avatar_url: 'https://github.com/identicons/abirami.png' },
+          { login: 'gsoc-student-1', avatar_url: 'https://github.com/identicons/student1.png' },
+          { login: 'gsoc-student-2', avatar_url: 'https://github.com/identicons/student2.png' }
+        ],
+        repos: [
+          { name: 'OrgExplorer', healthScore: 92, stargazers_count: 154, forks_count: 42 },
+          { name: 'AOSSIE-Website', healthScore: 78, stargazers_count: 32, forks_count: 10 }
+        ]
+      },
+      {
+        name: 'Documentation Team',
+        slug: 'documentation-team',
+        description: 'Technical writers and editors managing outreach documentation.',
+        privacy: 'closed',
+        members: [
+          { login: 'doc-writer-xyz', avatar_url: 'https://github.com/identicons/writer.png' },
+          { login: 'gsoc-student-1', avatar_url: 'https://github.com/identicons/student1.png' }
+        ],
+        repos: [
+          { name: 'AOSSIE-Website', healthScore: 78, stargazers_count: 32, forks_count: 10 }
+        ]
+      }
+    ])
+  }
+
   // Modal key listeners and keyboard focus trap
   useEffect(() => {
     if (!assignModal) return
@@ -175,6 +224,18 @@ export default function TeamsPage() {
       (t.description && t.description.toLowerCase().includes(searchQuery.toLowerCase()))
     )
   }, [teams, searchQuery])
+
+  // Helper to compile a fallback list of contributors if model is empty (e.g. sandbox demo mode)
+  const allContributors = useMemo(() => {
+    if (model?.contributors?.length) return model.contributors
+    const unique = new Map()
+    teams.forEach(t => {
+      t.members?.forEach(m => {
+        unique.set(m.login, m)
+      })
+    })
+    return Array.from(unique.values())
+  }, [model, teams])
 
   // Generate D3 Force Graph Nodes and Links
   useEffect(() => {
@@ -514,14 +575,24 @@ export default function TeamsPage() {
       />
 
       {/* Warning if no PAT is set */}
+      {/* Warning if no PAT is set */}
       {!pat && (
         <div style={{
           background: 'rgba(239,68,68,.08)', border: '1px solid rgba(239,68,68,.3)',
           borderRadius: 8, padding: '12px 16px', display: 'flex', alignItems: 'center',
-          gap: 12, marginBottom: 24, fontSize: 13, color: 'var(--red)'
+          justifyContent: 'space-between', gap: 12, marginBottom: 24, fontSize: 13, color: 'var(--red)'
         }}>
-          <FiAlertTriangle size={16} />
-          <span>No PAT token configured. Organization Team configurations are private and require an authenticated token to read or write.</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <FiAlertTriangle size={16} />
+            <span>No PAT token configured. Organization Team configurations are private and require an authenticated token to read or write.</span>
+          </div>
+          <button
+            type="button"
+            onClick={loadDemoData}
+            style={{ ...C.btn('primary'), background: 'var(--red)', border: 'none', color: '#fff', fontSize: 11, padding: '6px 12px', whiteSpace: 'nowrap' }}
+          >
+            Load Demo Sandbox
+          </button>
         </div>
       )}
 
@@ -531,9 +602,18 @@ export default function TeamsPage() {
           <p style={{ fontSize: 13, color: 'var(--text2)' }}>Retrieving organization teams and relationships...</p>
         </div>
       ) : error ? (
-        <div style={{ ...C.card, padding: 32, textAlign: 'center', color: 'var(--text2)' }}>
-          <FiAlertCircle size={36} color="var(--red)" style={{ marginBottom: 12 }} />
-          <p style={{ fontSize: 14, fontWeight: 500 }}>{error}</p>
+        <div style={{ ...C.card, padding: 32, textAlign: 'center', color: 'var(--text2)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+          <FiAlertCircle size={36} color="var(--red)" />
+          <div>
+            <p style={{ fontSize: 14, fontWeight: 500, marginBottom: 8 }}>{error}</p>
+            <p style={{ fontSize: 12, color: 'var(--text3)' }}>Organization teams require private member scopes. You can load demo sandbox data to preview the visual graph.</p>
+          </div>
+          <button
+            onClick={loadDemoData}
+            style={{ ...C.btn('primary'), fontSize: 12, padding: '8px 16px' }}
+          >
+            Load Sandbox Demo Data
+          </button>
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: 20, alignItems: 'start' }}>
@@ -558,7 +638,16 @@ export default function TeamsPage() {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 420, overflowY: 'auto' }}>
               {filteredTeams.length === 0 ? (
-                <p style={{ fontSize: 12, color: 'var(--text3)', textAlign: 'center', padding: '16px 0' }}>No teams found.</p>
+                <div style={{ textAlign: 'center', padding: '24px 0' }}>
+                  <p style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 12 }}>No teams found.</p>
+                  <button 
+                    type="button" 
+                    onClick={loadDemoData}
+                    style={{ ...C.btn('ghost'), fontSize: 11, padding: '4px 8px' }}
+                  >
+                    Load Demo Data
+                  </button>
+                </div>
               ) : (
                 filteredTeams.map(t => {
                   const active = selectedTeamSlug === t.slug
@@ -602,7 +691,7 @@ export default function TeamsPage() {
                 style={{ ...C.input, padding: '4px 8px', fontSize: 11, width: 140, background: 'var(--surface)' }}
               >
                 <option value="">-- Choose Member --</option>
-                {(model?.contributors || []).map(c => <option key={c.login} value={c.login}>{c.login}</option>)}
+                {(allContributors || []).map(c => <option key={c.login} value={c.login}>{c.login}</option>)}
               </select>
               <span style={{ fontSize: 11, color: 'var(--text3)' }}>to</span>
               <select 
@@ -620,7 +709,7 @@ export default function TeamsPage() {
                   const teamVal = document.getElementById('kbd-assign-team').value
                   if (!userVal || !teamVal) return
 
-                  const selectedMember = (model?.contributors || []).find(c => c.login === userVal)
+                  const selectedMember = (allContributors || []).find(c => c.login === userVal)
                   const targetTeam = teams.find(t => t.slug === teamVal)
 
                   if (selectedMember && targetTeam) {
