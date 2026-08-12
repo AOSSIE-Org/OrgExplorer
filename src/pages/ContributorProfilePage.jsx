@@ -152,6 +152,7 @@ export default function ContributorProfilePage() {
     setMergedPRKeys(new Set())
 
     if (!cleanUsername) {
+      setError('')
       setLoading(false)
       return
     }
@@ -461,7 +462,7 @@ export default function ContributorProfilePage() {
           </div>
           <div style={{ fontSize: 11, color: 'var(--text3)', background: 'var(--bg)', padding: 12, borderRadius: 4, fontFamily: 'monospace', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 4 }}>
             <div><strong>Debug Info (for error diagnostic):</strong></div>
-            <div>• sanitized username: "{cleanUsername}" (raw: "{username}")</div>
+            <div>• sanitized username: &quot;{cleanUsername}&quot; (raw: &quot;{username}&quot;)</div>
             <div>• searchOrgs: {JSON.stringify(searchOrgs)}</div>
             <div>• PAT token: {pat ? 'Present' : 'Not set'}</div>
           </div>
