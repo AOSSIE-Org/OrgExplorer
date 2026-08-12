@@ -46,6 +46,8 @@ function AppContent() {
       <Suspense
         fallback={
           <div
+            role="status"
+            aria-label="Loading page"
             style={{
               minHeight: '60vh',
               display: 'flex',
