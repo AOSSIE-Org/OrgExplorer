@@ -101,6 +101,9 @@ const getFullRepoFromUrl = (url) => {
 
 export default function ContributorProfilePage() {
   const { username } = useParams()
+  const cleanUsername = useMemo(() => {
+    return username ? username.replace(/^@/, '') : ''
+  }, [username])
   const navigate = useNavigate()
   const { orgs, pat, pullsData } = useApp()
 
@@ -148,7 +151,7 @@ export default function ContributorProfilePage() {
     setRawContributions([])
     setMergedPRKeys(new Set())
 
-    if (!username) {
+    if (!cleanUsername) {
       setLoading(false)
       return
     }
@@ -166,7 +169,7 @@ export default function ContributorProfilePage() {
       setLoading(true)
       setError('')
       try {
-        const encodedUser = encodeURIComponent(username)
+        const encodedUser = encodeURIComponent(cleanUsername)
         const orgQuery = searchOrgs.map(org => `org:${encodeURIComponent(org)}`).join('+')
         const url = `https://api.github.com/search/issues?q=author:${encodedUser}+${orgQuery}&per_page=100`
         const mergedUrl = `https://api.github.com/search/issues?q=author:${encodedUser}+is:pr+is:merged+${orgQuery}&per_page=100`
@@ -176,10 +179,28 @@ export default function ContributorProfilePage() {
           headers.Authorization = `token ${pat}`
         }
 
-        const [items, mergedItems] = await Promise.all([
-          fetchAllPages(url, headers, controller.signal),
-          fetchAllPages(mergedUrl, headers, controller.signal)
-        ])
+        let items, mergedItems
+        try {
+          const [resItems, resMergedItems] = await Promise.all([
+            fetchAllPages(url, headers, controller.signal),
+            fetchAllPages(mergedUrl, headers, controller.signal)
+          ])
+          items = resItems
+          mergedItems = resMergedItems
+        } catch (fetchErr) {
+          if (pat && fetchErr.message.includes('HTTP_422')) {
+            console.warn("Authenticated search failed with 422 (likely due to fine-grained PAT scopes restriction). Retrying with public unauthenticated request...")
+            const publicHeaders = { Accept: 'application/vnd.github.v3+json' }
+            const [publicItems, publicMergedItems] = await Promise.all([
+              fetchAllPages(url, publicHeaders, controller.signal),
+              fetchAllPages(mergedUrl, publicHeaders, controller.signal)
+            ])
+            items = publicItems
+            mergedItems = publicMergedItems
+          } else {
+            throw fetchErr
+          }
+        }
 
         if (!active) return
 
@@ -213,7 +234,7 @@ export default function ContributorProfilePage() {
       active = false
       controller.abort()
     }
-  }, [username, searchOrgs, pat])
+  }, [cleanUsername, searchOrgs, pat])
 
   // Presets using local date offsets
   const setPreset = (type) => {
@@ -333,7 +354,7 @@ export default function ContributorProfilePage() {
     const orgsStr = searchOrgs.join(', ')
     const dateRangeStr = (startDate || 'Beginning') + ' to ' + (endDate || 'Present')
 
-    let md = `# Contribution Report: ${username}\n\n`
+    let md = `# Contribution Report: ${cleanUsername}\n\n`
     md += `* **Generated on:** ${dateStr}\n`
     md += `* **Organizations explored:** ${orgsStr}\n`
     md += `* **Reporting Period:** ${dateRangeStr}\n\n`
@@ -381,7 +402,7 @@ export default function ContributorProfilePage() {
     const url = URL.createObjectURL(blob)
     const a = Object.assign(document.createElement('a'), {
       href: url,
-      download: `contribution-report-${username}-${new Date().toISOString().slice(0, 10)}.md`
+      download: `contribution-report-${cleanUsername}-${new Date().toISOString().slice(0, 10)}.md`
     })
     document.body.appendChild(a)
     a.click()
@@ -419,7 +440,7 @@ export default function ContributorProfilePage() {
       </div>
 
       <PageTitle
-        title={`Contributor Profile: @${username}`}
+        title={`Contributor Profile: @${cleanUsername}`}
         subtitle={`Analyzing contributions across ${searchOrgs.join(', ')}`}
         right={
           <button
@@ -433,9 +454,17 @@ export default function ContributorProfilePage() {
       />
 
       {error && (
-        <div style={{ ...C.card, display: 'flex', alignItems: 'center', gap: 12, borderColor: 'var(--red)', background: 'rgba(239,68,68,.05)', marginBottom: 20 }}>
-          <FiAlertTriangle color="var(--red)" size={18} />
-          <span style={{ fontSize: 13, color: 'var(--red)', fontWeight: 500 }}>{error}</span>
+        <div style={{ ...C.card, display: 'flex', flexDirection: 'column', gap: 12, borderColor: 'var(--red)', background: 'rgba(239,68,68,.05)', marginBottom: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <FiAlertTriangle color="var(--red)" size={18} />
+            <span style={{ fontSize: 13, color: 'var(--red)', fontWeight: 500 }}>{error}</span>
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--text3)', background: 'var(--bg)', padding: 12, borderRadius: 4, fontFamily: 'monospace', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <div><strong>Debug Info (for error diagnostic):</strong></div>
+            <div>• sanitized username: "{cleanUsername}" (raw: "{username}")</div>
+            <div>• searchOrgs: {JSON.stringify(searchOrgs)}</div>
+            <div>• PAT token: {pat ? 'Present' : 'Not set'}</div>
+          </div>
         </div>
       )}
 
