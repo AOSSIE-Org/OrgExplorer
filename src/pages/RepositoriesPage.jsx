@@ -197,6 +197,7 @@ export default function RepositoriesPage() {
           {ACTIVITY_CLASSIFICATIONS.map(l => (
             <button
               type="button"
+              aria-pressed={activityClassification === l}
               key={l} onClick={() => { setActivityClassification(l); setShown(20) }}
               style={{
                 padding: '4px 12px', borderRadius: 4, fontSize: 12, fontWeight: 500, cursor: 'pointer',
