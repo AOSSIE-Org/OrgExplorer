@@ -169,7 +169,8 @@ We encourage users to review this policy periodically.
 If you have questions about this Privacy Policy, contact us:
 
 **Email:** [contact@aossie.org](mailto:contact@aossie.org)
-**Discord** [Discord](https://discord.gg/hjUhu33uAn)
+
+**Discord:** [Discord](https://discord.gg/hjUhu33uAn)
 
 Or open an issue on [the project's GitHub repository](https://github.com/AOSSIE-Org/OrgExplorer).
 

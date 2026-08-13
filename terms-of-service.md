@@ -16,7 +16,7 @@ By accessing or using the Project, you agree to be bound by these terms. If you 
 
 OrgExplorer is open-source software. Its source code, license terms, and contribution guidelines are available at [the project's GitHub repository](https://github.com/AOSSIE-Org/OrgExplorer).
 
-Your rights to use, modify, and redistribute the underlying code are governed by that repository's license. This Agreement additionally governs your use of the *deployed, hosted instance* of the Project available at [Live Demo](https://orgexplorer.aossie.org/).
+Your rights to use, modify, and redistribute the underlying code are governed by that repository's license. This Agreement additionally governs your use of the *deployed, hosted instance* of the Project available at (https://orgexplorer.aossie.org/).
 
 ### Permitted Uses
 
@@ -106,21 +106,8 @@ This includes loss of locally cached data, as OrgExplorer does not store user da
 
 ---
 
-## 6. Contributions and Community Conduct
 
-### Contributor License
-
-By contributing code, documentation, or other materials to the Project, you grant the maintainers a perpetual, worldwide, non-exclusive license to use, modify, distribute, and include your contributions as part of OrgExplorer under the project's open-source license.
-
-You retain ownership of your contributions.
-
-### Code of Conduct
-
-Contributors and users are expected to maintain respectful, constructive, and professional interactions within project and community channels, consistent with AOSSIE's community guidelines.
-
----
-
-## 7. Third-Party Services and Integrations
+## 6. Third-Party Services and Integrations
 
 OrgExplorer integrates with GitHub's public REST API.
 
@@ -145,7 +132,7 @@ OrgExplorer is not responsible for GitHub service availability, API changes, or 
 
 ---
 
-## 8. Data Privacy and Use
+## 7. Data Privacy and Use
 
 OrgExplorer has **no backend server and no user accounts**.
 
@@ -170,7 +157,7 @@ You remain responsible for your use of any data retrieved through the Project, i
 
 ---
 
-## 9. Modification and Termination
+## 8. Modification and Termination
 
 ### Amendments
 
@@ -191,7 +178,7 @@ The underlying open-source code remains available according to its license.
 
 ---
 
-## 10. Governing Law and Dispute Resolution
+## 9. Governing Law and Dispute Resolution
 
 This Agreement is governed by applicable law in the jurisdiction where the maintaining organization, AOSSIE, primarily operates.
 
@@ -199,11 +186,14 @@ In case of disputes, the parties agree to first attempt resolution through infor
 
 ---
 
-## 11. Contact Information
+## 10. Contact Information
 
 If you have questions regarding these Terms of Service, contact us:
 
-**Email:** [aossie.oss@gmail.com](mailto:aossie.oss@gmail.com)
+**Email:** [contact@aossie.org](mailto:contact@aossie.org)
+
+**Discord:** [Discord](https://discord.gg/hjUhu33uAn)
+
 
 Or open an issue on [the project's GitHub repository](https://github.com/AOSSIE-Org/OrgExplorer).
 
