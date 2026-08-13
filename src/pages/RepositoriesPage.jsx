@@ -11,16 +11,22 @@ import AnalysisBanner from '../components/AnalysisBanner'
 import { RepositorySkeleton } from '../components/Orgexplorerskeletons';
 
 const ACTIVITY_CLASSIFICATIONS = ['All', 'Thriving', 'Active', 'Dormant', 'Hibernating']
+const HEALTH_FILTERS = ['All', 'Healthy', 'Moderate', 'Poor']
 const ACTIVITY_COLORS = { Thriving: 'var(--green)', Active: 'var(--blue)', Dormant: 'var(--amber)', Hibernating: 'var(--red)' }
+const HEALTH_COLORS = { Healthy: 'var(--green)', Moderate: 'var(--amber)', Poor: 'var(--red)' }
+
 
 export default function RepositoriesPage() {
   const { model, isComplete, loading, runFullExplore } = useApp()
   const [search, setSearch] = useState('')
   const [activityClassification, setActivityClassification] = useState('All')
   const [lang, setLang] = useState('All Languages')
+  const [health, setHealth] = useState('All')
   const [shown, setShown] = useState(20)
   const [openInfo, setOpenInfo] = useState(false)
   const infoRef = useRef(null)
+
+
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -44,17 +50,31 @@ export default function RepositoriesPage() {
     ['All Languages', ...new Set(allRepos.map(r => r.language).filter(Boolean))].slice(0, 10),
     [allRepos])
 
+  const resetFilters = () => {
+    setSearch('')
+    setActivityClassification('All')
+    setLang('All Languages')
+    setHealth('All')
+    setShown(20)
+  }
+
   const filtered = useMemo(() => allRepos.filter(r =>
     (activityClassification === 'All' || r.activityClassification === activityClassification) &&
     (lang === 'All Languages' || r.language === lang) &&
+    (health === 'All' ||
+      (health === 'Healthy' && r.healthScore >= 70) ||
+      (health === 'Moderate' && r.healthScore >= 40 && r.healthScore < 70) ||
+      (health === 'Poor' && r.healthScore < 40)
+    ) &&
     (!search || r.name.toLowerCase().includes(search.toLowerCase()) ||
       (r.description || '').toLowerCase().includes(search.toLowerCase()))
-  ), [allRepos, activityClassification, lang, search])
+  ), [allRepos, activityClassification, lang, health, search])
+
 
   const { sorted, sortConfig, onSort } = useSortedData(filtered, 'healthScore', 'desc')
   const visible = sorted.slice(0, shown)
 
-  if(loading) return <RepositorySkeleton />
+  if (loading) return <RepositorySkeleton />
   if (!model) return null
 
   const TABLE_COLS = [
@@ -187,6 +207,56 @@ export default function RepositoriesPage() {
               {l}
             </button>
           ))}
+        </div>
+        <div style={{ display: 'flex', gap: 6, marginTop: 12, flexWrap: 'wrap' }}>
+          {HEALTH_FILTERS.map(l => (
+            <button
+              key={l}
+              onClick={() => {
+                setHealth(l)
+                setShown(20)
+              }}
+              style={{
+                padding: '4px 12px',
+                borderRadius: 4,
+                fontSize: 12,
+                fontWeight: 500,
+                cursor: 'pointer',
+                border: health === l ? 'none' : '1px solid var(--border)',
+                background: health === l
+                  ? (HEALTH_COLORS[l] || 'var(--accent)')
+                  : 'transparent',
+                color: health === l ? '#000' : 'var(--text2)',
+              }}
+            >
+              {l}
+            </button>
+          ))}
+        </div>
+        <div style={{ marginTop: 20 }}>
+          <button
+            onClick={resetFilters}
+            style={{
+              ...C.btn('ghost'),
+              padding: '7px 14px',
+              fontSize: 12,
+              fontWeight: 500,
+              borderRadius: 6,
+              transition: 'all 0.2s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'var(--accent)'
+              e.currentTarget.style.color = '#000'
+              e.currentTarget.style.borderColor = 'var(--accent)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'transparent'
+              e.currentTarget.style.color = 'var(--text)'
+              e.currentTarget.style.borderColor = 'var(--border)'
+            }}
+          >
+            Reset Filters
+          </button>
         </div>
       </div>
       {allRepos?.length ? (
