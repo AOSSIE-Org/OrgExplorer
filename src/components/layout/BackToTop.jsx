@@ -10,6 +10,7 @@ export default function BackToTop() {
     };
 
     window.addEventListener("scroll", handleScroll);
+    handleScroll();
 
     return () => {
       window.removeEventListener("scroll", handleScroll);
