@@ -77,9 +77,38 @@ async function fetchWithCache(url, pat) {
   if (res.status === 404) throw new Error('NOT_FOUND')
   if (!res.ok) throw new Error(`HTTP_${res.status}`)
 
-  const data = await res.json()
+  // GitHub answers 204 No Content for some endpoints (e.g. /contributors on a
+  // repo with no commits). res.json() throws on an empty body, so read the text
+  // first and let callers deal with a null payload.
+  const text = await res.text()
+  if (!text) return null
+
+  const data = JSON.parse(text)
   cacheSet(url, data) // write-back, non-blocking
   return data
+}
+
+/**
+ * Walks GitHub's page-based pagination, collecting every item until a short
+ * page arrives or maxPages is reached.
+ *
+ * A page that is not an array (204 No Content, an error envelope such as
+ * `{ message: 'Moved Permanently' }`, or a malformed body) ends the walk and
+ * whatever was collected so far is returned, rather than throwing and losing
+ * the earlier pages.
+ */
+async function fetchPaginated(buildUrl, maxPages, pat) {
+  const all = []
+
+  for (let page = 1; page <= maxPages; page++) {
+    const data = await fetchWithCache(buildUrl(page), pat)
+    if (!Array.isArray(data)) break
+
+    all.push(...data)
+    if (data.length < 100) break
+  }
+
+  return all
 }
 
 // Public service functions
@@ -87,51 +116,35 @@ export const fetchOrg = (org, pat) =>
   fetchWithCache(`https://api.github.com/orgs/${org}`, pat)
 
 export async function fetchRepos(org, repoCount, pat) {
-  const all = []
-  const maxPages = pat ? Math.ceil(repoCount / 100) : 5
-  for (let page = 1; page <= maxPages; page++) {
-    const url = `https://api.github.com/orgs/${org}/repos?per_page=100&page=${page}&sort=updated`
-    const data = await fetchWithCache(url, pat)
-    all.push(...data)
-    if (data.length < 100) break
-  }
-  return all
+  return fetchPaginated(
+    page => `https://api.github.com/orgs/${org}/repos?per_page=100&page=${page}&sort=updated`,
+    pat ? Math.ceil(repoCount / 100) : 5,
+    pat
+  )
 }
 
 export async function fetchContributors(org, repo, pat) {
-  const all = []
-  const maxPages = pat ? 10 : 1
-  for(let page = 1; page<=maxPages ; page++) {
-    const url = `https://api.github.com/repos/${org}/${repo}/contributors?per_page=100&page=${page}`
-    const data = await fetchWithCache(url, pat)
-    all.push(...data)
-    if(data.length < 100) break
-  }
-  return all
+  return fetchPaginated(
+    page => `https://api.github.com/repos/${org}/${repo}/contributors?per_page=100&page=${page}`,
+    pat ? 10 : 1,
+    pat
+  )
 }
 
 export async function fetchIssues(org, repo, pat) {
-  const all = []
-  const maxPages = pat ? 10 : 1
-  for(let page = 1; page<=maxPages ; page++) {
-    const url = `https://api.github.com/repos/${org}/${repo}/issues?state=all&per_page=100&page=${page}`
-    const data = await fetchWithCache(url, pat)
-    all.push(...data)
-    if(data.length < 100) break
-  }
-  return all
+  return fetchPaginated(
+    page => `https://api.github.com/repos/${org}/${repo}/issues?state=all&per_page=100&page=${page}`,
+    pat ? 10 : 1,
+    pat
+  )
 }
 
 export async function fetchPulls(org, repo, pat) {
-  const all = []
-  const maxPages = pat ? 10 : 1
-  for(let page = 1; page<=maxPages ; page++) {
-    const url = `https://api.github.com/repos/${org}/${repo}/pulls?state=all&per_page=100&page=${page}`
-    const data = await fetchWithCache(url, pat)
-    all.push(...data)
-    if(data.length < 100) break
-  }
-  return all
+  return fetchPaginated(
+    page => `https://api.github.com/repos/${org}/${repo}/pulls?state=all&per_page=100&page=${page}`,
+    pat ? 10 : 1,
+    pat
+  )
 }
 
 export async function fetchRateLimit(pat) {
