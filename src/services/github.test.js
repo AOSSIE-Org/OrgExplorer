@@ -93,6 +93,9 @@ describe('paginated fetchers: response validation', () => {
       .mockResolvedValueOnce(textResponse('{ truncated'))
 
     await expect(fetchContributors('AOSSIE-Org', 'Cut', 'pat')).resolves.toHaveLength(100)
+    // Without this the test would also pass if pagination stopped after page 1
+    // and the unparseable page was never requested at all.
+    expect(fetch).toHaveBeenCalledTimes(2)
   })
 
   it('keeps the pages collected before a malformed page appears', async () => {
@@ -104,6 +107,7 @@ describe('paginated fetchers: response validation', () => {
       .mockResolvedValueOnce(jsonResponse({ message: 'Server Error' }))
 
     await expect(fetchContributors('AOSSIE-Org', 'Big', 'pat')).resolves.toHaveLength(100)
+    expect(fetch).toHaveBeenCalledTimes(2)
   })
 
   it('stops paginating as soon as a malformed page is returned', async () => {
