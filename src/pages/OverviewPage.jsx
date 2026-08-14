@@ -66,6 +66,7 @@ export default function OverviewPage() {
       </div>
 
       <button
+        type="button"
         onClick={() => navigate(to)}
         style={{ ...C.btn('primary'), display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
         View {label}
