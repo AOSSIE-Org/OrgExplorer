@@ -128,6 +128,26 @@ describe('paginated fetchers: happy path', () => {
     expect(fetch).toHaveBeenCalledTimes(1)
   })
 
+  it('stops at the ten page ceiling for a PAT request', async () => {
+    // Every page comes back full, so only maxPages can end the walk. This is
+    // the bound issue #103 asks for: without it the loop would follow GitHub's
+    // pagination indefinitely.
+    const fullPage = Array.from({ length: 100 }, (_, i) => ({ id: i }))
+    fetch.mockResolvedValue(jsonResponse(fullPage))
+
+    await expect(fetchIssues('AOSSIE-Org', 'Huge', 'pat')).resolves.toHaveLength(1000)
+    expect(fetch).toHaveBeenCalledTimes(10)
+  })
+
+  it('stops after a single page when no PAT is supplied', async () => {
+    // maxPages is `pat ? 10 : 1`, so an anonymous caller must not walk on.
+    const fullPage = Array.from({ length: 100 }, (_, i) => ({ id: i }))
+    fetch.mockResolvedValue(jsonResponse(fullPage))
+
+    await expect(fetchIssues('AOSSIE-Org', 'Huge')).resolves.toHaveLength(100)
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
+
   it('follows pagination while pages come back full', async () => {
     const fullPage = Array.from({ length: 100 }, (_, i) => ({ id: i }))
 
