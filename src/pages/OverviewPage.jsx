@@ -7,7 +7,7 @@ import SocialShareButton from '../components/SocialShareButton';
 import { AiOutlineInfoCircle } from "react-icons/ai";
 import AnalysisBanner from '../components/AnalysisBanner'
 import { OverviewSkeleton } from '../components/Orgexplorerskeletons'
-import {formatNumber} from '../utils/formatNumber'
+import { formatNumber } from '../utils/formatNumber'
 
 const LANG_COLORS = ['#22c55e', '#f5c518', '#3b82f6', '#ef4444', '#a855f7', '#f97316', '#06b6d4']
 const fmt = n => n > 999 ? (n / 1000).toFixed(1) + 'k' : String(n)
@@ -30,7 +30,7 @@ export default function OverviewPage() {
     }
   }, [])
 
-  if(loading) return <OverviewSkeleton />
+  if (loading) return <OverviewSkeleton />
   if (!model) return null
 
   const { totalRepos } = model
@@ -48,16 +48,30 @@ export default function OverviewPage() {
 
   const NavCard = ({ to, label, sub }) => (
     <div
-      onClick={() => navigate(to)}
-      onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent)'}
-      onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}
-      style={{ ...C.card, cursor: 'pointer', transition: 'border-color .2s' }}
-    >
-      <div style={{ fontWeight: 600, marginBottom: 4, fontSize: 14 }}>{label}</div>
-      <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 12, minHeight: 32 }}>{sub}</div>
-      <span style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
-        View {label} <FiArrowRight size={12} />
-      </span>
+      onMouseEnter={e => {
+        e.currentTarget.style.borderColor = 'var(--accent)'
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.borderColor = 'var(--border)'
+      }}
+      style={{...C.card,transition: 'border-color .2s' }} >
+      <div
+        style={{ fontWeight: 600,marginBottom: 4, fontSize: 14 }} >
+        {label}
+      </div>
+
+      <div
+        style={{fontSize: 12, color: 'var(--text2)', marginBottom: 12, minHeight: 32 }}>
+        {sub}
+      </div>
+
+      <button
+        type="button"
+        onClick={() => navigate(to)}
+        style={{ ...C.btn('primary'), display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+        View {label}
+        <FiArrowRight size={12} />
+      </button>
     </div>
   )
 
@@ -103,9 +117,9 @@ export default function OverviewPage() {
               <FiExternalLink size={13} /> View on GitHub
             </a>
           )}
-          <SocialShareButton 
-            theme="dark" 
-            buttonStyle="ghost" 
+          <SocialShareButton
+            theme="dark"
+            buttonStyle="ghost"
             title={isMulti ? `OrgExplorer: ${orgs.map(o => o.login).join(' + ')}` : `OrgExplorer: ${orgs[0]?.name || orgs[0]?.login}`}
             description={isMulti ? `${orgs.length} organizations — combined portfolio view` : (orgs[0]?.description || `@${orgs[0]?.login}`)}
           />
@@ -150,8 +164,8 @@ export default function OverviewPage() {
             <p>High Impact Repositories</p>
 
             <button
-              onMouseEnter={()=>setOpen(true)}
-              onMouseLeave={()=>setOpen(false)}
+              onMouseEnter={() => setOpen(true)}
+              onMouseLeave={() => setOpen(false)}
               className="p-3 rounded-full hover:bg-(--bg) transition"
             >
               <AiOutlineInfoCircle className="text-(--text) cursor-pointer" />
