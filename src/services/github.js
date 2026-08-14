@@ -83,7 +83,15 @@ async function fetchWithCache(url, pat) {
   const text = await res.text()
   if (!text) return null
 
-  const data = JSON.parse(text)
+  let data
+  try {
+    data = JSON.parse(text)
+  } catch {
+    // A truncated or non-JSON body (a proxy error page, a cut-off response)
+    // should not reject and discard pages already collected.
+    return null
+  }
+
   cacheSet(url, data) // write-back, non-blocking
   return data
 }

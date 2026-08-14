@@ -21,6 +21,16 @@ function jsonResponse(body, { status = 200, headers = {} } = {}) {
   }
 }
 
+/** A body that is not JSON at all, e.g. a proxy error page or a truncated response. */
+function textResponse(body, { status = 200 } = {}) {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    headers: { get: () => null },
+    text: async () => body,
+  }
+}
+
 /** GitHub answers 204 No Content for repos with no contributors; the body is empty. */
 function noContentResponse() {
   return {
@@ -63,6 +73,26 @@ describe('paginated fetchers: response validation', () => {
     fetch.mockResolvedValue(jsonResponse(null))
 
     await expect(fetchPulls('AOSSIE-Org', 'Whatever', 'pat')).resolves.toEqual([])
+  })
+
+  it('returns an empty list when the body is not valid JSON', async () => {
+    // A proxy error page or a truncated response reaches JSON.parse, which
+    // threw before the try/catch and rejected the whole fetch.
+    fetch.mockResolvedValue(textResponse('<html>502 Bad Gateway</html>'))
+
+    await expect(fetchIssues('AOSSIE-Org', 'Proxied', 'pat')).resolves.toEqual([])
+  })
+
+  it('keeps the pages collected before an unparseable page appears', async () => {
+    // Same guarantee as the malformed-object case, but for a body that cannot
+    // be parsed at all rather than one that parses to a non-array.
+    const fullPage = Array.from({ length: 100 }, (_, i) => ({ id: i }))
+
+    fetch
+      .mockResolvedValueOnce(jsonResponse(fullPage))
+      .mockResolvedValueOnce(textResponse('{ truncated'))
+
+    await expect(fetchContributors('AOSSIE-Org', 'Cut', 'pat')).resolves.toHaveLength(100)
   })
 
   it('keeps the pages collected before a malformed page appears', async () => {
