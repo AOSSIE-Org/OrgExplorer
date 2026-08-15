@@ -217,9 +217,12 @@ export default function ContributorProfilePage() {
   }, [username, searchOrgs, pat])
 
   useEffect(() => {
+    setAvatarUrl('')
+
     if (!username) return
 
     const controller = new AbortController()
+    let active = true
 
     async function fetchContributorProfile() {
       try {
@@ -245,7 +248,9 @@ export default function ContributorProfilePage() {
 
         const data = await res.json()
 
-        setAvatarUrl(data.avatar_url || '')
+        if (active) {
+          setAvatarUrl(data.avatar_url || '')
+        }
       } catch (err) {
         if (err.name !== 'AbortError') {
           console.error('Failed to fetch contributor profile:', err)
@@ -255,7 +260,10 @@ export default function ContributorProfilePage() {
 
     fetchContributorProfile()
 
-    return () => controller.abort()
+    return () => {
+      active = false
+      controller.abort()
+    }
   }, [username, pat])
 
   // Presets using local date offsets

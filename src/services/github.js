@@ -52,7 +52,7 @@ export async function cacheClear() {
 }
 
 // Core fetchWithCache 
-async function fetchWithCache(url, pat) {
+async function fetchWithCache(url, pat,signal) {
   // L2 check
   const cached = await cacheGet(url)
   if (cached) return cached
@@ -60,7 +60,7 @@ async function fetchWithCache(url, pat) {
   const headers = { Accept: 'application/vnd.github.v3+json' }
   if (pat) headers.Authorization = `token ${pat}`
 
-  const res = await fetch(url, { headers })
+  const res = await fetch(url, { headers, signal })
 
   window.dispatchEvent(
     new CustomEvent('rate-limit-update', {
