@@ -4,6 +4,8 @@ import { FiArrowLeft, FiDownload, FiExternalLink, FiCalendar, FiBriefcase, FiAle
 import { useApp } from '../context/AppContext'
 import { C, PageTitle, Spinner, StatCard } from '../components/UI'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { fetchWithCache } from '../services/github'
+
 
 // Reusable ContributionTable component
 function ContributionTable({ items, dateHeader, resolveStatus }) {
@@ -226,27 +228,11 @@ export default function ContributorProfilePage() {
 
     async function fetchContributorProfile() {
       try {
-        const headers = {
-          Accept: 'application/vnd.github.v3+json',
-        }
-
-        if (pat) {
-          headers.Authorization = `token ${pat}`
-        }
-
-        const res = await fetch(
+        const data = await fetchWithCache(
           `https://api.github.com/users/${encodeURIComponent(username)}`,
-          {
-            headers,
-            signal: controller.signal,
-          }
+          pat,
+          controller.signal
         )
-
-        if (!res.ok) {
-          throw new Error(`HTTP_${res.status}`)
-        }
-
-        const data = await res.json()
 
         if (active) {
           setAvatarUrl(data.avatar_url || '')

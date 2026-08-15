@@ -52,7 +52,7 @@ export async function cacheClear() {
 }
 
 // Core fetchWithCache 
-async function fetchWithCache(url, pat,signal) {
+export async function fetchWithCache(url, pat,signal) {
   // L2 check
   const cached = await cacheGet(url)
   if (cached) return cached
