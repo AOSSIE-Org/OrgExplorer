@@ -102,13 +102,19 @@ const getFullRepoFromUrl = (url) => {
 export default function ContributorProfilePage() {
   const { username } = useParams()
   const navigate = useNavigate()
-  const { orgs, pat, pullsData } = useApp()
+  const { orgs, pat, pullsData, model } = useApp()
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [rawContributions, setRawContributions] = useState([])
   const [mergedPRKeys, setMergedPRKeys] = useState(new Set())
   const [tab, setTab] = useState('prs')
+
+
+  const contributor = useMemo(
+    () => model?.contributors?.find(c => c.login === username),
+    [model, username]
+  )
 
   // Date Range Filters (Defaults to Last 1 Year)
   const [startDate, setStartDate] = useState(() => {
@@ -305,18 +311,18 @@ export default function ContributorProfilePage() {
   // Time-series charting data (Chronological sorting by YYYY-MM)
   const chartData = useMemo(() => {
     const monthlyBuckets = {}
-    
+
     filteredContribs.forEach(item => {
       const date = new Date(item.created_at)
       const year = date.getFullYear()
       const month = String(date.getMonth() + 1).padStart(2, '0')
       const yyyymm = `${year}-${month}`
       const displayName = date.toLocaleString('default', { month: 'short', year: '2-digit' }) // e.g. "May 26"
-      
+
       if (!monthlyBuckets[yyyymm]) {
         monthlyBuckets[yyyymm] = { yyyymm, name: displayName, PRs: 0, Issues: 0 }
       }
-      
+
       if (item.pull_request) {
         monthlyBuckets[yyyymm].PRs++
       } else {
@@ -419,7 +425,23 @@ export default function ContributorProfilePage() {
       </div>
 
       <PageTitle
-        title={`Contributor Profile: @${username}`}
+        title={
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+            {contributor?.avatar_url && (
+              <img
+                src={contributor.avatar_url}
+                alt=""
+                style={{
+                  width: 50,
+                  height: 50,
+                  borderRadius: '50%',
+                  objectFit: 'cover',
+                }}
+              />
+            )}
+            <span>@{username}</span>
+          </span>
+        }
         subtitle={`Analyzing contributions across ${searchOrgs.join(', ')}`}
         right={
           <button
@@ -492,9 +514,9 @@ export default function ContributorProfilePage() {
         <StatCard label="Total Contributions" value={filteredContribs.length} sub="Filtered timeframe" />
         <StatCard label="Pull Requests" value={prs.length} sub={`${prs.filter(p => p.isMerged).length} Merged`} accent="var(--blue)" />
         <StatCard label="Issues Opened" value={issues.length} sub={`${issues.filter(i => i.state === 'closed').length} Closed`} accent="var(--amber)" />
-        <StatCard 
-          label="Active Repositories" 
-          value={new Set(filteredContribs.map(i => i.repository_url?.split('/').pop())).size} 
+        <StatCard
+          label="Active Repositories"
+          value={new Set(filteredContribs.map(i => i.repository_url?.split('/').pop())).size}
           sub="distinct repositories"
           accent="var(--green)"
         />
