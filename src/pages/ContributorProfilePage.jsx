@@ -426,11 +426,11 @@ export default function ContributorProfilePage() {
 
       <PageTitle
         title={
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
             {contributor?.avatar_url && (
               <img
                 src={contributor.avatar_url}
-                alt={username}
+                alt=""
                 style={{
                   width: 50,
                   height: 50,
@@ -440,7 +440,7 @@ export default function ContributorProfilePage() {
               />
             )}
             <span>@{username}</span>
-          </div>
+          </span>
         }
         subtitle={`Analyzing contributions across ${searchOrgs.join(', ')}`}
         right={
