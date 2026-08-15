@@ -106,6 +106,7 @@ export default function ContributorProfilePage() {
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [avatarUrl, setAvatarUrl] = useState('')
   const [rawContributions, setRawContributions] = useState([])
   const [mergedPRKeys, setMergedPRKeys] = useState(new Set())
   const [tab, setTab] = useState('prs')
@@ -215,6 +216,48 @@ export default function ContributorProfilePage() {
     }
   }, [username, searchOrgs, pat])
 
+  useEffect(() => {
+    if (!username) return
+
+    const controller = new AbortController()
+
+    async function fetchContributorProfile() {
+      try {
+        const headers = {
+          Accept: 'application/vnd.github.v3+json',
+        }
+
+        if (pat) {
+          headers.Authorization = `token ${pat}`
+        }
+
+        const res = await fetch(
+          `https://api.github.com/users/${encodeURIComponent(username)}`,
+          {
+            headers,
+            signal: controller.signal,
+          }
+        )
+
+        if (!res.ok) {
+          throw new Error(`HTTP_${res.status}`)
+        }
+
+        const data = await res.json()
+
+        setAvatarUrl(data.avatar_url || '')
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          console.error('Failed to fetch contributor profile:', err)
+        }
+      }
+    }
+
+    fetchContributorProfile()
+
+    return () => controller.abort()
+  }, [username, pat])
+
   // Presets using local date offsets
   const setPreset = (type) => {
     const d = new Date()
@@ -305,18 +348,18 @@ export default function ContributorProfilePage() {
   // Time-series charting data (Chronological sorting by YYYY-MM)
   const chartData = useMemo(() => {
     const monthlyBuckets = {}
-    
+
     filteredContribs.forEach(item => {
       const date = new Date(item.created_at)
       const year = date.getFullYear()
       const month = String(date.getMonth() + 1).padStart(2, '0')
       const yyyymm = `${year}-${month}`
       const displayName = date.toLocaleString('default', { month: 'short', year: '2-digit' }) // e.g. "May 26"
-      
+
       if (!monthlyBuckets[yyyymm]) {
         monthlyBuckets[yyyymm] = { yyyymm, name: displayName, PRs: 0, Issues: 0 }
       }
-      
+
       if (item.pull_request) {
         monthlyBuckets[yyyymm].PRs++
       } else {
@@ -419,7 +462,25 @@ export default function ContributorProfilePage() {
       </div>
 
       <PageTitle
-        title={`Contributor Profile: @${username}`}
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {avatarUrl && (
+              <img
+                src={avatarUrl}
+                alt={`${username}'s GitHub avatar`}
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: '50%',
+                  objectFit: 'cover',
+                  border: '2px solid var(--border)',
+                }}
+              />
+            )}
+
+            <span>@{username}</span>
+          </div>
+        }
         subtitle={`Analyzing contributions across ${searchOrgs.join(', ')}`}
         right={
           <button
@@ -492,9 +553,9 @@ export default function ContributorProfilePage() {
         <StatCard label="Total Contributions" value={filteredContribs.length} sub="Filtered timeframe" />
         <StatCard label="Pull Requests" value={prs.length} sub={`${prs.filter(p => p.isMerged).length} Merged`} accent="var(--blue)" />
         <StatCard label="Issues Opened" value={issues.length} sub={`${issues.filter(i => i.state === 'closed').length} Closed`} accent="var(--amber)" />
-        <StatCard 
-          label="Active Repositories" 
-          value={new Set(filteredContribs.map(i => i.repository_url?.split('/').pop())).size} 
+        <StatCard
+          label="Active Repositories"
+          value={new Set(filteredContribs.map(i => i.repository_url?.split('/').pop())).size}
           sub="distinct repositories"
           accent="var(--green)"
         />
