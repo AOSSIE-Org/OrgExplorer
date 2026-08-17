@@ -67,12 +67,13 @@ export default function Navbar() {
         }}
       >
         {/* Wordmark */}
-        <span
-          onClick={() => navigate('/')}
+        <NavLink
+          to="/"
+          aria-label="Go to home"
           style={{ cursor: 'pointer', flexShrink: 0 }}
         >
           <Logo className="h-15 w-auto" />
-        </span>
+        </NavLink>
 
         {/* Desktop Nav links */}
         <div className="navbar-desktop-links">
