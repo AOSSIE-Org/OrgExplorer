@@ -11,16 +11,22 @@ import AnalysisBanner from '../components/AnalysisBanner'
 import { RepositorySkeleton } from '../components/Orgexplorerskeletons';
 
 const ACTIVITY_CLASSIFICATIONS = ['All', 'Thriving', 'Active', 'Dormant', 'Hibernating']
+const HEALTH_FILTERS = ['All', 'Healthy', 'Moderate', 'Poor']
 const ACTIVITY_COLORS = { Thriving: 'var(--green)', Active: 'var(--blue)', Dormant: 'var(--amber)', Hibernating: 'var(--red)' }
+const HEALTH_COLORS = { Healthy: 'var(--green)', Moderate: 'var(--amber)', Poor: 'var(--red)' }
+
 
 export default function RepositoriesPage() {
   const { model, isComplete, loading, runFullExplore } = useApp()
   const [search, setSearch] = useState('')
   const [activityClassification, setActivityClassification] = useState('All')
   const [lang, setLang] = useState('All Languages')
+  const [health, setHealth] = useState('All')
   const [shown, setShown] = useState(20)
   const [openInfo, setOpenInfo] = useState(false)
   const infoRef = useRef(null)
+
+
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -44,17 +50,31 @@ export default function RepositoriesPage() {
     ['All Languages', ...new Set(allRepos.map(r => r.language).filter(Boolean))].slice(0, 10),
     [allRepos])
 
+  const resetFilters = () => {
+    setSearch('')
+    setActivityClassification('All')
+    setLang('All Languages')
+    setHealth('All')
+    setShown(20)
+  }
+
   const filtered = useMemo(() => allRepos.filter(r =>
     (activityClassification === 'All' || r.activityClassification === activityClassification) &&
     (lang === 'All Languages' || r.language === lang) &&
+    (health === 'All' ||
+      (health === 'Healthy' && r.healthScore >= 70) ||
+      (health === 'Moderate' && r.healthScore >= 40 && r.healthScore < 70) ||
+      (health === 'Poor' && r.healthScore < 40)
+    ) &&
     (!search || r.name.toLowerCase().includes(search.toLowerCase()) ||
       (r.description || '').toLowerCase().includes(search.toLowerCase()))
-  ), [allRepos, activityClassification, lang, search])
+  ), [allRepos, activityClassification, lang, health, search])
+
 
   const { sorted, sortConfig, onSort } = useSortedData(filtered, 'healthScore', 'desc')
   const visible = sorted.slice(0, shown)
 
-  if(loading) return <RepositorySkeleton />
+  if (loading) return <RepositorySkeleton />
   if (!model) return null
 
   const TABLE_COLS = [
@@ -176,6 +196,8 @@ export default function RepositoriesPage() {
         <div style={{ display: 'flex', gap: 6, marginTop: 12, flexWrap: 'wrap' }}>
           {ACTIVITY_CLASSIFICATIONS.map(l => (
             <button
+              type="button"
+              aria-pressed={activityClassification === l}
               key={l} onClick={() => { setActivityClassification(l); setShown(20) }}
               style={{
                 padding: '4px 12px', borderRadius: 4, fontSize: 12, fontWeight: 500, cursor: 'pointer',
@@ -188,55 +210,163 @@ export default function RepositoriesPage() {
             </button>
           ))}
         </div>
+        <div style={{ display: 'flex', gap: 6, marginTop: 12, flexWrap: 'wrap' }}>
+          {HEALTH_FILTERS.map(l => (
+            <button
+              type="button"
+              key={l}
+              aria-pressed={health === l}
+              onClick={() => {
+                setHealth(l)
+                setShown(20)
+              }}
+              style={{
+                padding: '4px 12px',
+                borderRadius: 4,
+                fontSize: 12,
+                fontWeight: 500,
+                cursor: 'pointer',
+                border: health === l ? 'none' : '1px solid var(--border)',
+                background: health === l
+                  ? (HEALTH_COLORS[l] || 'var(--accent)')
+                  : 'transparent',
+                color: health === l ? '#000' : 'var(--text2)',
+              }}
+            >
+              {l}
+            </button>
+          ))}
+        </div>
+        <div style={{ marginTop: 20 }}>
+          <button
+            onClick={resetFilters}
+            style={{
+              ...C.btn('ghost'),
+              padding: '7px 14px',
+              fontSize: 12,
+              fontWeight: 500,
+              borderRadius: 6,
+              transition: 'all 0.2s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'var(--accent)'
+              e.currentTarget.style.color = '#000'
+              e.currentTarget.style.borderColor = 'var(--accent)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'transparent'
+              e.currentTarget.style.color = 'var(--text)'
+              e.currentTarget.style.borderColor = 'var(--border)'
+            }}
+          >
+            Reset Filters
+          </button>
+        </div>
       </div>
+
       {allRepos?.length ? (
-        <>
-          {/* Table view */}
-          <div style={{ ...C.card, padding: 0, overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr>
-                  {TABLE_COLS.map(([k, l]) => (
-                    <SortTh key={k} label={l} sortKey={k} sortConfig={sortConfig} onSort={onSort} />
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {visible.map((r, i) => (
-                  <tr key={r.id} style={{ borderBottom: '1px solid var(--border)', background: i % 2 ? 'var(--surface2)' : 'transparent' }}>
-                    <td style={{ padding: '10px 14px' }}>
-                      <a
-                        href={`${r.html_url}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
+        filtered.length > 0 ? (
+          <>
+            {/* Table view */}
+            <div style={{ ...C.card, padding: 0, overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>
+                    {TABLE_COLS.map(([k, l]) => (
+                      <SortTh
+                        key={k}
+                        label={l}
+                        sortKey={k}
+                        sortConfig={sortConfig}
+                        onSort={onSort}
+                      />
+                    ))}
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {visible.map((r, i) => (
+                    <tr
+                      key={r.id}
+                      style={{
+                        borderBottom: '1px solid var(--border)',
+                        background: i % 2 ? 'var(--surface2)' : 'transparent'
+                      }}
+                    >
+                      <td style={{ padding: '10px 14px' }}>
+                        <a
+                          href={r.html_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            textDecoration: 'none',
+                            color: 'inherit',
+                          }}
+                        >
+                          <div style={{ fontWeight: 500, fontSize: 13 }}>
+                            {r.name}
+                          </div>
+
+                          {r.orgLogin && (
+                            <div style={{ fontSize: 11, color: 'var(--text2)' }}>
+                              {r.orgLogin}
+                            </div>
+                          )}
+                        </a>
+                      </td>
+
+                      <td style={{ padding: '10px 14px', fontSize: 13, color: 'var(--text2)' }}>
+                        {r.stargazers_count.toLocaleString()}
+                      </td>
+
+                      <td style={{ padding: '10px 14px', fontSize: 13, color: 'var(--text2)' }}>
+                        {r.forks_count.toLocaleString()}
+                      </td>
+
+                      <td
                         style={{
-                          textDecoration: 'none',
-                          color: 'inherit',
+                          padding: '10px 14px',
+                          fontSize: 13,
+                          color: r.open_issues_count > 30
+                            ? 'var(--red)'
+                            : 'var(--text2)'
                         }}
                       >
-                        <div style={{ fontWeight: 500, fontSize: 13 }}>{r.name}</div>
-                        {r.orgLogin && <div style={{ fontSize: 11, color: 'var(--text2)' }}>{r.orgLogin}</div>}
-                      </a>
-                    </td>
-                    <td style={{ padding: '10px 14px', fontSize: 13, color: 'var(--text2)' }}>{r.stargazers_count.toLocaleString()}</td>
-                    <td style={{ padding: '10px 14px', fontSize: 13, color: 'var(--text2)' }}>{r.forks_count.toLocaleString()}</td>
-                    <td style={{ padding: '10px 14px', fontSize: 13, color: r.open_issues_count > 30 ? 'var(--red)' : 'var(--text2)' }}>{r.open_issues_count}</td>
-                    <td style={{ padding: '10px 14px', minWidth: 130 }}><HealthBar score={r.healthScore} /></td>
-                    <td style={{ padding: '10px 14px' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}><Badge text={r.activityClassification} />
-                        <span style={{ fontSize: 11, color: 'var(--text2)' }}>
-                          Last push: {r.pushed_at?.slice(0, 10)}
-                        </span>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <LoadMore shown={shown} total={sorted.length} onLoad={() => setShown(s => s + 20)} />
-          </div>
-        </>)
-        : (
+                        {r.open_issues_count}
+                      </td>
+
+                      <td style={{ padding: '10px 14px', minWidth: 130 }}>
+                        <HealthBar score={r.healthScore} />
+                      </td>
+
+                      <td style={{ padding: '10px 14px' }}>
+                        <div
+                          style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 4
+                          }}
+                        >
+                          <Badge text={r.activityClassification} />
+
+                          <span style={{ fontSize: 11, color: 'var(--text2)' }}>
+                            Last push: {r.pushed_at?.slice(0, 10)}
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              <LoadMore
+                shown={shown}
+                total={sorted.length}
+                onLoad={() => setShown(s => s + 20)}
+              />
+            </div>
+          </>
+        ) : (
           <div
             style={{
               padding: '32px 24px',
@@ -246,13 +376,30 @@ export default function RepositoriesPage() {
           >
             <EmptyStateCard
               SvgIcon={<FiDatabase size={36} color="var(--accent)" />}
-              title="No repositories available"
-              description="We couldn't find any repositories for this organization yet."
-              buttonText="Go to Home"
-              onButtonClick={() => navigate('/')}
+              title="No repositories match your filters"
+              description="Try changing your filters or reset them to see all repositories."
+              buttonText="Reset Filters"
+              onButtonClick={resetFilters}
             />
           </div>
-        )}
+        )
+      ) : (
+        <div
+          style={{
+            padding: '32px 24px',
+            maxWidth: 900,
+            margin: '0 auto',
+          }}
+        >
+          <EmptyStateCard
+            SvgIcon={<FiDatabase size={36} color="var(--accent)" />}
+            title="No repositories available"
+            description="We couldn't find any repositories for this organization yet."
+            buttonText="Go to Home"
+            onButtonClick={() => navigate('/')}
+          />
+        </div>
+      )}
     </div>
   )
 }
