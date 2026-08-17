@@ -312,7 +312,7 @@ export default function ContributorsPage() {
             {filtered.length} contributors found
           </span>
         </div>
-        {contributors?.length ?
+        {filtered?.length ?
           (<>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
@@ -442,10 +442,15 @@ export default function ContributorsPage() {
             >
               <EmptyStateCard
                 SvgIcon={<FiDatabase size={36} color='var(--accent)' />}
-                title="No contributors found"
-                description="We couldn't find any contributor data for this organization. "
+                title={search.trim() ? 'No matching contributors' : 'No contributors found'}
+                description={
+                  search.trim()
+                    ? `No contributors match "${search}".`
+                    : "We couldn't find any contributor data for this organization."
+                }
                 buttonText="Go to Home"
-                onButtonClick={() => navigate('/')} />
+                onButtonClick={() => navigate('/')}
+              />
             </div>
           </>)}
       </div>
