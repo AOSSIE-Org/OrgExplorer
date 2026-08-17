@@ -193,7 +193,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   .navbar-right button:last-child svg {
     margin: 0;
     font-size: 16px;
-    fill: currentColor;
+    fill: currentcolor;
   }
 
   .navbar-menu-button {
