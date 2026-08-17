@@ -11,11 +11,12 @@ import AnalysisBanner from '../components/AnalysisBanner'
 import { ContributorSkeleton } from '../components/Orgexplorerskeletons'
 
 export default function ContributorsPage() {
-  const { model, isComplete, loading, runFullExplore } = useApp()
+  const { model, isComplete, loading, runFullExplore, orgs } = useApp()
   const [search, setSearch] = useState('')
   const [shown, setShown] = useState(20)
   const [openInfo, setOpenInfo] = useState(null)
-  const busFactorRef = useRef(null)
+  const [selectedOrg, setSelectedOrg] = useState('all')
+ const busFactorRef = useRef(null)
   const freshnessRef = useRef(null)
   const signalRef = useRef(null)
 
@@ -48,11 +49,38 @@ export default function ContributorsPage() {
   const navigate = useNavigate()
   const contributors = model?.contributors ?? []
 
-  const busFactor = useMemo(() => computeBusFactor(contributors), [contributors])
+  const organizationOptions = useMemo(() => {
+    return (orgs ?? []).map(org => org.login)
+  }, [orgs])
 
-  const filtered = useMemo(() =>
-    contributors.filter(c => !search || c.login.toLowerCase().includes(search.toLowerCase())),
-    [contributors, search])
+
+  
+
+  const scopedContributors = useMemo(() => {
+    if (selectedOrg === 'all') {
+      return contributors
+    }
+
+    return contributors.filter(contributor =>
+      contributor.orgs.includes(selectedOrg)
+    )
+  }, [contributors, selectedOrg])
+  
+  const busFactor = useMemo(
+    () => computeBusFactor(scopedContributors),
+    [scopedContributors]
+  )
+  const filtered = useMemo(() => {
+    const normalizedSearch = search.trim().toLowerCase()
+
+    if (!normalizedSearch) {
+      return scopedContributors
+    }
+
+    return scopedContributors.filter(contributor =>
+      contributor.login.toLowerCase().includes(normalizedSearch)
+    )
+  }, [scopedContributors, search])
 
   const { sorted, sortConfig, onSort } = useSortedData(filtered, 'totalContribs', 'desc')
   const visible = sorted.slice(0, shown)
@@ -60,10 +88,22 @@ export default function ContributorsPage() {
   if(loading) return <ContributorSkeleton />
   if (!model) return null
 
-  const topActive = contributors.slice(0, 10).filter(c => c.freshness > 50).length
-  const freshPct = contributors.length ? Math.round(topActive / Math.min(10, contributors.length) * 100) : 0
-  const connectors = contributors.filter(c => c.isConnector)
-  const crossOrg = contributors.filter(c => c.isCrossOrg)
+  const topActive = scopedContributors
+    .slice(0, 10)
+    .filter(c => c.freshness > 50)
+    .length
+
+  const freshPct = scopedContributors.length
+    ? Math.round(
+      topActive / Math.min(10, scopedContributors.length) * 100
+    )
+    : 0
+
+  const connectors = scopedContributors.filter(
+    c => c.isConnector
+  )
+
+  const crossOrg = scopedContributors.filter(c => c.isCrossOrg)
 
   const riskColor = r => r === 'critical' ? 'var(--red)' : r === 'high' ? 'var(--amber)' : 'var(--green)'
   const riskBar = r => r === 'critical' ? '90%' : r === 'high' ? '60%' : '25%'
@@ -83,7 +123,7 @@ export default function ContributorsPage() {
         title="Contributor Intelligence"
         subtitle="Analyzing contribution patterns, coverage risk, and organizational health"
         right={
-          <button onClick={() => exportContributorsCSV(contributors)} style={{ ...C.btn('ghost'), fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}>
+          <button onClick={() => exportContributorsCSV(filtered)} style={{ ...C.btn('ghost'), fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}>
             <FiDownload size={13} /> Export CSV
           </button>
         }
@@ -245,6 +285,29 @@ export default function ContributorsPage() {
             placeholder="Search by username..."
             style={{ ...C.input, width: 220 }}
           />
+          {organizationOptions.length > 0 && (
+            <select
+              value={selectedOrg}
+              onChange={e => {
+                setSelectedOrg(e.target.value)
+                setShown(20)
+              }}
+              style={{
+                ...C.input,
+                width: 220,
+                cursor: 'pointer',
+              }}
+              aria-label="Filter contributors by organization"
+            >
+              <option value="all">All Contributors</option>
+
+              {organizationOptions.map(org => (
+                <option key={org} value={org}>
+                  {org}
+                </option>
+              ))}
+            </select>
+          )}
           <span style={{ fontSize: 12, color: 'var(--text2)' }}>
             {filtered.length} contributors found
           </span>
