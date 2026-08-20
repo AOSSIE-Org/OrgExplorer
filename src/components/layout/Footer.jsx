@@ -9,8 +9,7 @@ import {
 import { HiOutlineMail } from "react-icons/hi";
 import Logo from "../../assests/og-logo.svg?react";
 import { useTheme } from "../../context/ThemeContext";
-import { BsHeart, BsHeartFill } from "react-icons/bs";
-import { color } from "d3";
+import { BsHeartFill } from "react-icons/bs";
 
 const footerLinks = [
   {
@@ -31,7 +30,7 @@ const footerLinks = [
   },
   {
     label: "Support Us",
-    href:"/support-us"
+    href: "/support-us"
   }
 ];
 
@@ -106,24 +105,49 @@ export default function Footer() {
               aria-label="Footer Navigation"
               className="flex flex-wrap items-center gap-x-6 gap-y-3 justify-center"
             >
-              {footerLinks.map((item) => (
-                <Link
-                  key={item.label}
-                  to={item.href}
-                  style={{
-                    color: "var(--text2)",
-                    transition: "color 0.2s ease",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.color = "var(--accent)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.color = "var(--text2)";
-                  }}
-                >
-                  {item.label}
-                </Link>
-              ))}
+              {footerLinks.map((item) => {
+                const isExternal = item.href.startsWith("http") || item.href.startsWith("mailto:");
+                const linkStyle = {
+                  color: "var(--text2)",
+                  transition: "color 0.2s ease",
+                };
+
+                if (isExternal) {
+                  return (
+                    <a
+                      key={item.label}
+                      href={item.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={linkStyle}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.color = "var(--accent)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.color = "var(--text2)";
+                      }}
+                    >
+                      {item.label}
+                    </a>
+                  );
+                }
+
+                return (
+                  <Link
+                    key={item.label}
+                    to={item.href}
+                    style={linkStyle}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.color = "var(--accent)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.color = "var(--text2)";
+                    }}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
             </nav>
 
             {/* SOCIAL LINKS */}

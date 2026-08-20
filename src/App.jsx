@@ -15,6 +15,8 @@ import GovernancePage  from './pages/GovernancePage'
 import SettingsPage    from './pages/SettingsPage'
 import Footer from './components/layout/Footer'
 import Support from './pages/Support'
+import TermsPage from './pages/TermsPage'
+import PrivacyPage from './pages/PrivacyPage'
 
 function Layout({ children }) {
   return (
@@ -40,7 +42,9 @@ function AppContent() {
         <Route path="/analytics"    element={<AnalyticsPage />} />
         <Route path="/governance"   element={<GovernancePage />} />
         <Route path="/settings"     element={<SettingsPage />} />
-        <Route path="/support-us"      element={<Support />} />
+        <Route path="/support-us"   element={<Support />} />
+        <Route path="/terms"        element={<TermsPage />} />
+        <Route path="/privacy"      element={<PrivacyPage />} />
         <Route path="*"             element={<Navigate to="/" replace />} />
       </Routes>
     </Layout>
