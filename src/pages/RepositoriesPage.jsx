@@ -49,6 +49,11 @@ export default function RepositoriesPage() {
     ['All Organizations', ...new Set(allRepos.map(r => r.orgLogin).filter(Boolean))],
     [allRepos])
 
+  useEffect(() => {
+    setOrgFilter('All Organizations')
+    setShown(20)
+  }, [orgList])
+
   const filtered = useMemo(() => allRepos.filter(r =>
     (activityClassification === 'All' || r.activityClassification === activityClassification) &&
     (lang === 'All Languages' || r.language === lang) &&
@@ -177,6 +182,7 @@ export default function RepositoriesPage() {
               value={orgFilter}
               onChange={e => { setOrgFilter(e.target.value); setShown(20) }}
               style={C.select}
+              aria-label="Filter by organization"
             >
               {orgList.map(o => <option key={o}>{o}</option>)}
             </select>
