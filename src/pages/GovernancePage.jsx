@@ -79,6 +79,7 @@ export default function GovernancePage() {
   // Count of non-compliant repos (missing at least one of CoC, Contributing, Issue Template, PR Template)
   const nonCompliantCommunityCount = useMemo(() => {
     return communityRepos.filter(item => {
+      if (item.profile && item.profile.error) return false
       const files = item.profile.files || {}
       const coc = files.code_of_conduct || files.code_of_conduct_file
       const contributing = files.contributing
@@ -427,6 +428,9 @@ export default function GovernancePage() {
                     const pr = files.pull_request_template
 
                     const renderCell = (fileObj) => {
+                      if (item.profile && item.profile.error) {
+                        return <span style={{ color: 'var(--text3)', fontSize: 12 }}>Unable to assess</span>
+                      }
                       if (fileObj && fileObj.html_url) {
                         return (
                           <a 
@@ -443,7 +447,7 @@ export default function GovernancePage() {
                     }
 
                     return (
-                      <tr key={item.repo} style={{ borderBottom: '1px solid var(--border)', background: i % 2 ? 'var(--surface2)' : 'transparent' }}>
+                      <tr key={`${item.org}/${item.repo}`} style={{ borderBottom: '1px solid var(--border)', background: i % 2 ? 'var(--surface2)' : 'transparent' }}>
                         <td style={{ padding: '12px 14px' }}>
                           <div style={{ fontWeight: 600, fontSize: 13 }}>{item.repo}</div>
                           <div style={{ fontSize: 11, color: 'var(--text2)' }}>{item.org}</div>

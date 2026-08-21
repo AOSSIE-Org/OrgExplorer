@@ -7,7 +7,8 @@ vi.mock('../context/AppContext', () => ({
   useApp: () => ({
     model: {
       allRepos: [
-        { id: 1, name: 'repo-1', orgLogin: 'AOSSIE-Org', license: null }
+        { id: 1, name: 'repo-1', orgLogin: 'AOSSIE-Org', license: null },
+        { id: 2, name: 'repo-2', orgLogin: 'AOSSIE-Org', license: null }
       ]
     },
     issuesData: {},
@@ -19,6 +20,9 @@ vi.mock('../context/AppContext', () => ({
           issue_template: null,
           pull_request_template: null
         }
+      },
+      'AOSSIE-Org/repo-2': {
+        error: true
       }
     },
     runAudit: vi.fn(),
@@ -31,10 +35,11 @@ vi.mock('../context/AppContext', () => ({
 }))
 
 describe('GovernancePage - Community Files tab', () => {
-  it('correctly calculates non-compliant community repos count and renders checklist table', () => {
+  it('correctly calculates non-compliant community repos count and renders checklist table with fail fallback status', () => {
     render(<GovernancePage />)
 
     // Verify Community Files tab button displays with non-compliant count (1)
+    // repo-1 is missing files (1 non-compliant). repo-2 is an error, so it's excluded from calculation.
     const communityTabButton = screen.getByRole('button', { name: /Community Files\s+1/i })
     expect(communityTabButton).toBeInTheDocument()
 
@@ -47,16 +52,21 @@ describe('GovernancePage - Community Files tab', () => {
     expect(screen.getByText('ISSUE TEMPLATES')).toBeInTheDocument()
     expect(screen.getByText('PR TEMPLATES')).toBeInTheDocument()
 
-    // Verify repository name is rendered
+    // Verify repository names are rendered
     expect(screen.getAllByText('repo-1').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('repo-2').length).toBeGreaterThan(0)
 
-    // Verify Code of Conduct has a green check mark linking to GitHub
+    // Verify repo-1 Code of Conduct has a green check mark linking to GitHub
     const cocLink = screen.getByRole('link', { name: /✓ Yes/i })
     expect(cocLink).toBeInTheDocument()
     expect(cocLink.getAttribute('href')).toBe('https://github.com/AOSSIE-Org/repo-1/blob/main/CODE_OF_CONDUCT.md')
 
-    // Verify missing files show red cross marks
+    // Verify repo-1 missing files show red cross marks (3 of them)
     const missingElements = screen.getAllByText(/✗ Missing/i)
-    expect(missingElements.length).toBe(3) // Contributing, Issue, PR Templates are missing
+    expect(missingElements.length).toBe(3)
+
+    // Verify repo-2 displays "Unable to assess" status (4 of them)
+    const errorElements = screen.getAllByText(/Unable to assess/i)
+    expect(errorElements.length).toBe(4)
   })
 })

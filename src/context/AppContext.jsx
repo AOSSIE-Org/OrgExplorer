@@ -171,12 +171,12 @@ export function AppProvider({ children }) {
       const batch = repos.slice(i, i + 5)
       await Promise.allSettled(batch.map(async repo => {
         const key = `${repo.orgLogin}/${repo.name}`
-        const [issues, profile] = await Promise.all([
+        const [issuesResult, profileResult] = await Promise.allSettled([
           fetchIssues(repo.orgLogin, repo.name, pat),
           fetchCommunityProfile(repo.orgLogin, repo.name, pat)
         ])
-        issuesMap[key] = issues
-        communityMap[key] = profile
+        issuesMap[key] = issuesResult.status === 'fulfilled' ? issuesResult.value : []
+        communityMap[key] = profileResult.status === 'fulfilled' ? profileResult.value : { error: true }
       }))
     }
     return { issuesMap, communityMap }

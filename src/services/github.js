@@ -148,6 +148,6 @@ export async function fetchCommunityProfile(org, repo, pat) {
   try {
     return await fetchWithCache(`https://api.github.com/repos/${org}/${repo}/community/profile`, pat)
   } catch {
-    return null
+    return { error: true }
   }
 }
