@@ -7,9 +7,10 @@ import { GovernanceSkeleton } from '../components/Orgexplorerskeletons'
 
 const TABS = [
   { key: 'dead',    label: 'Dead Issues' },
-  { key: 'zombie',  label: 'Zombie PRs'  },
   { key: 'stale',   label: 'Stale Issues Ratio' },
+  { key: 'zombie',  label: 'Zombie PRs'  },
   { key: 'license', label: 'No License'  },
+  { key: 'community', label: 'Community Files' },
 ]
 
 const getStatus = ratio => {
@@ -42,7 +43,7 @@ const getStatus = ratio => {
 }
 
 export default function GovernancePage() {
-  const { model, issuesData, runAudit, govLoading, auditComplete, loading, runGovernanceAnalysis,staleRepoStats } = useApp()
+  const { model, issuesData, communityData, runAudit, govLoading, auditComplete, loading, runGovernanceAnalysis, staleRepoStats } = useApp()
   const [tab, setTab] = useState('dead')
 
   const ITEMS_PER_PAGE = 10
@@ -62,6 +63,30 @@ export default function GovernancePage() {
     })
     return arr
   }, [issuesData])
+
+  // Get all repos audited for community profile
+  const communityRepos = useMemo(() => {
+    const arr = []
+    Object.entries(communityData || {}).forEach(([key, profile]) => {
+      const [org, repo] = key.split('/')
+      if (profile) {
+        arr.push({ org, repo, profile })
+      }
+    })
+    return arr
+  }, [communityData])
+
+  // Count of non-compliant repos (missing at least one of CoC, Contributing, Issue Template, PR Template)
+  const nonCompliantCommunityCount = useMemo(() => {
+    return communityRepos.filter(item => {
+      const files = item.profile.files || {}
+      const coc = files.code_of_conduct || files.code_of_conduct_file
+      const contributing = files.contributing
+      const issue = files.issue_template
+      const pr = files.pull_request_template
+      return !coc || !contributing || !issue || !pr
+    }).length
+  }, [communityRepos])
 
   if(loading) return <GovernanceSkeleton />
   if (!model) return null
@@ -88,7 +113,7 @@ export default function GovernancePage() {
   // Issue resolution rate per repo
   const topRepos = model.allRepos.slice(0, 8)
 
-  const counts = { dead: deadIssues.length, zombie: zombiePRs.length, license: noLicense.length, stale: staleIssuesRatio.toFixed(2) }
+  const counts = { dead: deadIssues.length, zombie: zombiePRs.length, license: noLicense.length, stale: staleIssuesRatio.toFixed(2), community: nonCompliantCommunityCount }
 
   // Stat card
   const StatBox = ({ label, value, sub, color }) => (
@@ -222,8 +247,13 @@ export default function GovernancePage() {
               }}
             >
               {t.label}{' '}
-              <span style={{ color: counts[t.key] > 40 ? 'var(--red)' : 'var(--green)', marginLeft: 4 }}>
-                {counts[t.key]}
+              <span style={{ 
+                color: t.key === 'stale' 
+                  ? (Number(counts[t.key]) > 40 ? 'var(--red)' : 'var(--green)')
+                  : (counts[t.key] > 0 ? 'var(--red)' : 'var(--green)'), 
+                marginLeft: 4 
+              }}>
+                {t.key === 'stale' ? `${counts[t.key]}%` : counts[t.key]}
               </span>
             </button>
           ))}
@@ -372,6 +402,63 @@ export default function GovernancePage() {
               ))}
             </div>
           ) : <EmptyOk msg="All repos have licenses" sub="Good compliance across the portfolio." />
+        )}
+
+        {/* Community Files */}
+        {tab === 'community' && (
+          communityRepos.length ? (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>
+                    {['REPOSITORY', 'CODE OF CONDUCT', 'CONTRIBUTING', 'ISSUE TEMPLATES', 'PR TEMPLATES'].map(h => (
+                      <th key={h} style={{ padding: '8px 14px', textAlign: 'left', fontSize: 11, color: 'var(--text2)', fontWeight: 600, borderBottom: '1px solid var(--border)', background: 'var(--surface2)' }}>
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {communityRepos.map((item, i) => {
+                    const files = item.profile.files || {}
+                    const coc = files.code_of_conduct || files.code_of_conduct_file
+                    const contributing = files.contributing
+                    const issue = files.issue_template
+                    const pr = files.pull_request_template
+
+                    const renderCell = (fileObj) => {
+                      if (fileObj && fileObj.html_url) {
+                        return (
+                          <a 
+                            href={fileObj.html_url} 
+                            target="_blank" 
+                            rel="noreferrer"
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--green)', fontSize: 12, fontWeight: 500 }}
+                          >
+                            ✓ Yes
+                          </a>
+                        )
+                      }
+                      return <span style={{ color: 'var(--red)', fontSize: 12, fontWeight: 500 }}>✗ Missing</span>
+                    }
+
+                    return (
+                      <tr key={item.repo} style={{ borderBottom: '1px solid var(--border)', background: i % 2 ? 'var(--surface2)' : 'transparent' }}>
+                        <td style={{ padding: '12px 14px' }}>
+                          <div style={{ fontWeight: 600, fontSize: 13 }}>{item.repo}</div>
+                          <div style={{ fontSize: 11, color: 'var(--text2)' }}>{item.org}</div>
+                        </td>
+                        <td style={{ padding: '12px 14px' }}>{renderCell(coc)}</td>
+                        <td style={{ padding: '12px 14px' }}>{renderCell(contributing)}</td>
+                        <td style={{ padding: '12px 14px' }}>{renderCell(issue)}</td>
+                        <td style={{ padding: '12px 14px' }}>{renderCell(pr)}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : <EmptyOk msg="No community profile data" sub="Run the audit to fetch repository community health files." />
         )}
       </div>
     </div>
