@@ -12,9 +12,10 @@ export function ThemeProvider({ children }) {
         return stored
       }
 
-      if (stored) {
+      if (stored !== null) {  
         console.warn(`Invalid theme value found in localStorage: "${stored}". Falling back to 'dark'.`)
       }
+
     } catch (error) {
       console.warn('Failed to read theme from localStorage:', error)
     }
