@@ -24,7 +24,11 @@ export function ThemeProvider({ children }) {
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
-    localStorage.setItem('oe_theme', theme)
+    try {
+      localStorage.setItem('oe_theme', theme)
+    } catch (error) {
+      console.warn('Failed to save theme to localStorage:', error)
+    }
   }, [theme])
 
   const toggleTheme = () => {
