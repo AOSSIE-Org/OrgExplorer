@@ -16,6 +16,7 @@ export default function OverviewPage() {
   const { orgs, model, totalRepo, isComplete, loading, runFullExplore } = useApp()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
+  const [showAllOrgs, setShowAllOrgs] = useState(false)
   const infoRef = useRef(null)
 
   useEffect(() => {
@@ -71,15 +72,57 @@ export default function OverviewPage() {
         loading={loading}
         onRun={runFullExplore}
       />
-
       {/* Org identity bar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 28 }}>
         {isMulti ? (
-          <div style={{ display: 'flex' }}>
-            {orgs.slice(0, 3).map((o, i) => o.avatar_url && (
-              <img key={o.login} src={o.avatar_url} alt={o.login}
-                style={{ width: 36, height: 36, borderRadius: '50%', border: '2px solid var(--bg)', marginLeft: i ? -10 : 0 }} />
+          <div
+            style={{ display: 'flex', alignItems: 'center', cursor: orgs.length > 3 ? 'pointer' : 'default' }}
+            onMouseEnter={() => orgs.length > 3 && setShowAllOrgs(true)}
+            onMouseLeave={() => setShowAllOrgs(false)}
+          >
+            {orgs.map((o, i) => o.avatar_url && (
+              <div
+                key={o.login}
+                style={{
+                  width: (showAllOrgs || i < 3) ? 36 : 0,
+                  height: 36,
+                  overflow: 'hidden',
+                  borderRadius: '50%',
+                  marginLeft: i ? -10 : 0,
+                  transition: 'width 0.25s ease',
+                  flexShrink: 0,
+                }}
+              >
+                <img
+                  src={o.avatar_url}
+                  alt={o.login}
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: '50%',
+                    border: '2px solid var(--bg)',
+                  }}
+                />
+              </div>
             ))}
+            <div style={{
+              width: (!showAllOrgs && orgs.length > 3) ? 36 : 0,
+              height: 36,
+              overflow: 'hidden',
+              borderRadius: '50%',
+              marginLeft: 4,
+              transition: 'width 0.25s ease',
+              flexShrink: 0,
+            }}>
+              <div style={{
+                width: 36, height: 36, borderRadius: '50%',
+                background: 'var(--surface2)', border: '2px solid var(--bg)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 11, fontWeight: 600, color: 'var(--text2)',
+              }}>
+                +{orgs.length - 3}
+              </div>
+            </div>
           </div>
         ) : (
           orgs[0]?.avatar_url && (
@@ -103,9 +146,9 @@ export default function OverviewPage() {
               <FiExternalLink size={13} /> View on GitHub
             </a>
           )}
-          <SocialShareButton 
-            theme="dark" 
-            buttonStyle="ghost" 
+          <SocialShareButton
+            theme="dark"
+            buttonStyle="ghost"
             title={isMulti ? `OrgExplorer: ${orgs.map(o => o.login).join(' + ')}` : `OrgExplorer: ${orgs[0]?.name || orgs[0]?.login}`}
             description={isMulti ? `${orgs.length} organizations — combined portfolio view` : (orgs[0]?.description || `@${orgs[0]?.login}`)}
           />
