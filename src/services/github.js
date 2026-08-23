@@ -151,3 +151,19 @@ export async function fetchCommunityProfile(org, repo, pat) {
     return { error: true }
   }
 }
+
+export async function fetchIssueTemplatesDirectory(org, repo, pat) {
+  try {
+    return await fetchWithCache(`https://api.github.com/repos/${org}/${repo}/contents/.github/ISSUE_TEMPLATE`, pat)
+  } catch {
+    return null
+  }
+}
+
+export async function fetchPRTemplatesDirectory(org, repo, pat) {
+  try {
+    return await fetchWithCache(`https://api.github.com/repos/${org}/${repo}/contents/.github/PULL_REQUEST_TEMPLATE`, pat)
+  } catch {
+    return null
+  }
+}

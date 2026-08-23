@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react'
-import { fetchOrg, fetchRepos, fetchContributors, fetchIssues, fetchRateLimit, fetchPulls, fetchCommunityProfile } from '../services/github'
+import { fetchOrg, fetchRepos, fetchContributors, fetchIssues, fetchRateLimit, fetchPulls, fetchCommunityProfile, fetchIssueTemplatesDirectory, fetchPRTemplatesDirectory } from '../services/github'
 import { buildAnalyticalModel, getTopRepositories } from '../services/analytics'
 
 const Ctx = createContext(null)
@@ -176,7 +176,32 @@ export function AppProvider({ children }) {
           fetchCommunityProfile(repo.orgLogin, repo.name, pat)
         ])
         issuesMap[key] = issuesResult.status === 'fulfilled' ? issuesResult.value : []
-        communityMap[key] = profileResult.status === 'fulfilled' ? profileResult.value : { error: true }
+        const profile = profileResult.status === 'fulfilled' ? profileResult.value : { error: true }
+
+        if (profile && !profile.error && profile.files) {
+          if (!profile.files.issue_template) {
+            try {
+              const templates = await fetchIssueTemplatesDirectory(repo.orgLogin, repo.name, pat)
+              if (templates && Array.isArray(templates) && templates.length > 0) {
+                profile.files.issue_template = {
+                  html_url: `https://github.com/${repo.orgLogin}/${repo.name}/tree/${repo.default_branch || 'main'}/.github/ISSUE_TEMPLATE`
+                }
+              }
+            } catch (e) {}
+          }
+          if (!profile.files.pull_request_template) {
+            try {
+              const prTemplates = await fetchPRTemplatesDirectory(repo.orgLogin, repo.name, pat)
+              if (prTemplates && Array.isArray(prTemplates) && prTemplates.length > 0) {
+                profile.files.pull_request_template = {
+                  html_url: `https://github.com/${repo.orgLogin}/${repo.name}/tree/${repo.default_branch || 'main'}/.github/PULL_REQUEST_TEMPLATE`
+                }
+              }
+            } catch (e) {}
+          }
+        }
+
+        communityMap[key] = profile
       }))
     }
     return { issuesMap, communityMap }
