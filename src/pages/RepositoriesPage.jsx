@@ -22,6 +22,7 @@ export default function RepositoriesPage() {
   const [openInfo, setOpenInfo] = useState(false)
   const infoRef = useRef(null)
 
+
   useEffect(() => {
     function handleClickOutside(event) {
       if (
@@ -31,11 +32,22 @@ export default function RepositoriesPage() {
         setOpenInfo(false)
       }
     }
+
+    function handleEscape(event) {
+      if (event.key === 'Escape' && openInfo) {
+        setOpenInfo(false);
+        document.getElementById('info-button')?.focus();
+      }
+    }
+
     document.addEventListener('mousedown', handleClickOutside)
+    document.addEventListener('keydown', handleEscape)
+
     return () => {
       document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleEscape)
     }
-  }, [])
+  }, [openInfo])
 
   const navigate = useNavigate()
   const allRepos = model?.totalRepos ?? []
@@ -54,7 +66,7 @@ export default function RepositoriesPage() {
   const { sorted, sortConfig, onSort } = useSortedData(filtered, 'healthScore', 'desc')
   const visible = sorted.slice(0, shown)
 
-  if(loading) return <RepositorySkeleton />
+  if (loading) return <RepositorySkeleton />
   if (!model) return null
 
   const TABLE_COLS = [
@@ -82,8 +94,21 @@ export default function RepositoriesPage() {
               Repository Explorer
 
               <button
-                onMouseEnter={() => setOpenInfo(true)}
-                onMouseLeave={() => setOpenInfo(false)}
+                id="info-button"
+                onClick={() => setOpenInfo(!openInfo)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setOpenInfo(!openInfo);
+                  }
+                  if (e.key === 'Escape' && openInfo) {
+                    setOpenInfo(false);
+                    document.getElementById('info-button')?.focus();
+                  }
+                }}
+                aria-expanded={openInfo}
+                aria-controls="repository-info-popup"
+                aria-label="Repository health metrics information"
                 className="p-3 rounded-full hover:bg-(--bg) transition"
               >
                 <AiOutlineInfoCircle className="text-(--text) cursor-pointer" />
@@ -103,6 +128,10 @@ export default function RepositoriesPage() {
 
         {openInfo && (
           <div
+            id="repository-info-popup"
+            role="dialog"
+            aria-labelledby="info-popup-title"
+            aria-modal="true"
             style={{
               position: 'absolute',
               top: 50,
@@ -116,13 +145,8 @@ export default function RepositoriesPage() {
               boxShadow: '0 8px 30px rgba(0,0,0,.4)'
             }}
           >
-            <div
-              style={{
-                fontWeight: 600,
-                marginBottom: 10,
-                color: 'var(--accent)'
-              }}
-            >
+
+            <div id="info-popup-title" style={{ fontWeight: 600, marginBottom: 10, color: 'var(--accent)' }}>
               Repository Health Metrics
             </div>
 
