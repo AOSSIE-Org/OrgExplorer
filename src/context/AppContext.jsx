@@ -1,8 +1,7 @@
 import { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react'
 import { fetchOrg, fetchRepos, fetchContributors, fetchIssues, fetchRateLimit, fetchPulls } from '../services/github'
 import { buildAnalyticalModel, getTopRepositories } from '../services/analytics'
-import { storage, STORAGE_KEYS } from '@/utils/storage';
-
+import { storage,STORAGE_KEYS } from '../utils/storage'
 
 const Ctx = createContext(null)
 
@@ -12,7 +11,7 @@ function getStoredRateLimit() {
   if (!stored) return null
 
   try {
-    const data = JSON.parse(stored)
+  
 
     if (Date.now() > data.reset * 1000) {
       storage.remove(STORAGE_KEYS.RATE_LIMIT)
