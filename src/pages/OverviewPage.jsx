@@ -31,6 +31,10 @@ export default function OverviewPage() {
     }
   }, [])
 
+  useEffect(() => {
+    setOrgFilter('All Organizations')
+  }, [orgs])
+
   if(loading) return <OverviewSkeleton />
   if (!model) return null
 
@@ -52,9 +56,7 @@ export default function OverviewPage() {
 
   const topRepos = [...filteredRepos].sort((a, b) => b.healthScore - a.healthScore).slice(0, 5)
 
-  useEffect(() => {
-    setOrgFilter('All Organizations')
-  }, [orgs])
+ 
 
 
   const NavCard = ({ to, label, sub }) => (
@@ -145,7 +147,10 @@ export default function OverviewPage() {
         <StatCard
           label="Active Repos"
           value={formatNumber(activeRepos)}
-          sub={`${Math.round(activeRepos / (orgFilter === 'All Organizations' ? totalRepo : filteredRepos.length) * 100)}% of total`}
+          sub={`${(() => {
+            const total = orgFilter === 'All Organizations' ? totalRepo : filteredRepos.length
+            return total > 0 ? Math.round(activeRepos / total * 100) : 0
+          })()}% of total`}
         />
       </div>
 
