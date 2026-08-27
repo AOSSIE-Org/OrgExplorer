@@ -16,6 +16,7 @@ export default function OverviewPage() {
   const { orgs, model, totalRepo, isComplete, loading, runFullExplore } = useApp()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
+  const [orgFilter, setOrgFilter] = useState('All Organizations')
   const infoRef = useRef(null)
 
   useEffect(() => {
@@ -35,16 +36,26 @@ export default function OverviewPage() {
 
   const { totalRepos } = model
   const isMulti = orgs.length > 1
-  const totalStars = totalRepos.reduce((s, r) => s + r.stargazers_count, 0)
-  const totalForks = totalRepos.reduce((s, r) => s + r.forks_count, 0)
-  const activeRepos = totalRepos.filter(r => r.activityClassification === 'Thriving' || r.activityClassification === 'Active').length
+
+  const filteredRepos = orgFilter === 'All Organizations'
+    ? totalRepos
+    : totalRepos.filter(r => r.orgLogin === orgFilter)
+
+  const totalStars = filteredRepos.reduce((s, r) => s + r.stargazers_count, 0)
+  const totalForks = filteredRepos.reduce((s, r) => s + r.forks_count, 0)
+  const activeRepos = filteredRepos.filter(r => r.activityClassification === 'Thriving' || r.activityClassification === 'Active').length
 
   const langMap = {}
-  totalRepos.forEach(r => { if (r.language) langMap[r.language] = (langMap[r.language] || 0) + 1 })
+  filteredRepos.forEach(r => { if (r.language) langMap[r.language] = (langMap[r.language] || 0) + 1 })
   const langs = Object.entries(langMap).sort((a, b) => b[1] - a[1]).slice(0, 7)
   const langTotal = langs.reduce((s, [, c]) => s + c, 0)
 
-  const topRepos = [...totalRepos].sort((a, b) => b.healthScore - a.healthScore).slice(0, 5)
+  const topRepos = [...filteredRepos].sort((a, b) => b.healthScore - a.healthScore).slice(0, 5)
+
+  useEffect(() => {
+    setOrgFilter('All Organizations')
+  }, [orgs])
+
 
   const NavCard = ({ to, label, sub }) => (
     <div
@@ -111,13 +122,31 @@ export default function OverviewPage() {
           />
         </div>
       </div>
+      {/* Org filter for stats */}
+      {isMulti && (
+        <div style={{ marginBottom: 16 }}>
+          <select
+            value={orgFilter}
+            onChange={e => setOrgFilter(e.target.value)}
+            style={C.select}
+            aria-label="Filter stats by organization"
+          >
+            <option>All Organizations</option>
+            {orgs.map(o => <option key={o.login}>{o.login}</option>)}
+          </select>
+        </div>
+      )}
 
       {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 24 }}>
-        <StatCard label="Total Repos" value={formatNumber(totalRepo)} />
+        <StatCard label="Total Repos" value={formatNumber(orgFilter === 'All Organizations' ? totalRepo : filteredRepos.length)} />
         <StatCard label="Total Stars" value={formatNumber(totalStars)} />
         <StatCard label="Total Forks" value={formatNumber(totalForks)} />
-        <StatCard label="Active Repos" value={formatNumber(activeRepos)} sub={`${Math.round(activeRepos / totalRepo * 100)}% of total`} />
+        <StatCard
+          label="Active Repos"
+          value={formatNumber(activeRepos)}
+          sub={`${Math.round(activeRepos / (orgFilter === 'All Organizations' ? totalRepo : filteredRepos.length) * 100)}% of total`}
+        />
       </div>
 
       {/* Language + top repos */}
