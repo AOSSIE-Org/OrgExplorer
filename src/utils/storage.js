@@ -1,16 +1,21 @@
 // src/utils/storage.js
 
 export const STORAGE_KEYS = {
-  PAT: 'oe_pat',
-  RATE_LIMIT: 'oe_rate_limit',
-  RECENT_SEARCHES: 'oe_recent',
+  PAT: "oe_pat",
+  RATE_LIMIT: "oe_rate_limit",
+  RECENT_SEARCHES: "oe_recent",
 };
 
 export const storage = {
   get: (key) => {
     try {
       const value = localStorage.getItem(key);
-      return value ? JSON.parse(value) : null;
+      if (!value) return null;
+      try {
+        return JSON.parse(value);
+      } catch {
+        return value;
+      }
     } catch (error) {
       console.error(`Error reading ${key} from localStorage:`, error);
       return null;

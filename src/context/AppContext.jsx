@@ -13,12 +13,12 @@ function getStoredRateLimit() {
   try {
   
 
-    if (Date.now() > data.reset * 1000) {
+    if (Date.now() >  stored.reset * 1000) {
       storage.remove(STORAGE_KEYS.RATE_LIMIT)
       return null
     }
 
-    return data
+    return stored
   } catch {
     storage.remove(STORAGE_KEYS.RATE_LIMIT)
     return null
