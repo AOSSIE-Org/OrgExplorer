@@ -1,5 +1,5 @@
 import React from 'react'
-import { NavLink, useNavigate } from 'react-router-dom'
+import { NavLink, useNavigate, Link } from 'react-router-dom'
 import { FiHeart, FiSettings, FiZap } from 'react-icons/fi'
 import { useApp } from '../context/AppContext'
 import ThemeToggle from './ThemeToggle'
@@ -10,6 +10,7 @@ const LINKS = [
   { to: '/overview', label: 'Overview' },
   { to: '/repositories', label: 'Repositories' },
   { to: '/contributors', label: 'Contributors' },
+  { to: '/progress', label: 'Progress Tracker' },
   { to: '/network', label: 'Network' },
   { to: '/analytics', label: 'Analytics' },
   { to: '/governance', label: 'Governance' },
@@ -33,11 +34,13 @@ export default function Navbar() {
       justifyContent: 'space-between',
     }}>
       {/* Wordmark */}
-      <span
-        onClick={() => navigate('/')}
+      <Link
+        to="/"
+        aria-label="OrgExplorer Home"
+        style={{ display: 'flex', alignItems: 'center' }}
       >
         <Logo className="h-15 w-auto" />
-      </span>
+      </Link>
 
       {/* Nav links — only visible when data is loaded */}
       <div style={{ display: 'flex', gap: 2, flex: 1, overflowX: 'auto' }}>
