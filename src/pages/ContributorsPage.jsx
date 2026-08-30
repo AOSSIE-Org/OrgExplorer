@@ -56,6 +56,7 @@ export default function ContributorsPage() {
 
   const { sorted, sortConfig, onSort } = useSortedData(filtered, 'totalContribs', 'desc')
   const visible = sorted.slice(0, shown)
+  const showNoSearchResults = search.trim() && filtered.length === 0 
 
   if(loading) return <ContributorSkeleton />
   if (!model) return null
@@ -249,8 +250,33 @@ export default function ContributorsPage() {
             {filtered.length} contributors found
           </span>
         </div>
-        {contributors?.length ?
-          (<>
+
+        {!contributors?.length && (
+          <div style={{ padding: '32px 24px', maxWidth: 900, margin: '0 auto' }}>
+            <EmptyStateCard
+              SvgIcon={<FiDatabase size={36} color='var(--accent)' />}
+              title="No contributors found"
+              description="We couldn't find any contributor data for this organization. "
+              buttonText="Go to Home"
+              onButtonClick={() => navigate('/')}
+            />
+          </div>
+        )}
+
+        {contributors?.length > 0 && showNoSearchResults && (
+          <div style={{ padding: '32px 24px', maxWidth: 900, margin: '0 auto' }}>
+            <EmptyStateCard
+              SvgIcon={<FiDatabase size={36} color='var(--accent)' />}
+              title="No matching contributors"
+              description="No contributors match your search. Try a different username."
+              buttonText="Clear Search"
+              onButtonClick={() => setSearch('')}
+            />
+          </div>
+        )}
+
+        {contributors?.length > 0 && !showNoSearchResults && (
+          <>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
@@ -366,25 +392,11 @@ export default function ContributorsPage() {
                     </td>
                   </tr>
                 ))}
-              </tbody>
-            </table>
-            <LoadMore shown={shown} total={sorted.length} onLoad={() => setShown(s => s + 20)} /></>) :
-          (<>
-            <div
-              style={{
-                padding: '32px 24px',
-                maxWidth: 900,
-                margin: '0 auto',
-              }}
-            >
-              <EmptyStateCard
-                SvgIcon={<FiDatabase size={36} color='var(--accent)' />}
-                title="No contributors found"
-                description="We couldn't find any contributor data for this organization. "
-                buttonText="Go to Home"
-                onButtonClick={() => navigate('/')} />
-            </div>
-          </>)}
+            </tbody>
+          </table>
+        <LoadMore shown={shown} total={sorted.length} onLoad={() => setShown(s => s + 20)} />
+      </>
+        )}
       </div>
     </div >
   )
