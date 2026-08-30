@@ -1,8 +1,10 @@
 import React, { useState, useMemo } from 'react'
-import { FiRefreshCw, FiExternalLink } from 'react-icons/fi'
+import { useNavigate } from 'react-router-dom'
+import { FiRefreshCw, FiExternalLink, FiDatabase } from 'react-icons/fi'
 import { useApp } from '../context/AppContext'
 import { C, PageTitle, EmptyOk } from '../components/UI'
 import AnalysisBanner from '../components/AnalysisBanner'
+import EmptyStateCard from '../components/EmptyStateCard'
 import { GovernanceSkeleton } from '../components/Orgexplorerskeletons'
 
 const TABS = [
@@ -42,16 +44,17 @@ const getStatus = ratio => {
 }
 
 export default function GovernancePage() {
-  const { model, issuesData, runAudit, govLoading, auditComplete, loading, runGovernanceAnalysis,staleRepoStats } = useApp()
+  const navigate = useNavigate()
+  const { model, issuesData, runAudit, govLoading, auditComplete, loading, runGovernanceAnalysis, staleRepoStats } = useApp()
   const [tab, setTab] = useState('dead')
 
   const ITEMS_PER_PAGE = 10
   const [stalePage, setStalePage] = useState(1)
-  const totalPages = Math.ceil(staleRepoStats.length / ITEMS_PER_PAGE)
+  const totalPages = Math.ceil((staleRepoStats?.length || 0) / ITEMS_PER_PAGE)
 
   const paginatedStaleRepos = useMemo(() => {
     const start = (stalePage - 1) * ITEMS_PER_PAGE
-    return staleRepoStats.slice(start, start + ITEMS_PER_PAGE)
+    return (staleRepoStats || []).slice(start, start + ITEMS_PER_PAGE)
   }, [staleRepoStats, stalePage])
   // Flatten all issues and tag with repo/org
   const allIssues = useMemo(() => {
@@ -63,8 +66,20 @@ export default function GovernancePage() {
     return arr
   }, [issuesData])
 
-  if(loading) return <GovernanceSkeleton />
-  if (!model) return null
+  if (loading) return <GovernanceSkeleton />
+  if (!model) {
+    return (
+      <div style={{ padding: '32px 24px', maxWidth: 900, margin: '0 auto' }}>
+        <EmptyStateCard
+          SvgIcon={<FiDatabase size={36} color="var(--accent)" />}
+          title="No Organization Analyzed"
+          description="Explore an organization on the home page to view governance audit insights."
+          buttonText="Go to Home"
+          onButtonClick={() => navigate('/')}
+        />
+      </div>
+    )
+  }
 
   const hasAudit = Object.keys(issuesData || {}).length > 0
   const daysSince = d => Math.floor((Date.now() - new Date(d)) / 86_400_000)

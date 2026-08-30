@@ -40,7 +40,20 @@ export function AppProvider({ children }) {
   const [advanceAnalyticsComplete, setAdvanceAnalyticsComplete] = useState(false) 
   const [isComplete, setIsComplete] = useState(false)
   const [auditComplete, setAuditComplete] = useState(false)
-  const [lastOrgNames, setLastOrgNames] = useState([])
+  const [lastOrgNames, setLastOrgNames] = useState(() => {
+    try {
+      const stored = localStorage.getItem('oe_active_orgs')
+      return stored ? JSON.parse(stored) : []
+    } catch {
+      return []
+    }
+  })
+
+  useEffect(() => {
+    if (lastOrgNames.length > 0 && !model && !loading) {
+      explore(lastOrgNames)
+    }
+  }, [])
 
   useEffect(() => {
     const handler = e => {
@@ -87,6 +100,9 @@ export function AppProvider({ children }) {
     setOrgs([]);
     setIssuesData({});
     setLastOrgNames(orgNames);
+    if (orgNames?.length) {
+      localStorage.setItem('oe_active_orgs', JSON.stringify(orgNames))
+    }
     setAuditComplete(false);
     setAdvanceAnalyticsComplete(false);
     try {

@@ -169,7 +169,20 @@ export default function NetworkPage() {
   }, [model, showRepos, showContribs])
 
   const navigate = useNavigate()
-  if(loading) return <NetworkSkeleton />
+  if (loading) return <NetworkSkeleton />
+  if (!model) {
+    return (
+      <div style={{ padding: '32px 24px', maxWidth: 900, margin: '0 auto' }}>
+        <EmptyStateCard
+          SvgIcon={<FiDatabase size={36} color="var(--accent)" />}
+          title="No Organization Analyzed"
+          description="Explore an organization on the home page to view network graph relationships."
+          buttonText="Go to Home"
+          onButtonClick={() => navigate('/')}
+        />
+      </div>
+    )
+  }
   
   return (
     <div style={{ padding: '32px 24px', maxWidth: 1100, margin: '0 auto' }} className="fade-up">

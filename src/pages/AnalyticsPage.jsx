@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell,  RadialBarChart, RadialBar, PolarAngleAxis } from 'recharts'
-import { FiDownload, FiRefreshCw } from 'react-icons/fi'
+import { FiDownload, FiRefreshCw, FiDatabase } from 'react-icons/fi'
 import { useApp } from '../context/AppContext'
 import { C, PageTitle, InfoBox } from '../components/UI'
 import { buildTimeSeries, exportTrendsCSV } from '../services/analytics'
@@ -9,6 +10,7 @@ import { IoChevronDown } from 'react-icons/io5'
 import { HiCheck, HiOutlineClock } from 'react-icons/hi'
 import { useAdvancedMetrics } from '../hooks/useSortedData'
 import AnalysisBanner from '../components/AnalysisBanner'
+import EmptyStateCard from '../components/EmptyStateCard'
 import { AnalyticsSkeleton } from '../components/Orgexplorerskeletons'
 
 const TOOLTIP_STYLE = {
@@ -23,6 +25,7 @@ const TOOLTIP_STYLE = {
 }
 
 export default function AnalyticsPage() {
+  const navigate = useNavigate()
   const { model, issuesData, runAudit, govLoading, runAdvanceAnalytics, advanceAnalyticsLoading, advanceAnalyticsComplete, runFullAnalytics, pullsData,  auditComplete, loading, runGovernanceAnalysis, pat  } = useApp()
 
   const [granularity,   setGranularity]   = useState('monthly')
@@ -55,7 +58,19 @@ export default function AnalyticsPage() {
   const advancedMetrics = useAdvancedMetrics(filteredPulls)
 
   if(loading) return <AnalyticsSkeleton />
-  if (!model) return null
+  if (!model) {
+    return (
+      <div style={{ padding: '32px 24px', maxWidth: 900, margin: '0 auto' }}>
+        <EmptyStateCard
+          SvgIcon={<FiDatabase size={36} color="var(--accent)" />}
+          title="No Organization Analyzed"
+          description="Explore an organization on the home page to view velocity and trend analytics."
+          buttonText="Go to Home"
+          onButtonClick={() => navigate('/')}
+        />
+      </div>
+    )
+  }
 
   const acceptanceChart = [
     {

@@ -1,11 +1,12 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FiExternalLink, FiShare2, FiArrowRight } from 'react-icons/fi'
+import { FiExternalLink, FiShare2, FiArrowRight, FiDatabase } from 'react-icons/fi'
 import { useApp } from '../context/AppContext'
 import { C, StatCard, HealthBar } from '../components/UI'
 import SocialShareButton from '../components/SocialShareButton';
 import { AiOutlineInfoCircle } from "react-icons/ai";
 import AnalysisBanner from '../components/AnalysisBanner'
+import EmptyStateCard from '../components/EmptyStateCard'
 import { OverviewSkeleton } from '../components/Orgexplorerskeletons'
 import {formatNumber} from '../utils/formatNumber'
 
@@ -31,7 +32,19 @@ export default function OverviewPage() {
   }, [])
 
   if(loading) return <OverviewSkeleton />
-  if (!model) return null
+  if (!model) {
+    return (
+      <div style={{ padding: '32px 24px', maxWidth: 900, margin: '0 auto' }}>
+        <EmptyStateCard
+          SvgIcon={<FiDatabase size={36} color="var(--accent)" />}
+          title="No Organization Analyzed"
+          description="Explore an organization on the home page to view overview analytics."
+          buttonText="Go to Home"
+          onButtonClick={() => navigate('/')}
+        />
+      </div>
+    )
+  }
 
   const { totalRepos } = model
   const isMulti = orgs.length > 1

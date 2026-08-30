@@ -58,7 +58,19 @@ export default function ContributorsPage() {
   const visible = sorted.slice(0, shown)
 
   if(loading) return <ContributorSkeleton />
-  if (!model) return null
+  if (!model) {
+    return (
+      <div style={{ padding: '32px 24px', maxWidth: 900, margin: '0 auto' }}>
+        <EmptyStateCard
+          SvgIcon={<FiDatabase size={36} color="var(--accent)" />}
+          title="No Organization Analyzed"
+          description="Explore an organization on the home page to view contributor data."
+          buttonText="Go to Home"
+          onButtonClick={() => navigate('/')}
+        />
+      </div>
+    )
+  }
 
   const topActive = contributors.slice(0, 10).filter(c => c.freshness > 50).length
   const freshPct = contributors.length ? Math.round(topActive / Math.min(10, contributors.length) * 100) : 0

@@ -55,7 +55,19 @@ export default function RepositoriesPage() {
   const visible = sorted.slice(0, shown)
 
   if(loading) return <RepositorySkeleton />
-  if (!model) return null
+  if (!model) {
+    return (
+      <div style={{ padding: '32px 24px', maxWidth: 900, margin: '0 auto' }}>
+        <EmptyStateCard
+          SvgIcon={<FiDatabase size={36} color="var(--accent)" />}
+          title="No Organization Analyzed"
+          description="Explore an organization on the home page to view repository data."
+          buttonText="Go to Home"
+          onButtonClick={() => navigate('/')}
+        />
+      </div>
+    )
+  }
 
   const TABLE_COLS = [
     ['name', 'Repository'],
