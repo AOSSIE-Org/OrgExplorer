@@ -10,6 +10,7 @@ import RepositoriesPage from './pages/RepositoriesPage'
 import ContributorsPage from './pages/ContributorsPage'
 import ContributorProfilePage from './pages/ContributorProfilePage'
 import NetworkPage     from './pages/NetworkPage'
+import TeamsPage       from './pages/TeamsPage'
 import AnalyticsPage   from './pages/AnalyticsPage'
 import GovernancePage  from './pages/GovernancePage'
 import SettingsPage    from './pages/SettingsPage'
@@ -36,6 +37,7 @@ function AppContent() {
         <Route path="/repositories" element={<RepositoriesPage />} />
         <Route path="/contributors" element={<ContributorsPage />} />
         <Route path="/contributors/:username" element={<ContributorProfilePage />} />
+        <Route path="/teams"        element={<TeamsPage />} />
         <Route path="/network"      element={<NetworkPage />} />
         <Route path="/analytics"    element={<AnalyticsPage />} />
         <Route path="/governance"   element={<GovernancePage />} />
