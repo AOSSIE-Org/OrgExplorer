@@ -1,6 +1,7 @@
-import { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react'
+import { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { fetchOrg, fetchRepos, fetchContributors, fetchIssues, fetchRateLimit, fetchPulls } from '../services/github'
 import { buildAnalyticalModel, getTopRepositories } from '../services/analytics'
+import { saveAnalysis, loadAnalysis } from '../services/cache'
 
 const Ctx = createContext(null)
 
@@ -343,7 +344,7 @@ export function AppProvider({ children }) {
       rateLimit, loading, loadMsg, govLoading, error, totalRepo,
       runAdvanceAnalytics, refreshRateLimit, advanceAnalyticsLoading, advanceAnalyticsComplete,
       runFullAnalytics,
-      isComplete, auditComplete, lastOrgNames,
+      isComplete, auditComplete, lastOrgNames, hydrating,
       explore, runFullExplore, runAudit, runGovernanceAnalysis, setError, staleRepoStats
     }}>
       {children}
