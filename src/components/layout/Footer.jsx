@@ -19,11 +19,11 @@ const footerLinks = [
   },
   {
     label: "Terms of Service",
-    href: "/terms",
+    href: "https://github.com/AOSSIE-Org/OrgExplorer/blob/main/terms-of-service.md",
   },
   {
     label: "Privacy Policy",
-    href: "/privacy",
+    href: "https://github.com/AOSSIE-Org/OrgExplorer/blob/main/privacy-policy.md",
   },
   {
     label: "API Status",
