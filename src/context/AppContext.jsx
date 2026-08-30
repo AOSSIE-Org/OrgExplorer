@@ -1,7 +1,8 @@
-import { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react'
+import { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { fetchOrg, fetchRepos, fetchContributors, fetchIssues, fetchRateLimit, fetchPulls } from '../services/github'
 import { buildAnalyticalModel, getTopRepositories } from '../services/analytics'
 import { storage,STORAGE_KEYS } from '../utils/storage'
+import { saveAnalysis, loadAnalysis } from '../services/cache'
 
 const Ctx = createContext(null)
 
@@ -42,6 +43,61 @@ export function AppProvider({ children }) {
   const [isComplete, setIsComplete] = useState(false)
   const [auditComplete, setAuditComplete] = useState(false)
   const [lastOrgNames, setLastOrgNames] = useState([])
+  // True until the cached analysis has been read, so routes that need a model
+  // wait for the restore instead of bouncing to the picker on first paint.
+  const [hydrating, setHydrating] = useState(true)
+  // Set when state came straight from the cache, so the write-back effect can
+  // skip it. Re-saving an untouched restore would stamp a fresh savedAt on
+  // every page load and the entry would never reach its TTL.
+  const restoredFromCache = useRef(false)
+
+  // Restore the last analysis on startup. The model is held in memory, so
+  // without this a reload, bookmark or shared link loses it entirely.
+  useEffect(() => {
+    let cancelled = false
+
+    loadAnalysis()
+      .then(cached => {
+        if (cancelled || !cached) return
+
+        restoredFromCache.current = true
+
+        setOrgs(cached.orgs || [])
+        setModel(cached.model)
+        setTotalRepo(cached.totalRepo || 0)
+        setIsComplete(!!cached.isComplete)
+        setLastOrgNames(cached.lastOrgNames || [])
+        setIssuesData(cached.issuesData || {})
+        setPullsData(cached.pullsData || {})
+        setAuditComplete(!!cached.auditComplete)
+        setAdvanceAnalyticsComplete(!!cached.advanceAnalyticsComplete)
+      })
+      .finally(() => {
+        if (!cancelled) setHydrating(false)
+      })
+
+    return () => { cancelled = true }
+  }, [])
+
+  // Persist the analysis whenever it changes, including audit and analytics
+  // results — those are the most expensive data to refetch.
+  useEffect(() => {
+    if (hydrating || !model) return
+
+    // Skip the write that would immediately follow a restore.
+    if (restoredFromCache.current) {
+      restoredFromCache.current = false
+      return
+    }
+
+    saveAnalysis({
+      orgs, model, totalRepo, isComplete, lastOrgNames,
+      issuesData, pullsData, auditComplete, advanceAnalyticsComplete
+    })
+  }, [
+    hydrating, orgs, model, totalRepo, isComplete, lastOrgNames,
+    issuesData, pullsData, auditComplete, advanceAnalyticsComplete
+  ])
 
   useEffect(() => {
     const handler = e => {
@@ -328,7 +384,7 @@ export function AppProvider({ children }) {
       rateLimit, loading, loadMsg, govLoading, error, totalRepo,
       runAdvanceAnalytics, refreshRateLimit, advanceAnalyticsLoading, advanceAnalyticsComplete,
       runFullAnalytics,
-      isComplete, auditComplete, lastOrgNames,
+      isComplete, auditComplete, lastOrgNames, hydrating,
       explore, runFullExplore, runAudit, runGovernanceAnalysis, setError, staleRepoStats
     }}>
       {children}
