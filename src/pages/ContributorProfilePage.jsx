@@ -4,6 +4,7 @@ import { FiArrowLeft, FiDownload, FiExternalLink, FiCalendar, FiBriefcase, FiAle
 import { useApp } from '../context/AppContext'
 import { C, PageTitle, Spinner, StatCard } from '../components/UI'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import ContributorExpertiseInsights from '../components/ContributorExpertiseInsights'
 
 // Reusable ContributionTable component
 function ContributionTable({ items, dateHeader, resolveStatus }) {
@@ -305,18 +306,18 @@ export default function ContributorProfilePage() {
   // Time-series charting data (Chronological sorting by YYYY-MM)
   const chartData = useMemo(() => {
     const monthlyBuckets = {}
-    
+
     filteredContribs.forEach(item => {
       const date = new Date(item.created_at)
       const year = date.getFullYear()
       const month = String(date.getMonth() + 1).padStart(2, '0')
       const yyyymm = `${year}-${month}`
       const displayName = date.toLocaleString('default', { month: 'short', year: '2-digit' }) // e.g. "May 26"
-      
+
       if (!monthlyBuckets[yyyymm]) {
         monthlyBuckets[yyyymm] = { yyyymm, name: displayName, PRs: 0, Issues: 0 }
       }
-      
+
       if (item.pull_request) {
         monthlyBuckets[yyyymm].PRs++
       } else {
@@ -326,6 +327,7 @@ export default function ContributorProfilePage() {
 
     return Object.values(monthlyBuckets).sort((a, b) => a.yyyymm.localeCompare(b.yyyymm))
   }, [filteredContribs])
+
 
   // Export to Markdown Report with pipe & newline escaping
   const exportMarkdown = () => {
@@ -492,13 +494,18 @@ export default function ContributorProfilePage() {
         <StatCard label="Total Contributions" value={filteredContribs.length} sub="Filtered timeframe" />
         <StatCard label="Pull Requests" value={prs.length} sub={`${prs.filter(p => p.isMerged).length} Merged`} accent="var(--blue)" />
         <StatCard label="Issues Opened" value={issues.length} sub={`${issues.filter(i => i.state === 'closed').length} Closed`} accent="var(--amber)" />
-        <StatCard 
-          label="Active Repositories" 
-          value={new Set(filteredContribs.map(i => i.repository_url?.split('/').pop())).size} 
+        <StatCard
+          label="Active Repositories"
+          value={new Set(filteredContribs.map(i => i.repository_url?.split('/').pop())).size}
           sub="distinct repositories"
           accent="var(--green)"
         />
       </div>
+
+       {/* CONTRIBUTOR EXPERTISE & INSIGHTS SECTION      */}
+       
+      <ContributorExpertiseInsights contributions={filteredContribs} />
+
 
       {/* Visual Activity Timeline Chart */}
       {chartData.length > 0 ? (
