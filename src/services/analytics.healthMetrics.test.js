@@ -135,4 +135,8 @@ describe('computeHealthScore with missing open_issues_count', () => {
     const zero    = computeHealthScore({ pushed_at: daysAgoISO(10), open_issues_count: 0 }, 2)
     expect(missing).toBe(zero)
   })
+    it('returns a finite score when open_issues_count is a non-numeric value', () => {
+    const score = computeHealthScore({ pushed_at: new Date().toISOString(), open_issues_count: 'oops' }, 2)
+    expect(Number.isFinite(score)).toBe(true)
+  })
 })
