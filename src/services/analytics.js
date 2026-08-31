@@ -4,8 +4,8 @@ export function computeHealthScore(repo, contributorCount = 0) {
   const pushedAtMs = Date.parse(repo.pushed_at)
   const daysSince = Number.isFinite(pushedAtMs) ? (Date.now() - pushedAtMs) / 86_400_000 : Infinity
   const activity = Math.max(0, 100 - daysSince)
-  const total = (repo.open_issues_count || 0) + 10
-    const issueHealth = Math.max(0, 100 - ((repo.open_issues_count || 0) / total) * 100)
+  const total = (Number(repo.open_issues_count) || 0) + 10
+  const issueHealth = Math.max(0, 100 - ((Number(repo.open_issues_count) || 0) / total) * 100)
   const diversity = Math.min(100, contributorCount * 10)
   return Math.round(activity * 0.4 + issueHealth * 0.3 + diversity * 0.3)
 }
