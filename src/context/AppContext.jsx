@@ -55,11 +55,61 @@ export function AppProvider({ children }) {
     }
   })
 
+  const [hydrating, setHydrating] = useState(true)
+  const restoredFromCache = useRef(false)
+
+  // Restore the last analysis on startup from IndexedDB
   useEffect(() => {
-    if (lastOrgNames.length > 0 && !model && !loading) {
+    let cancelled = false
+
+    loadAnalysis()
+      .then(cached => {
+        if (cancelled || !cached) return
+
+        restoredFromCache.current = true
+
+        setOrgs(cached.orgs || [])
+        setModel(cached.model)
+        setTotalRepo(cached.totalRepo || 0)
+        setIsComplete(!!cached.isComplete)
+        if (cached.lastOrgNames?.length) {
+          setLastOrgNames(cached.lastOrgNames)
+        }
+        setIssuesData(cached.issuesData || {})
+        setPullsData(cached.pullsData || {})
+        setAuditComplete(!!cached.auditComplete)
+        setAdvanceAnalyticsComplete(!!cached.advanceAnalyticsComplete)
+      })
+      .finally(() => {
+        if (!cancelled) setHydrating(false)
+      })
+
+    return () => { cancelled = true }
+  }, [])
+
+  // Persist the analysis whenever it changes
+  useEffect(() => {
+    if (hydrating || !model) return
+
+    if (restoredFromCache.current) {
+      restoredFromCache.current = false
+      return
+    }
+
+    saveAnalysis({
+      orgs, model, totalRepo, isComplete, lastOrgNames,
+      issuesData, pullsData, auditComplete, advanceAnalyticsComplete
+    })
+  }, [
+    hydrating, orgs, model, totalRepo, isComplete, lastOrgNames,
+    issuesData, pullsData, auditComplete, advanceAnalyticsComplete
+  ])
+
+  useEffect(() => {
+    if (!hydrating && lastOrgNames.length > 0 && !model && !loading) {
       explore(lastOrgNames)
     }
-  }, [])
+  }, [hydrating])
 
   useEffect(() => {
     const handler = e => {
