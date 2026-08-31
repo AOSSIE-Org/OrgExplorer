@@ -114,3 +114,25 @@ describe('computeBusFactor', () => {
     expect(computeBusFactor(contributors)).toEqual({ factor: 2, risk: 'high' })
   })
 })
+
+describe('computeHealthScore with missing open_issues_count', () => {
+  // Regression guard for #211: the issueHealth line used a bare
+  // repo.open_issues_count, so a missing field produced NaN and collapsed the
+  // whole score. These fail on the unguarded code, pass once the `|| 0` guard
+  // matches the `total` line above it.
+
+  it('returns a finite score when open_issues_count is missing but pushed_at is valid', () => {
+    const score = computeHealthScore({ pushed_at: new Date().toISOString() }, 2)
+    expect(Number.isFinite(score)).toBe(true)
+  })
+
+  it('returns a finite score for an empty repo object', () => {
+    expect(Number.isFinite(computeHealthScore({}, 3))).toBe(true)
+  })
+
+  it('treats a missing open_issues_count the same as zero open issues', () => {
+    const missing = computeHealthScore({ pushed_at: daysAgoISO(10) }, 2)
+    const zero    = computeHealthScore({ pushed_at: daysAgoISO(10), open_issues_count: 0 }, 2)
+    expect(missing).toBe(zero)
+  })
+})
