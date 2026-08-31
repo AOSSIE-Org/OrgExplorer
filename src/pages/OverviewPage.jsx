@@ -8,12 +8,14 @@ import { AiOutlineInfoCircle } from "react-icons/ai";
 import AnalysisBanner from '../components/AnalysisBanner'
 import { OverviewSkeleton } from '../components/Orgexplorerskeletons'
 import {formatNumber} from '../utils/formatNumber'
+import { useTheme } from '../context/ThemeContext'
 
 const LANG_COLORS = ['#22c55e', '#f5c518', '#3b82f6', '#ef4444', '#a855f7', '#f97316', '#06b6d4']
 const fmt = n => n > 999 ? (n / 1000).toFixed(1) + 'k' : String(n)
 
 export default function OverviewPage() {
   const { orgs, model, totalRepo, isComplete, loading, runFullExplore } = useApp()
+  const { theme } = useTheme()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [showAllOrgs, setShowAllOrgs] = useState(false)
@@ -146,9 +148,9 @@ export default function OverviewPage() {
               <FiExternalLink size={13} /> View on GitHub
             </a>
           )}
-          <SocialShareButton
-            theme="dark"
-            buttonStyle="ghost"
+          <SocialShareButton 
+            theme={theme}
+           buttonStyle={theme === 'dark' ? 'default' : 'light'}
             title={isMulti ? `OrgExplorer: ${orgs.map(o => o.login).join(' + ')}` : `OrgExplorer: ${orgs[0]?.name || orgs[0]?.login}`}
             description={isMulti ? `${orgs.length} organizations — combined portfolio view` : (orgs[0]?.description || `@${orgs[0]?.login}`)}
           />
