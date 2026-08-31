@@ -115,11 +115,13 @@ describe('computeBusFactor', () => {
   })
 })
 
-describe('computeHealthScore with missing open_issues_count', () => {
-  // Regression guard for #211: the issueHealth line used a bare
-  // repo.open_issues_count, so a missing field produced NaN and collapsed the
-  // whole score. These fail on the unguarded code, pass once the `|| 0` guard
-  // matches the `total` line above it.
+describe('computeHealthScore with invalid inputs', () => {
+  // Regression guards for this PR. Two NaN sources in computeHealthScore:
+  //  - open_issues_count: the issueHealth line used a bare repo.open_issues_count,
+  //    so a missing or non-numeric value produced NaN (#211).
+  //  - pushed_at: an unguarded new Date(repo.pushed_at) made daysSince NaN for a
+  //    missing/invalid timestamp. Both are now guarded; these fail on the
+  //    unguarded code and pass with the fix.
 
   it('returns a finite score when open_issues_count is missing but pushed_at is valid', () => {
     const score = computeHealthScore({ pushed_at: new Date().toISOString() }, 2)
@@ -135,8 +137,36 @@ describe('computeHealthScore with missing open_issues_count', () => {
     const zero    = computeHealthScore({ pushed_at: daysAgoISO(10), open_issues_count: 0 }, 2)
     expect(missing).toBe(zero)
   })
-    it('returns a finite score when open_issues_count is a non-numeric value', () => {
+
+  it('returns a finite score when open_issues_count is a non-numeric value', () => {
     const score = computeHealthScore({ pushed_at: new Date().toISOString(), open_issues_count: 'oops' }, 2)
     expect(Number.isFinite(score)).toBe(true)
+  })
+
+  it('returns a finite score when pushed_at is null', () => {
+    expect(Number.isFinite(computeHealthScore({ pushed_at: null, open_issues_count: 0 }, 2))).toBe(true)
+  })
+
+  it('returns a finite score when pushed_at is an unparseable string', () => {
+    expect(Number.isFinite(computeHealthScore({ pushed_at: 'not-a-date', open_issues_count: 0 }, 2))).toBe(true)
+  })
+})
+
+describe('computeActivityClassification with missing or invalid pushed_at', () => {
+  // Regression guard: computeActivityClassification parses pushed_at with
+  // Date.parse + Number.isFinite; an invalid or missing value is treated as
+  // maximally stale and classified as Hibernating rather than throwing or
+  // mislabelling.
+
+  it('classifies a null pushed_at as Hibernating', () => {
+    expect(computeActivityClassification({ pushed_at: null })).toBe('Hibernating')
+  })
+
+  it('classifies a missing pushed_at as Hibernating', () => {
+    expect(computeActivityClassification({})).toBe('Hibernating')
+  })
+
+  it('classifies an unparseable pushed_at string as Hibernating', () => {
+    expect(computeActivityClassification({ pushed_at: 'not-a-date' })).toBe('Hibernating')
   })
 })
