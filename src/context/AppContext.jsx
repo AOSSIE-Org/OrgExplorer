@@ -44,7 +44,12 @@ export function AppProvider({ children }) {
   const [lastOrgNames, setLastOrgNames] = useState(() => {
     try {
       const stored = localStorage.getItem('oe_active_orgs')
-      return stored ? JSON.parse(stored) : []
+      if (!stored) return []
+      const parsed = JSON.parse(stored)
+      if (Array.isArray(parsed)) {
+        return parsed.filter(item => typeof item === 'string' && item.trim().length > 0)
+      }
+      return []
     } catch {
       return []
     }
@@ -59,7 +64,9 @@ export function AppProvider({ children }) {
   useEffect(() => {
     const handler = e => {
       setRateLimit(e.detail)
-      localStorage.setItem('oe_rate_limit', JSON.stringify(e.detail))
+      try {
+        localStorage.setItem('oe_rate_limit', JSON.stringify(e.detail))
+      } catch {}
     }
 
     window.addEventListener('rate-limit-update', handler)
@@ -73,7 +80,9 @@ export function AppProvider({ children }) {
     if (!rateLimit?.reset) return
 
     const timeout = setTimeout(() => {
-      localStorage.removeItem('oe_rate_limit')
+      try {
+        localStorage.removeItem('oe_rate_limit')
+      } catch {}
       setRateLimit(null)
     }, Math.max(0, rateLimit.reset * 1000 - Date.now()))
 
@@ -90,7 +99,9 @@ export function AppProvider({ children }) {
   }, [pat])
   const savePat = useCallback(token => {
     setPat(token)
-    token ? localStorage.setItem('oe_pat', token) : localStorage.removeItem('oe_pat')
+    try {
+      token ? localStorage.setItem('oe_pat', token) : localStorage.removeItem('oe_pat')
+    } catch {}
   }, [])
 
   // Multi-org explore
@@ -102,7 +113,9 @@ export function AppProvider({ children }) {
     setIssuesData({});
     setLastOrgNames(orgNames);
     if (orgNames?.length) {
-      localStorage.setItem('oe_active_orgs', JSON.stringify(orgNames))
+      try {
+        localStorage.setItem('oe_active_orgs', JSON.stringify(orgNames))
+      } catch {}
     }
     setAuditComplete(false);
     setAdvanceAnalyticsComplete(false);
@@ -144,10 +157,12 @@ export function AppProvider({ children }) {
 
       setIsComplete(!!pat)
 
-      // Save to recent searches
-      const prev = JSON.parse(localStorage.getItem('oe_recent') || '[]')
-      const entry = orgNames.join(', ')
-      localStorage.setItem('oe_recent', JSON.stringify([...new Set([entry, ...prev])].slice(0, 6)))
+      // Save to recent searches (best-effort)
+      try {
+        const prev = JSON.parse(localStorage.getItem('oe_recent') || '[]')
+        const entry = orgNames.join(', ')
+        localStorage.setItem('oe_recent', JSON.stringify([...new Set([entry, ...prev])].slice(0, 6)))
+      } catch {}
       return builtModel
     } catch (err) {
       setError(err.message === 'RATE_LIMIT'
