@@ -99,6 +99,12 @@ const getFullRepoFromUrl = (url) => {
   return parts.slice(-2).join('/')
 }
 
+const getOrgFromRepoUrl = (url) => {
+  if (!url) return ''
+  const parts = url.split('/')
+  return parts[parts.length - 2] || ''
+}
+
 export default function ContributorProfilePage() {
   const { username } = useParams()
   const navigate = useNavigate()
@@ -253,9 +259,7 @@ export default function ContributorProfilePage() {
 
       // Organization filter
       if (selectedOrg !== 'all') {
-        const repoParts = item.repository_url?.split('/') || []
-        const organization = repoParts[repoParts.length - 2]
-
+       const organization = getOrgFromRepoUrl(item.repository_url)
         if (organization !== selectedOrg) {
           return false
         }
@@ -287,8 +291,7 @@ export default function ContributorProfilePage() {
   const contributorOrgs = useMemo(() => {
     const orgSet = new Set()
     rawContributions.forEach(item => {
-      const repoParts = item.repository_url?.split('/') || []
-      const org = repoParts[repoParts.length - 2]
+     const org = getOrgFromRepoUrl(item.repository_url)
       if (org) orgSet.add(org)
     })
     return Array.from(orgSet)
