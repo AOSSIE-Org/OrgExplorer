@@ -99,6 +99,12 @@ const getFullRepoFromUrl = (url) => {
   return parts.slice(-2).join('/')
 }
 
+const getOrgFromRepoUrl = (url) => {
+  if (typeof url !== 'string') return ''
+  const match = url.match(/\/repos\/([^/]+)\/([^/]+)/)
+  return match ? match[1] : ''
+}
+
 export default function ContributorProfilePage() {
   const { username } = useParams()
   const navigate = useNavigate()
@@ -109,6 +115,7 @@ export default function ContributorProfilePage() {
   const [rawContributions, setRawContributions] = useState([])
   const [mergedPRKeys, setMergedPRKeys] = useState(new Set())
   const [tab, setTab] = useState('prs')
+  const [selectedOrg, setSelectedOrg] = useState('all')
 
   // Date Range Filters (Defaults to Last 1 Year)
   const [startDate, setStartDate] = useState(() => {
@@ -147,6 +154,7 @@ export default function ContributorProfilePage() {
     // Reset data states to prevent rendering stale profile info
     setRawContributions([])
     setMergedPRKeys(new Set())
+    setSelectedOrg('all')
 
     if (!username) {
       setLoading(false)
@@ -244,22 +252,50 @@ export default function ContributorProfilePage() {
       setEndDate('')
     }
   }
+  
 
-  // Filter contributions by UTC date range limits
   const filteredContribs = useMemo(() => {
     return rawContributions.filter(item => {
+
+      // Organization filter
+      if (selectedOrg !== 'all') {
+       const organization = getOrgFromRepoUrl(item.repository_url)
+        if (organization !== selectedOrg) {
+          return false
+        }
+      }
+
+      // Date filter
       const itemTime = new Date(item.created_at).getTime()
+
       if (startDate) {
         const startTime = Date.parse(startDate + 'T00:00:00.000Z')
-        if (isNaN(startTime) || itemTime < startTime) return false
+
+        if (isNaN(startTime) || itemTime < startTime) {
+          return false
+        }
       }
+
       if (endDate) {
         const endTime = Date.parse(endDate + 'T23:59:59.999Z')
-        if (isNaN(endTime) || itemTime > endTime) return false
+
+        if (isNaN(endTime) || itemTime > endTime) {
+          return false
+        }
       }
+
       return true
     })
-  }, [rawContributions, startDate, endDate])
+  }, [rawContributions, selectedOrg, startDate, endDate])
+
+  const contributorOrgs = useMemo(() => {
+    const orgSet = new Set()
+    rawContributions.forEach(item => {
+     const org = getOrgFromRepoUrl(item.repository_url)
+      if (org) orgSet.add(org)
+    })
+    return Array.from(orgSet)
+  }, [rawContributions])
 
   // Categorize contributions (Precomputes pulls calculations outside loop)
   const { prs, issues } = useMemo(() => {
@@ -305,18 +341,18 @@ export default function ContributorProfilePage() {
   // Time-series charting data (Chronological sorting by YYYY-MM)
   const chartData = useMemo(() => {
     const monthlyBuckets = {}
-    
+
     filteredContribs.forEach(item => {
       const date = new Date(item.created_at)
       const year = date.getFullYear()
       const month = String(date.getMonth() + 1).padStart(2, '0')
       const yyyymm = `${year}-${month}`
       const displayName = date.toLocaleString('default', { month: 'short', year: '2-digit' }) // e.g. "May 26"
-      
+
       if (!monthlyBuckets[yyyymm]) {
         monthlyBuckets[yyyymm] = { yyyymm, name: displayName, PRs: 0, Issues: 0 }
       }
-      
+
       if (item.pull_request) {
         monthlyBuckets[yyyymm].PRs++
       } else {
@@ -330,7 +366,7 @@ export default function ContributorProfilePage() {
   // Export to Markdown Report with pipe & newline escaping
   const exportMarkdown = () => {
     const dateStr = new Date().toLocaleDateString()
-    const orgsStr = searchOrgs.join(', ')
+    const orgsStr = selectedOrg === 'all' ? searchOrgs.join(', ') : selectedOrg
     const dateRangeStr = (startDate || 'Beginning') + ' to ' + (endDate || 'Present')
 
     let md = `# Contribution Report: ${username}\n\n`
@@ -463,6 +499,26 @@ export default function ContributorProfilePage() {
         </div>
 
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+
+          {contributorOrgs.length > 1 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label htmlFor="organization-filter" style={{ fontSize: 11, color: 'var(--text2)', fontWeight: 500 }}>
+                ORGANIZATION
+              </label>
+              <select
+                id="organization-filter"
+                value={selectedOrg}
+                onChange={e => setSelectedOrg(e.target.value)}
+                style={C.input}
+              >
+                <option value="all">All Organizations</option>
+                {contributorOrgs.map(org => (
+                  <option key={org} value={org}>{org}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <label htmlFor="start-date-input" style={{ fontSize: 11, color: 'var(--text2)', fontWeight: 500 }}>START DATE</label>
             <input
@@ -492,9 +548,9 @@ export default function ContributorProfilePage() {
         <StatCard label="Total Contributions" value={filteredContribs.length} sub="Filtered timeframe" />
         <StatCard label="Pull Requests" value={prs.length} sub={`${prs.filter(p => p.isMerged).length} Merged`} accent="var(--blue)" />
         <StatCard label="Issues Opened" value={issues.length} sub={`${issues.filter(i => i.state === 'closed').length} Closed`} accent="var(--amber)" />
-        <StatCard 
-          label="Active Repositories" 
-          value={new Set(filteredContribs.map(i => i.repository_url?.split('/').pop())).size} 
+        <StatCard
+          label="Active Repositories"
+          value={new Set(filteredContribs.map(i => i.repository_url?.split('/').pop())).size}
           sub="distinct repositories"
           accent="var(--green)"
         />
