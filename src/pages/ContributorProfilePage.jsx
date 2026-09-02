@@ -100,9 +100,9 @@ const getFullRepoFromUrl = (url) => {
 }
 
 const getOrgFromRepoUrl = (url) => {
-  if (!url) return ''
-  const parts = url.split('/')
-  return parts[parts.length - 2] || ''
+  if (typeof url !== 'string') return ''
+  const match = url.match(/\/repos\/([^/]+)\/([^/]+)/)
+  return match ? match[1] : ''
 }
 
 export default function ContributorProfilePage() {
