@@ -4,14 +4,18 @@ import { FiArrowLeft, FiDownload, FiExternalLink, FiCalendar, FiBriefcase, FiAle
 import { useApp } from '../context/AppContext'
 import { C, PageTitle, Spinner, StatCard } from '../components/UI'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import {
+  isInvalidReportingRange,
+  INVALID_REPORTING_RANGE_MESSAGE,
+} from '../utils/reportingDateRange'
 
 // Reusable ContributionTable component
-function ContributionTable({ items, dateHeader, resolveStatus }) {
+function ContributionTable({ items, dateHeader, resolveStatus, emptyMessage }) {
   if (!items.length) {
     return (
       <div style={{ padding: '40px 24px', textAlign: 'center', color: 'var(--text2)' }}>
         <FiBriefcase size={28} style={{ marginBottom: 12, opacity: 0.5 }} />
-        <div>No items found for this reporting period.</div>
+        <div>{emptyMessage || 'No items found for this reporting period.'}</div>
       </div>
     )
   }
@@ -245,8 +249,11 @@ export default function ContributorProfilePage() {
     }
   }
 
-  // Filter contributions by UTC date range limits
+  const invalidDateRange = isInvalidReportingRange(startDate, endDate)
+
+  // Filter contributions by UTC date range limits (skip when range is invalid)
   const filteredContribs = useMemo(() => {
+    if (isInvalidReportingRange(startDate, endDate)) return []
     return rawContributions.filter(item => {
       const itemTime = new Date(item.created_at).getTime()
       if (startDate) {
@@ -424,7 +431,7 @@ export default function ContributorProfilePage() {
         right={
           <button
             onClick={exportMarkdown}
-            disabled={!filteredContribs.length}
+            disabled={!filteredContribs.length || invalidDateRange}
             style={{ ...C.btn('primary'), display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}
           >
             <FiDownload size={13} /> Export Contribution Report (.md)
@@ -469,8 +476,10 @@ export default function ContributorProfilePage() {
               id="start-date-input"
               type="date"
               value={startDate}
+              max={endDate || undefined}
               onChange={e => setStartDate(e.target.value)}
               style={C.input}
+              aria-invalid={invalidDateRange}
             />
           </div>
           <span style={{ color: 'var(--text2)', marginTop: 18 }}>to</span>
@@ -480,22 +489,62 @@ export default function ContributorProfilePage() {
               id="end-date-input"
               type="date"
               value={endDate}
+              min={startDate || undefined}
               onChange={e => setEndDate(e.target.value)}
               style={C.input}
+              aria-invalid={invalidDateRange}
             />
           </div>
         </div>
+        {invalidDateRange && (
+          <div
+            role="alert"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              marginTop: 14,
+              padding: '10px 12px',
+              borderRadius: 8,
+              border: '1px solid var(--red)',
+              background: 'rgba(239,68,68,.05)',
+            }}
+          >
+            <FiAlertTriangle color="var(--red)" size={16} />
+            <span style={{ fontSize: 13, color: 'var(--red)', fontWeight: 500 }}>
+              {INVALID_REPORTING_RANGE_MESSAGE}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Key Metrics Stats Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 24 }}>
-        <StatCard label="Total Contributions" value={filteredContribs.length} sub="Filtered timeframe" />
-        <StatCard label="Pull Requests" value={prs.length} sub={`${prs.filter(p => p.isMerged).length} Merged`} accent="var(--blue)" />
-        <StatCard label="Issues Opened" value={issues.length} sub={`${issues.filter(i => i.state === 'closed').length} Closed`} accent="var(--amber)" />
-        <StatCard 
-          label="Active Repositories" 
-          value={new Set(filteredContribs.map(i => i.repository_url?.split('/').pop())).size} 
-          sub="distinct repositories"
+        <StatCard
+          label="Total Contributions"
+          value={invalidDateRange ? '—' : filteredContribs.length}
+          sub={invalidDateRange ? 'Fix date range to view metrics' : 'Filtered timeframe'}
+        />
+        <StatCard
+          label="Pull Requests"
+          value={invalidDateRange ? '—' : prs.length}
+          sub={invalidDateRange ? '—' : `${prs.filter(p => p.isMerged).length} Merged`}
+          accent="var(--blue)"
+        />
+        <StatCard
+          label="Issues Opened"
+          value={invalidDateRange ? '—' : issues.length}
+          sub={invalidDateRange ? '—' : `${issues.filter(i => i.state === 'closed').length} Closed`}
+          accent="var(--amber)"
+        />
+        <StatCard
+          label="Active Repositories"
+          value={
+            invalidDateRange
+              ? '—'
+              : new Set(filteredContribs.map(i => i.repository_url?.split('/').pop())).size
+          }
+          sub={invalidDateRange ? '—' : 'distinct repositories'}
           accent="var(--green)"
         />
       </div>
@@ -569,6 +618,11 @@ export default function ContributorProfilePage() {
           <ContributionTable
             items={prs}
             dateHeader="SUBMITTED ON"
+            emptyMessage={
+              invalidDateRange
+                ? INVALID_REPORTING_RANGE_MESSAGE
+                : 'No items found for this reporting period.'
+            }
             resolveStatus={(p) => {
               const status = p.state === 'open' ? 'Open' : p.isMerged ? 'Merged' : 'Closed'
               const color = status === 'Merged' ? 'var(--green)' : status === 'Open' ? 'var(--blue)' : 'var(--text2)'
@@ -580,6 +634,11 @@ export default function ContributorProfilePage() {
           <ContributionTable
             items={issues}
             dateHeader="CREATED ON"
+            emptyMessage={
+              invalidDateRange
+                ? INVALID_REPORTING_RANGE_MESSAGE
+                : 'No items found for this reporting period.'
+            }
             resolveStatus={(i) => {
               const status = i.state === 'open' ? 'Open' : 'Closed'
               const color = status === 'Open' ? 'var(--blue)' : 'var(--text2)'
