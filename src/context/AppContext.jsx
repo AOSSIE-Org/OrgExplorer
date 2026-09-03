@@ -148,7 +148,7 @@ export function AppProvider({ children }) {
     try {
       setLoadMsg('Fetching organization metadata...')
       const orgRes = await Promise.allSettled(orgNames.map(n => fetchOrg(n, pat)))
-      const validOrgs = orgRes.filter(r => r.status === 'fulfilled').map(r => r.value)
+      const validOrgs = orgRes.filter(r => r.status === 'fulfilled' && r.value).map(r => r.value)
       if (!validOrgs.length) throw new Error('No valid organizations found. Check the names and try again.')
       setOrgs(validOrgs)
 
