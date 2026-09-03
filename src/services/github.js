@@ -16,13 +16,27 @@ export async function cacheGet(key) {
   try {
     const db = await openDB()
     return new Promise(res => {
-      const req = db.transaction(STORE, 'readonly').objectStore(STORE).get(key)
+      const tx = db.transaction(STORE, 'readonly')
+      const req = tx.objectStore(STORE).get(key)
+      let value = null
       req.onsuccess = () => {
         const r = req.result
-        if (!r || Date.now() - r.ts > TTL_MS) return res(null)
-        res(r.v)
+        if (r && Date.now() - r.ts <= TTL_MS) {
+          value = r.v
+        }
       }
-      req.onerror = () => res(null)
+      tx.oncomplete = () => {
+        db.close()
+        res(value)
+      }
+      tx.onerror = () => {
+        db.close()
+        res(null)
+      }
+      tx.onabort = () => {
+        db.close()
+        res(null)
+      }
     })
   } catch { return null }
 }
@@ -33,8 +47,18 @@ export async function cacheSet(key, value) {
     return new Promise(res => {
       const tx = db.transaction(STORE, 'readwrite')
       tx.objectStore(STORE).put({ k: key, v: value, ts: Date.now() })
-      tx.oncomplete = () => res(true)
-      tx.onerror = () => res(false)
+      tx.oncomplete = () => {
+        db.close()
+        res(true)
+      }
+      tx.onerror = () => {
+        db.close()
+        res(false)
+      }
+      tx.onabort = () => {
+        db.close()
+        res(false)
+      }
     })
   } catch { return false }
 }
@@ -45,8 +69,18 @@ export async function cacheClear() {
     return new Promise(res => {
       const tx = db.transaction(STORE, 'readwrite')
       tx.objectStore(STORE).clear()
-      tx.oncomplete = () => res(true)
-      tx.onerror = () => res(false)
+      tx.oncomplete = () => {
+        db.close()
+        res(true)
+      }
+      tx.onerror = () => {
+        db.close()
+        res(false)
+      }
+      tx.onabort = () => {
+        db.close()
+        res(false)
+      }
     })
   } catch { return false }
 }
