@@ -8,14 +8,18 @@ import { AiOutlineInfoCircle } from "react-icons/ai";
 import AnalysisBanner from '../components/AnalysisBanner'
 import { OverviewSkeleton } from '../components/Orgexplorerskeletons'
 import {formatNumber} from '../utils/formatNumber'
+import { useTheme } from '../context/ThemeContext'
 
 const LANG_COLORS = ['#22c55e', '#f5c518', '#3b82f6', '#ef4444', '#a855f7', '#f97316', '#06b6d4']
 const fmt = n => n > 999 ? (n / 1000).toFixed(1) + 'k' : String(n)
 
 export default function OverviewPage() {
   const { orgs, model, totalRepo, isComplete, loading, runFullExplore } = useApp()
+  const { theme } = useTheme()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
+  const [orgFilter, setOrgFilter] = useState('All Organizations')
+  const [showAllOrgs, setShowAllOrgs] = useState(false)
   const infoRef = useRef(null)
 
   useEffect(() => {
@@ -30,34 +34,60 @@ export default function OverviewPage() {
     }
   }, [])
 
+  useEffect(() => {
+    setOrgFilter('All Organizations')
+  }, [orgs])
+
   if(loading) return <OverviewSkeleton />
   if (!model) return null
 
   const { totalRepos } = model
   const isMulti = orgs.length > 1
-  const totalStars = totalRepos.reduce((s, r) => s + r.stargazers_count, 0)
-  const totalForks = totalRepos.reduce((s, r) => s + r.forks_count, 0)
-  const activeRepos = totalRepos.filter(r => r.activityClassification === 'Thriving' || r.activityClassification === 'Active').length
+
+  const filteredRepos = orgFilter === 'All Organizations'
+    ? totalRepos
+    : totalRepos.filter(r => r.orgLogin === orgFilter)
+
+  const totalStars = filteredRepos.reduce((s, r) => s + r.stargazers_count, 0)
+  const totalForks = filteredRepos.reduce((s, r) => s + r.forks_count, 0)
+  const activeRepos = filteredRepos.filter(r => r.activityClassification === 'Thriving' || r.activityClassification === 'Active').length
 
   const langMap = {}
-  totalRepos.forEach(r => { if (r.language) langMap[r.language] = (langMap[r.language] || 0) + 1 })
+  filteredRepos.forEach(r => { if (r.language) langMap[r.language] = (langMap[r.language] || 0) + 1 })
   const langs = Object.entries(langMap).sort((a, b) => b[1] - a[1]).slice(0, 7)
   const langTotal = langs.reduce((s, [, c]) => s + c, 0)
 
-  const topRepos = [...totalRepos].sort((a, b) => b.healthScore - a.healthScore).slice(0, 5)
+  const topRepos = [...filteredRepos].sort((a, b) => b.healthScore - a.healthScore).slice(0, 5)
+
+ 
+
 
   const NavCard = ({ to, label, sub }) => (
     <div
-      onClick={() => navigate(to)}
-      onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent)'}
-      onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}
-      style={{ ...C.card, cursor: 'pointer', transition: 'border-color .2s' }}
-    >
-      <div style={{ fontWeight: 600, marginBottom: 4, fontSize: 14 }}>{label}</div>
-      <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 12, minHeight: 32 }}>{sub}</div>
-      <span style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
-        View {label} <FiArrowRight size={12} />
-      </span>
+      onMouseEnter={e => {
+        e.currentTarget.style.borderColor = 'var(--accent)'
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.borderColor = 'var(--border)'
+      }}
+      style={{...C.card,transition: 'border-color .2s' }} >
+      <div
+        style={{ fontWeight: 600,marginBottom: 4, fontSize: 14 }} >
+        {label}
+      </div>
+
+      <div
+        style={{fontSize: 12, color: 'var(--text2)', marginBottom: 12, minHeight: 32 }}>
+        {sub}
+      </div>
+
+      <button
+        type="button"
+        onClick={() => navigate(to)}
+        style={{ ...C.btn('primary'), display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+        View {label}
+        <FiArrowRight size={12} />
+      </button>
     </div>
   )
 
@@ -71,15 +101,57 @@ export default function OverviewPage() {
         loading={loading}
         onRun={runFullExplore}
       />
-
       {/* Org identity bar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 28 }}>
         {isMulti ? (
-          <div style={{ display: 'flex' }}>
-            {orgs.slice(0, 3).map((o, i) => o.avatar_url && (
-              <img key={o.login} src={o.avatar_url} alt={o.login}
-                style={{ width: 36, height: 36, borderRadius: '50%', border: '2px solid var(--bg)', marginLeft: i ? -10 : 0 }} />
+          <div
+            style={{ display: 'flex', alignItems: 'center', cursor: orgs.length > 3 ? 'pointer' : 'default' }}
+            onMouseEnter={() => orgs.length > 3 && setShowAllOrgs(true)}
+            onMouseLeave={() => setShowAllOrgs(false)}
+          >
+            {orgs.map((o, i) => o.avatar_url && (
+              <div
+                key={o.login}
+                style={{
+                  width: (showAllOrgs || i < 3) ? 36 : 0,
+                  height: 36,
+                  overflow: 'hidden',
+                  borderRadius: '50%',
+                  marginLeft: i ? -10 : 0,
+                  transition: 'width 0.25s ease',
+                  flexShrink: 0,
+                }}
+              >
+                <img
+                  src={o.avatar_url}
+                  alt={o.login}
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: '50%',
+                    border: '2px solid var(--bg)',
+                  }}
+                />
+              </div>
             ))}
+            <div style={{
+              width: (!showAllOrgs && orgs.length > 3) ? 36 : 0,
+              height: 36,
+              overflow: 'hidden',
+              borderRadius: '50%',
+              marginLeft: 4,
+              transition: 'width 0.25s ease',
+              flexShrink: 0,
+            }}>
+              <div style={{
+                width: 36, height: 36, borderRadius: '50%',
+                background: 'var(--surface2)', border: '2px solid var(--bg)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 11, fontWeight: 600, color: 'var(--text2)',
+              }}>
+                +{orgs.length - 3}
+              </div>
+            </div>
           </div>
         ) : (
           orgs[0]?.avatar_url && (
@@ -104,20 +176,41 @@ export default function OverviewPage() {
             </a>
           )}
           <SocialShareButton 
-            theme="dark" 
-            buttonStyle="ghost" 
+            theme={theme}
+           buttonStyle={theme === 'dark' ? 'default' : 'light'}
             title={isMulti ? `OrgExplorer: ${orgs.map(o => o.login).join(' + ')}` : `OrgExplorer: ${orgs[0]?.name || orgs[0]?.login}`}
             description={isMulti ? `${orgs.length} organizations — combined portfolio view` : (orgs[0]?.description || `@${orgs[0]?.login}`)}
           />
         </div>
       </div>
+      {/* Org filter for stats */}
+      {isMulti && (
+        <div style={{ marginBottom: 16 }}>
+          <select
+            value={orgFilter}
+            onChange={e => setOrgFilter(e.target.value)}
+            style={C.select}
+            aria-label="Filter stats by organization"
+          >
+            <option>All Organizations</option>
+            {orgs.map(o => <option key={o.login}>{o.login}</option>)}
+          </select>
+        </div>
+      )}
 
       {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 24 }}>
-        <StatCard label="Total Repos" value={formatNumber(totalRepo)} />
+        <StatCard label="Total Repos" value={formatNumber(orgFilter === 'All Organizations' ? totalRepo : filteredRepos.length)} />
         <StatCard label="Total Stars" value={formatNumber(totalStars)} />
         <StatCard label="Total Forks" value={formatNumber(totalForks)} />
-        <StatCard label="Active Repos" value={formatNumber(activeRepos)} sub={`${Math.round(activeRepos / totalRepo * 100)}% of total`} />
+        <StatCard
+          label="Active Repos"
+          value={formatNumber(activeRepos)}
+          sub={`${(() => {
+            const total = orgFilter === 'All Organizations' ? totalRepo : filteredRepos.length
+            return total > 0 ? Math.round(activeRepos / total * 100) : 0
+          })()}% of total`}
+        />
       </div>
 
       {/* Language + top repos */}
@@ -150,8 +243,8 @@ export default function OverviewPage() {
             <p>High Impact Repositories</p>
 
             <button
-              onMouseEnter={()=>setOpen(true)}
-              onMouseLeave={()=>setOpen(false)}
+              onMouseEnter={() => setOpen(true)}
+              onMouseLeave={() => setOpen(false)}
               className="p-3 rounded-full hover:bg-(--bg) transition"
             >
               <AiOutlineInfoCircle className="text-(--text) cursor-pointer" />

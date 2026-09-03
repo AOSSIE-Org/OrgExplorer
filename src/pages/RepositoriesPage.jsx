@@ -18,6 +18,7 @@ export default function RepositoriesPage() {
   const [search, setSearch] = useState('')
   const [activityClassification, setActivityClassification] = useState('All')
   const [lang, setLang] = useState('All Languages')
+  const [orgFilter, setOrgFilter] = useState('All Organizations')
   const [shown, setShown] = useState(20)
   const [openInfo, setOpenInfo] = useState(false)
   const infoRef = useRef(null)
@@ -44,12 +45,22 @@ export default function RepositoriesPage() {
     ['All Languages', ...new Set(allRepos.map(r => r.language).filter(Boolean))].slice(0, 10),
     [allRepos])
 
+  const orgList = useMemo(() =>
+    ['All Organizations', ...new Set(allRepos.map(r => r.orgLogin).filter(Boolean))],
+    [allRepos])
+
+  useEffect(() => {
+    setOrgFilter('All Organizations')
+    setShown(20)
+  }, [orgList])
+
   const filtered = useMemo(() => allRepos.filter(r =>
     (activityClassification === 'All' || r.activityClassification === activityClassification) &&
     (lang === 'All Languages' || r.language === lang) &&
+    (orgFilter === 'All Organizations' || r.orgLogin === orgFilter) &&
     (!search || r.name.toLowerCase().includes(search.toLowerCase()) ||
       (r.description || '').toLowerCase().includes(search.toLowerCase()))
-  ), [allRepos, activityClassification, lang, search])
+  ), [allRepos, activityClassification, lang, orgFilter, search])
 
   const { sorted, sortConfig, onSort } = useSortedData(filtered, 'healthScore', 'desc')
   const visible = sorted.slice(0, shown)
@@ -168,6 +179,16 @@ export default function RepositoriesPage() {
             placeholder="Filter by repository name or description..."
             style={{ ...C.input, flex: 1, minWidth: 200 }}
           />
+          {orgList.length > 2 && (
+            <select
+              value={orgFilter}
+              onChange={e => { setOrgFilter(e.target.value); setShown(20) }}
+              style={C.select}
+              aria-label="Filter by organization"
+            >
+              {orgList.map(o => <option key={o}>{o}</option>)}
+            </select>
+          )}
           <select value={lang} onChange={e => setLang(e.target.value)} style={C.select}>
             {langs.map(l => <option key={l}>{l}</option>)}
           </select>
