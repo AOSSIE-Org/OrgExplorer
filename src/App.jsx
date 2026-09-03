@@ -15,6 +15,8 @@ import GovernancePage  from './pages/GovernancePage'
 import SettingsPage    from './pages/SettingsPage'
 import Footer from './components/layout/Footer'
 import Support from './pages/Support'
+import BackToTop from './components/layout/BackToTop'
+
 import RequireAnalysis from './components/RequireAnalysis'
 
 function Layout({ children }) {
@@ -23,6 +25,7 @@ function Layout({ children }) {
       <Navbar />
       <RateLimitBanner />
       <main style={{ flex: 1 }}>{children}</main>
+      <BackToTop />
       <Footer />
     </div>
   )
