@@ -64,16 +64,30 @@ export default function OverviewPage() {
 
   const NavCard = ({ to, label, sub }) => (
     <div
-      onClick={() => navigate(to)}
-      onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent)'}
-      onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}
-      style={{ ...C.card, cursor: 'pointer', transition: 'border-color .2s' }}
-    >
-      <div style={{ fontWeight: 600, marginBottom: 4, fontSize: 14 }}>{label}</div>
-      <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 12, minHeight: 32 }}>{sub}</div>
-      <span style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
-        View {label} <FiArrowRight size={12} />
-      </span>
+      onMouseEnter={e => {
+        e.currentTarget.style.borderColor = 'var(--accent)'
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.borderColor = 'var(--border)'
+      }}
+      style={{...C.card,transition: 'border-color .2s' }} >
+      <div
+        style={{ fontWeight: 600,marginBottom: 4, fontSize: 14 }} >
+        {label}
+      </div>
+
+      <div
+        style={{fontSize: 12, color: 'var(--text2)', marginBottom: 12, minHeight: 32 }}>
+        {sub}
+      </div>
+
+      <button
+        type="button"
+        onClick={() => navigate(to)}
+        style={{ ...C.btn('primary'), display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+        View {label}
+        <FiArrowRight size={12} />
+      </button>
     </div>
   )
 
@@ -229,8 +243,8 @@ export default function OverviewPage() {
             <p>High Impact Repositories</p>
 
             <button
-              onMouseEnter={()=>setOpen(true)}
-              onMouseLeave={()=>setOpen(false)}
+              onMouseEnter={() => setOpen(true)}
+              onMouseLeave={() => setOpen(false)}
               className="p-3 rounded-full hover:bg-(--bg) transition"
             >
               <AiOutlineInfoCircle className="text-(--text) cursor-pointer" />
