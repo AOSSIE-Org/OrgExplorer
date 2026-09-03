@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef } from 'react'
-import { fetchOrg, fetchRepos, fetchContributors, fetchIssues, fetchRateLimit, fetchPulls } from '../services/github'
+import { fetchOrg, fetchRepos, fetchContributors, fetchIssues, fetchRateLimit, fetchPulls, fetchCommunityProfile, fetchIssueTemplatesDirectory, fetchPRTemplatesDirectory } from '../services/github'
 import { buildAnalyticalModel, getTopRepositories } from '../services/analytics'
 import { saveAnalysis, loadAnalysis } from '../services/cache'
 
@@ -30,6 +30,7 @@ export function AppProvider({ children }) {
   const [orgs, setOrgs] = useState([])
   const [model, setModel] = useState(null)
   const [issuesData, setIssuesData] = useState({})
+  const [communityData, setCommunityData] = useState({})
   const [pullsData, setPullsData] = useState({})
   const [rateLimit, setRateLimit] = useState(getStoredRateLimit)
   const [loading, setLoading] = useState(false)
@@ -67,6 +68,7 @@ export function AppProvider({ children }) {
         setIsComplete(!!cached.isComplete)
         setLastOrgNames(cached.lastOrgNames || [])
         setIssuesData(cached.issuesData || {})
+        setCommunityData(cached.communityData || {})
         setPullsData(cached.pullsData || {})
         setAuditComplete(!!cached.auditComplete)
         setAdvanceAnalyticsComplete(!!cached.advanceAnalyticsComplete)
@@ -91,11 +93,11 @@ export function AppProvider({ children }) {
 
     saveAnalysis({
       orgs, model, totalRepo, isComplete, lastOrgNames,
-      issuesData, pullsData, auditComplete, advanceAnalyticsComplete
+      issuesData, communityData, pullsData, auditComplete, advanceAnalyticsComplete
     })
   }, [
     hydrating, orgs, model, totalRepo, isComplete, lastOrgNames,
-    issuesData, pullsData, auditComplete, advanceAnalyticsComplete
+    issuesData, communityData, pullsData, auditComplete, advanceAnalyticsComplete
   ])
 
   useEffect(() => {
@@ -142,6 +144,7 @@ export function AppProvider({ children }) {
     setModel(null);
     setOrgs([]);
     setIssuesData({});
+    setCommunityData({});
     setLastOrgNames(orgNames);
     setAuditComplete(false);
     setAdvanceAnalyticsComplete(false);
@@ -219,22 +222,55 @@ export function AppProvider({ children }) {
   const auditRepos = useCallback(async (allRepos) => {
     const repos = selectAnalysisRepos(allRepos)
 
-    const map = {}
+    const issuesMap = {}
+    const communityMap = {}
     for (let i = 0; i < repos.length; i += 5) {
       const batch = repos.slice(i, i + 5)
       await Promise.allSettled(batch.map(async repo => {
-        map[`${repo.orgLogin}/${repo.name}`] = await fetchIssues(repo.orgLogin, repo.name, pat)
+        const key = `${repo.orgLogin}/${repo.name}`
+        const [issuesResult, profileResult] = await Promise.allSettled([
+          fetchIssues(repo.orgLogin, repo.name, pat),
+          fetchCommunityProfile(repo.orgLogin, repo.name, pat)
+        ])
+        issuesMap[key] = issuesResult.status === 'fulfilled' ? issuesResult.value : []
+        const profile = profileResult.status === 'fulfilled' ? profileResult.value : { error: true }
+
+        if (profile && !profile.error && profile.files) {
+          if (!profile.files.issue_template) {
+            try {
+              const templates = await fetchIssueTemplatesDirectory(repo.orgLogin, repo.name, pat)
+              if (templates && Array.isArray(templates) && templates.length > 0) {
+                profile.files.issue_template = {
+                  html_url: `https://github.com/${repo.orgLogin}/${repo.name}/tree/${repo.default_branch || 'main'}/.github/ISSUE_TEMPLATE`
+                }
+              }
+            } catch (e) {}
+          }
+          if (!profile.files.pull_request_template) {
+            try {
+              const prTemplates = await fetchPRTemplatesDirectory(repo.orgLogin, repo.name, pat)
+              if (prTemplates && Array.isArray(prTemplates) && prTemplates.length > 0) {
+                profile.files.pull_request_template = {
+                  html_url: `https://github.com/${repo.orgLogin}/${repo.name}/tree/${repo.default_branch || 'main'}/.github/PULL_REQUEST_TEMPLATE`
+                }
+              }
+            } catch (e) {}
+          }
+        }
+
+        communityMap[key] = profile
       }))
     }
-    return map
+    return { issuesMap, communityMap }
   }, [pat, selectAnalysisRepos])
 
   // Governance audit : used directly when repos are already complete
   const runAudit = useCallback(async () => {
     if (!model || govLoading) return
     setGovLoading(true)
-    const map = await auditRepos(model.allRepos)
-    setIssuesData(map)
+    const { issuesMap, communityMap } = await auditRepos(model.allRepos)
+    setIssuesData(issuesMap)
+    setCommunityData(communityMap)
     setGovLoading(false)
     setAuditComplete(!!pat)
   }, [model, pat, govLoading, auditRepos])
@@ -259,8 +295,9 @@ export function AppProvider({ children }) {
     if (!currentModel) return
 
     setGovLoading(true)
-    const map = await auditRepos(currentModel.allRepos)
-    setIssuesData(map)
+    const { issuesMap, communityMap } = await auditRepos(currentModel.allRepos)
+    setIssuesData(issuesMap)
+    setCommunityData(communityMap)
     setGovLoading(false)
     setAuditComplete(!!pat)
   }, [isComplete, model, runFullExplore, auditRepos, pat, govLoading])
@@ -320,7 +357,7 @@ export function AppProvider({ children }) {
     setGovLoading(true)
     setAdvanceAnalyticsLoading(true)
 
-    const [issuesMap, pullsMap] = await Promise.all([
+    const [{ issuesMap, communityMap }, pullsMap] = await Promise.all([
       auditRepos(currentModel.allRepos),
       (async () => {
         const repos = selectAnalysisRepos(currentModel.totalRepos)
@@ -336,6 +373,7 @@ export function AppProvider({ children }) {
     ])
 
     setIssuesData(issuesMap)
+    setCommunityData(communityMap)
     setPullsData(pullsMap)
     setGovLoading(false)
     setAdvanceAnalyticsLoading(false)
@@ -379,7 +417,7 @@ export function AppProvider({ children }) {
 
   return (
     <Ctx.Provider value={{
-      pat, savePat, orgs, model, issuesData, pullsData,
+      pat, savePat, orgs, model, issuesData, pullsData, communityData,
       rateLimit, loading, loadMsg, govLoading, error, totalRepo,
       runAdvanceAnalytics, refreshRateLimit, advanceAnalyticsLoading, advanceAnalyticsComplete,
       runFullAnalytics,
