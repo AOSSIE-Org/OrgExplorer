@@ -108,7 +108,7 @@ const getOrgFromRepoUrl = (url) => {
 export default function ContributorProfilePage() {
   const { username } = useParams()
   const navigate = useNavigate()
-  const { orgs, pat, pullsData } = useApp()
+  const { orgs, pat, pullsData, model } = useApp()
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -116,6 +116,12 @@ export default function ContributorProfilePage() {
   const [mergedPRKeys, setMergedPRKeys] = useState(new Set())
   const [tab, setTab] = useState('prs')
   const [selectedOrg, setSelectedOrg] = useState('all')
+
+
+  const contributor = useMemo(
+    () => model?.contributors?.find(c => c.login === username),
+    [model, username]
+  )
 
   // Date Range Filters (Defaults to Last 1 Year)
   const [startDate, setStartDate] = useState(() => {
@@ -455,7 +461,23 @@ export default function ContributorProfilePage() {
       </div>
 
       <PageTitle
-        title={`Contributor Profile: @${username}`}
+        title={
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+            {contributor?.avatar_url && (
+              <img
+                src={contributor.avatar_url}
+                alt=""
+                style={{
+                  width: 50,
+                  height: 50,
+                  borderRadius: '50%',
+                  objectFit: 'cover',
+                }}
+              />
+            )}
+            <span>@{username}</span>
+          </span>
+        }
         subtitle={`Analyzing contributions across ${searchOrgs.join(', ')}`}
         right={
           <button
