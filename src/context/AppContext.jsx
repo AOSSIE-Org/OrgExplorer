@@ -68,6 +68,7 @@ export function AppProvider({ children }) {
         setIsComplete(!!cached.isComplete)
         setLastOrgNames(cached.lastOrgNames || [])
         setIssuesData(cached.issuesData || {})
+        setCommunityData(cached.communityData || {})
         setPullsData(cached.pullsData || {})
         setAuditComplete(!!cached.auditComplete)
         setAdvanceAnalyticsComplete(!!cached.advanceAnalyticsComplete)
@@ -92,11 +93,11 @@ export function AppProvider({ children }) {
 
     saveAnalysis({
       orgs, model, totalRepo, isComplete, lastOrgNames,
-      issuesData, pullsData, auditComplete, advanceAnalyticsComplete
+      issuesData, communityData, pullsData, auditComplete, advanceAnalyticsComplete
     })
   }, [
     hydrating, orgs, model, totalRepo, isComplete, lastOrgNames,
-    issuesData, pullsData, auditComplete, advanceAnalyticsComplete
+    issuesData, communityData, pullsData, auditComplete, advanceAnalyticsComplete
   ])
 
   useEffect(() => {
