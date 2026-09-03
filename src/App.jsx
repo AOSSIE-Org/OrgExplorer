@@ -38,7 +38,7 @@ class ErrorBoundary extends Component {
       return (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '64px 16px', textAlign: 'center' }}>
           <h3>Unable to load page</h3>
-          <p style={{ color: 'var(--text2)', marginBottom: '16px' }}>A network error occurred while loading this section.</p>
+          <p style={{ color: 'var(--text2)', marginBottom: '16px' }}>An error occurred while loading this page.</p>
           <button className="btn btn-primary" onClick={() => window.location.reload()}>
             Reload Page
           </button>
