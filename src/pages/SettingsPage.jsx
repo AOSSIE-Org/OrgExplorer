@@ -81,7 +81,7 @@ export default function SettingsPage() {
     <div style={{ padding: '32px 24px', maxWidth: 1100, margin: '0 auto' }} className="fade-up">
       <h1 style={{ fontSize: 26, fontWeight: 700, marginBottom: 24 }}>Settings</h1>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
         {/* Left column */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -201,7 +201,7 @@ export default function SettingsPage() {
           {/* How to create a PAT */}
           <div style={C.card}>
             <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 14 }}>How to create a PAT</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {[
                 ['01', 'Go to GitHub Settings → Developer settings → Personal access tokens'],
                 ['02', 'Click "Generate new token" and choose "Fine-grained token"'],
