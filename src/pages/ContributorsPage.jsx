@@ -84,6 +84,7 @@ export default function ContributorsPage() {
 
   const { sorted, sortConfig, onSort } = useSortedData(filtered, 'totalContribs', 'desc')
   const visible = sorted.slice(0, shown)
+  const showNoSearchResults = search.trim() && filtered.length === 0 
 
   if(loading) return <ContributorSkeleton />
   if (!model) return null
