@@ -81,3 +81,123 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .navbar-link:hover {
   color: var(--accent) !important;
 }
+
+/* Yeh classes missing hain - add karni hain */
+
+.navbar-desktop-links {
+  display: flex;
+  gap: 2px;
+  flex: 1;
+  overflow-x: auto;
+}
+
+.navbar-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-shrink: 0;
+}
+
+.navbar-menu-button {
+  display: none; /* Hide by default, show on mobile */
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 6px;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.navbar-mobile-menu {
+  display: none; /* Hidden by default, shown via JS */
+}
+
+.navbar-mobile-link {
+  display: block;
+  color: var(--text2);
+  text-decoration: none;
+}
+
+.navbar-mobile-link:hover {
+  color: var(--accent);
+  background: var(--surface);
+}
+
+/* === RESPONSIVE NAVBAR - Add at the end === */
+
+@media (max-width: 690px) {
+  .navbar-desktop-links {
+    display: none;
+  }
+
+  .navbar-menu-button {
+    display: flex;
+    flex-shrink: 0;
+  }
+
+  .navbar-mobile-menu {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 56px;
+    left: 0;
+    right: 0;
+    z-index: 99;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 24px;
+    gap: 8px;
+  }
+}
+@media (max-width: 480px) {
+  .navbar-right {
+    gap: 6px;
+    min-width: 0;
+    flex-shrink: 1;
+  }
+
+  /* Rate limit text ko chhota karo */
+  .navbar-right > div:first-child {
+    font-size: 10px !important;
+    gap: 3px !important;
+  }
+
+  /* Settings button - icon only */
+  .navbar-right button:first-of-type {
+    padding: 6px 8px;
+    font-size: 0;
+  }
+  
+  .navbar-right button:first-of-type svg {
+    margin: 0;
+    font-size: 14px;
+  }
+
+  /* Support Us button - icon only */
+  .navbar-right button:last-child {
+    padding: 6px 8px;
+    font-size: 0;
+    background: transparent !important;
+    color: var(--text) !important;
+    box-shadow: none !important;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+  }
+
+  .navbar-right button:last-child:hover {
+    background: var(--surface) !important;
+  }
+
+  .navbar-right button:last-child svg {
+    margin: 0;
+    font-size: 16px;
+    fill: currentcolor;
+  }
+
+  .navbar-menu-button {
+    display: flex;
+    flex-shrink: 0;
+  }
+}
