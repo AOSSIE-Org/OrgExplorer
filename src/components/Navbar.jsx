@@ -74,6 +74,7 @@ export default function Navbar() {
         <ThemeToggle />
         <button
           onClick={() => navigate('/settings')}
+          aria-label="Settings"
           style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: 6, padding: '5px 10px', fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}
           className='h-[-webkit-fill-available]'
         >
@@ -81,6 +82,7 @@ export default function Navbar() {
         </button>
         <button
           onClick={() => navigate('/support-us')}
+          aria-label="Support Us"
           className="flex items-center gap-2 rounded-md bg-emerald-500 px-3 py-2 sm:px-4 text-sm font-medium text-white shadow transition-all duration-200 hover:bg-emerald-600 hover:shadow-lg active:scale-95"
         >
           <FiHeart size={13} fill='white' />
