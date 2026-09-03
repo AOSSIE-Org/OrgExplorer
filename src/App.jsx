@@ -17,7 +17,12 @@ const NetworkPage            = React.lazy(() => import('./pages/NetworkPage'))
 const AnalyticsPage          = React.lazy(() => import('./pages/AnalyticsPage'))
 const GovernancePage         = React.lazy(() => import('./pages/GovernancePage'))
 const SettingsPage           = React.lazy(() => import('./pages/SettingsPage'))
-const Support                = React.lazy(() => import('./pages/Support'))
+const ROUTE_STRINGS = {
+  ERROR_TITLE: 'Unable to load page',
+  ERROR_MESSAGE: 'An error occurred while loading this page.',
+  RELOAD_BUTTON: 'Reload Page',
+  LOADING_LABEL: 'Loading page',
+}
 
 class ErrorBoundary extends Component {
   constructor(props) {
@@ -37,10 +42,10 @@ class ErrorBoundary extends Component {
     if (this.state.hasError) {
       return (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '64px 16px', textAlign: 'center' }}>
-          <h3>Unable to load page</h3>
-          <p style={{ color: 'var(--text2)', marginBottom: '16px' }}>An error occurred while loading this page.</p>
+          <h3>{ROUTE_STRINGS.ERROR_TITLE}</h3>
+          <p style={{ color: 'var(--text2)', marginBottom: '16px' }}>{ROUTE_STRINGS.ERROR_MESSAGE}</p>
           <button className="btn btn-primary" onClick={() => window.location.reload()}>
-            Reload Page
+            {ROUTE_STRINGS.RELOAD_BUTTON}
           </button>
         </div>
       )
@@ -51,7 +56,7 @@ class ErrorBoundary extends Component {
 
 function PageLoader() {
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }} role="status" aria-label="Loading page">
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }} role="status" aria-label={ROUTE_STRINGS.LOADING_LABEL}>
       <Spinner size={36} />
     </div>
   )
