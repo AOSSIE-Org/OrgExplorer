@@ -170,6 +170,9 @@ export default function NetworkPage() {
 
   const navigate = useNavigate()
   if(loading) return <NetworkSkeleton />
+  // Matches the guard the other data pages already have: this page reads
+  // model.allRepos directly and threw a TypeError without it.
+  if (!model) return null
   
   return (
     <div style={{ padding: '32px 24px', maxWidth: 1100, margin: '0 auto' }} className="fade-up">
