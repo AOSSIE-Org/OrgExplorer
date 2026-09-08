@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { fetchOrg, fetchRepos, fetchContributors, fetchIssues, fetchRateLimit, fetchPulls } from '../services/github'
-import { buildAnalyticalModel, getTopRepositories } from '../services/analytics'
+import { buildAnalyticalModel, getTopRepositories, computeRepoHealthScore } from '../services/analytics'
 import { saveAnalysis, loadAnalysis } from '../services/cache'
 
 const Ctx = createContext(null)
@@ -377,6 +377,23 @@ export function AppProvider({ children }) {
     }).sort((a, b) => b.ratio - a.ratio)
   }, [issuesData])
 
+  const repoScorecards = useMemo(() => {
+    if (!model || !model.totalRepos) return []
+    return model.totalRepos
+      .map(repo => {
+        const key = `${repo.orgLogin}/${repo.name}`
+        const issues = issuesData[key] || []
+        const pulls = pullsData[key] || []
+        return computeRepoHealthScore(repo, issues, pulls)
+      })
+      .sort((a, b) => {
+        if (a.overallScore === null && b.overallScore === null) return 0
+        if (a.overallScore === null) return 1
+        if (b.overallScore === null) return -1
+        return a.overallScore - b.overallScore
+      })
+  }, [model, issuesData, pullsData])
+
   return (
     <Ctx.Provider value={{
       pat, savePat, orgs, model, issuesData, pullsData,
@@ -384,7 +401,7 @@ export function AppProvider({ children }) {
       runAdvanceAnalytics, refreshRateLimit, advanceAnalyticsLoading, advanceAnalyticsComplete,
       runFullAnalytics,
       isComplete, auditComplete, lastOrgNames, hydrating,
-      explore, runFullExplore, runAudit, runGovernanceAnalysis, setError, staleRepoStats
+      explore, runFullExplore, runAudit, runGovernanceAnalysis, setError, staleRepoStats, repoScorecards
     }}>
       {children}
     </Ctx.Provider>

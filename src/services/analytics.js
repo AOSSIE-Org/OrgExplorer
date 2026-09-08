@@ -201,3 +201,249 @@ export function getTopRepositories(repos, limit = 10) {
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);
 }
+
+// Repository Health & Risk Scorecard (Governance 2.0)
+export function computeRepoHealthScore(repo, issues = [], pulls = []) {
+  const orgLogin = repo.orgLogin || repo.owner?.login || '';
+  const repoName = repo.name || '';
+  const repoKey = repo.repoKey || (orgLogin ? `${orgLogin}/${repoName}` : repoName);
+
+  // Pillar 1: Bus Factor
+  let busFactorPillar = {
+    score: null,
+    weight: 20,
+    label: 'No data',
+    riskLevel: 'unknown',
+    factor: 0
+  };
+
+  const contribs = repo.contributors || repo.contributorsList;
+  if (Array.isArray(contribs) && contribs.length > 0) {
+    const bf = computeBusFactor(contribs);
+    const f = bf.factor;
+    if (f === 0) {
+      busFactorPillar = { score: null, weight: 20, label: 'No data', riskLevel: 'unknown', factor: 0 };
+    } else if (f === 1) {
+      busFactorPillar = { score: 0, weight: 20, label: 'Critical', riskLevel: 'critical', factor: 1 };
+    } else if (f === 2) {
+      busFactorPillar = { score: 50, weight: 20, label: 'Warning', riskLevel: 'warning', factor: 2 };
+    } else {
+      const score = Math.min(100, 80 + (f - 3) * 10);
+      busFactorPillar = { score, weight: 20, label: 'Healthy', riskLevel: 'healthy', factor: f };
+    }
+  } else if (repo.busFactor && repo.busFactor.risk !== 'unknown') {
+    const f = repo.busFactor.factor;
+    if (f === 1) {
+      busFactorPillar = { score: 0, weight: 20, label: 'Critical', riskLevel: 'critical', factor: 1 };
+    } else if (f === 2) {
+      busFactorPillar = { score: 50, weight: 20, label: 'Warning', riskLevel: 'warning', factor: 2 };
+    } else if (f >= 3) {
+      const score = Math.min(100, 80 + (f - 3) * 10);
+      busFactorPillar = { score, weight: 20, label: 'Healthy', riskLevel: 'healthy', factor: f };
+    }
+  }
+
+  // Pillar 2: Governance Compliance
+  const hasLicense = Boolean(repo.license || repo.has_license);
+  const hasReadme = repo._files?.readme !== undefined ? Boolean(repo._files.readme) : (repo.has_readme !== undefined ? Boolean(repo.has_readme) : true);
+  const hasContributing = repo._files?.contributing !== undefined ? Boolean(repo._files.contributing) : (repo.has_contributing !== undefined ? Boolean(repo.has_contributing) : null);
+  const hasSecurity = repo._files?.security !== undefined ? Boolean(repo._files.security) : (repo.has_security !== undefined ? Boolean(repo.has_security) : null);
+
+  const checks = {
+    license: hasLicense,
+    readme: hasReadme,
+    contributing: hasContributing,
+    security: hasSecurity
+  };
+
+  let compliancePillar = null;
+  const knownChecks = Object.entries(checks).filter(([, v]) => v !== null);
+  if (knownChecks.length > 0) {
+    const passedCount = knownChecks.filter(([, v]) => v === true).length;
+    // Each known check is weighted equally to sum to 100
+    const compScore = Math.round((passedCount / knownChecks.length) * 100);
+    const riskLevel = compScore >= 70 ? 'healthy' : compScore >= 40 ? 'warning' : 'critical';
+    const label = compScore >= 70 ? 'Healthy' : compScore >= 40 ? 'Warning' : 'Critical';
+    compliancePillar = {
+      score: compScore,
+      weight: 20,
+      label: knownChecks.length < 4 ? `${label} (Limited data)` : label,
+      riskLevel,
+      checks
+    };
+  } else {
+    compliancePillar = {
+      score: null,
+      weight: 20,
+      label: 'No data',
+      riskLevel: 'unknown',
+      checks
+    };
+  }
+
+  // Pillar 3: Activity Freshness
+  let freshnessPillar = { score: null, weight: 20, label: 'No data', riskLevel: 'unknown', daysSince: null };
+  const pushedAt = repo.pushed_at || repo.updated_at;
+  if (pushedAt) {
+    const pushedMs = Date.parse(pushedAt);
+    if (Number.isFinite(pushedMs)) {
+      const daysSince = Math.max(0, Math.floor((Date.now() - pushedMs) / 86_400_000));
+      const freshnessScore = Math.max(0, Math.min(100, Math.round(100 - daysSince * (100 / 365))));
+      const riskLevel = freshnessScore >= 70 ? 'healthy' : freshnessScore >= 40 ? 'warning' : 'critical';
+      const label = freshnessScore >= 70 ? 'Excellent' : freshnessScore >= 40 ? 'Warning' : 'Critical';
+      freshnessPillar = {
+        score: freshnessScore,
+        weight: 20,
+        label,
+        riskLevel,
+        daysSince
+      };
+    }
+  }
+
+  // Pillar 4: Responsiveness
+  let responsivenessPillar = { score: null, weight: 20, label: 'No data', riskLevel: 'unknown', staleRatio: null };
+  if (Array.isArray(issues) && (issues.length > 0 || (repo._hasIssuesAudit || repo._auditDone))) {
+    const normalIssues = issues.filter(i => !i.pull_request);
+    const openIssues = normalIssues.filter(i => i.state === 'open');
+
+    let staleRatio = 0;
+    let baseScore = 100;
+
+    if (openIssues.length > 0) {
+      const now = Date.now();
+      const staleIssues = openIssues.filter(i => (now - new Date(i.updated_at).getTime()) / 86_400_000 >= 90);
+      staleRatio = staleIssues.length / openIssues.length;
+      baseScore = 100 - staleRatio * 100;
+    }
+
+    // Zombie PR penalty (5 pts per zombie PR, max penalty 40)
+    const zombiePRs = issues.filter(i => i.pull_request && i.state === 'open' && (Date.now() - new Date(i.created_at || i.updated_at).getTime()) / 86_400_000 >= 90);
+    const zombiePenalty = Math.min(40, zombiePRs.length * 5);
+
+    const respScore = Math.max(0, Math.min(100, Math.round(baseScore - zombiePenalty)));
+    const riskLevel = respScore >= 70 ? 'healthy' : respScore >= 40 ? 'warning' : 'critical';
+    const label = respScore >= 70 ? 'Healthy' : respScore >= 40 ? 'Warning' : 'Critical';
+
+    responsivenessPillar = {
+      score: respScore,
+      weight: 20,
+      label,
+      riskLevel,
+      staleRatio: Number(staleRatio.toFixed(2))
+    };
+  }
+
+  // Pillar 5: PR Resolution Rate
+  let prResolutionPillar = { score: null, weight: 20, label: 'Insufficient data', riskLevel: 'unknown', mergeRate: null };
+  const allPRs = Array.isArray(pulls) && pulls.length > 0 ? pulls : (Array.isArray(issues) ? issues.filter(i => i.pull_request) : []);
+  const closedPRs = allPRs.filter(p => p.state === 'closed');
+
+  if (closedPRs.length > 0) {
+    const mergedPRs = closedPRs.filter(p => p.merged_at != null || p.pull_request?.merged_at != null || p.merged === true);
+    const mergeRate = mergedPRs.length / closedPRs.length;
+    const prScore = Math.round(mergeRate * 100);
+    const riskLevel = prScore >= 70 ? 'healthy' : prScore >= 40 ? 'warning' : 'critical';
+    const label = prScore >= 70 ? 'Healthy' : prScore >= 40 ? 'Warning' : 'Critical';
+
+    prResolutionPillar = {
+      score: prScore,
+      weight: 20,
+      label,
+      riskLevel,
+      mergeRate: Number(mergeRate.toFixed(2))
+    };
+  }
+
+  // Pillars object
+  const pillars = {
+    busFactor: busFactorPillar,
+    compliance: compliancePillar,
+    freshness: freshnessPillar,
+    responsiveness: responsivenessPillar,
+    prResolution: prResolutionPillar
+  };
+
+  // Missing data handling & Weight normalization
+  const availablePillars = Object.values(pillars).filter(p => p && p.score !== null);
+  const totalAvailableWeight = availablePillars.reduce((sum, p) => sum + p.weight, 0);
+
+  let overallScore = null;
+  let overallRiskLevel = 'unknown';
+
+  if (totalAvailableWeight > 0) {
+    const weightedSum = availablePillars.reduce((sum, p) => sum + (p.score * p.weight), 0);
+    overallScore = Math.round(weightedSum / totalAvailableWeight);
+    overallRiskLevel = overallScore >= 70 ? 'healthy' : overallScore >= 40 ? 'warning' : 'critical';
+  }
+
+  // Recommendations Engine
+  const recommendations = [];
+
+  if (busFactorPillar.score !== null && busFactorPillar.factor <= 1) {
+    recommendations.push({
+      severity: 'critical',
+      message: 'Single maintainer risk detected — recruit additional contributors'
+    });
+  }
+
+  if (compliancePillar.score !== null && compliancePillar.checks.license === false) {
+    recommendations.push({
+      severity: 'critical',
+      message: 'No license found — add a license to clarify open-source usage'
+    });
+  }
+
+  if (compliancePillar.score !== null && compliancePillar.checks.readme === false) {
+    recommendations.push({
+      severity: 'warning',
+      message: 'Add README.md to describe project purpose and setup'
+    });
+  }
+
+  if (compliancePillar.score !== null && compliancePillar.checks.contributing === false) {
+    recommendations.push({
+      severity: 'warning',
+      message: 'Add CONTRIBUTING.md to guide new contributors'
+    });
+  }
+
+  if (compliancePillar.score !== null && compliancePillar.checks.security === false) {
+    recommendations.push({
+      severity: 'warning',
+      message: 'Add SECURITY.md to define the vulnerability disclosure process'
+    });
+  }
+
+  if (freshnessPillar.score !== null && freshnessPillar.daysSince > 180) {
+    recommendations.push({
+      severity: 'warning',
+      message: 'No recent commits — consider re-activating or archiving the repository'
+    });
+  }
+
+  if (responsivenessPillar.score !== null && responsivenessPillar.staleRatio > 0.50) {
+    recommendations.push({
+      severity: 'warning',
+      message: 'Over 50% of open issues are stale — consider a triage sprint'
+    });
+  }
+
+  if (prResolutionPillar.score !== null && prResolutionPillar.mergeRate < 0.30) {
+    recommendations.push({
+      severity: 'warning',
+      message: 'Low PR merge rate — review PR acceptance criteria or contributor guidance'
+    });
+  }
+
+  return {
+    repoKey,
+    repoName,
+    orgLogin,
+    overallScore,
+    riskLevel: overallRiskLevel,
+    pillars,
+    recommendations
+  };
+}
+
