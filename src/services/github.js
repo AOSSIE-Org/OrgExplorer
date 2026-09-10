@@ -53,8 +53,12 @@ export async function cacheClear() {
 
 // Core fetchWithCache 
 async function fetchWithCache(url, pat) {
+  // Include auth state in cache key so authenticated and unauthenticated 
+  // responses are cached separately (fixes #228)
+  const cacheKey = pat ? `${url}::auth` : url
+
   // L2 check
-  const cached = await cacheGet(url)
+  const cached = await cacheGet(cacheKey)
   if (cached) return cached
 
   const headers = { Accept: 'application/vnd.github.v3+json' }
@@ -78,7 +82,7 @@ async function fetchWithCache(url, pat) {
   if (!res.ok) throw new Error(`HTTP_${res.status}`)
 
   const data = await res.json()
-  cacheSet(url, data) // write-back, non-blocking
+  cacheSet(cacheKey, data) // write-back, non-blocking
   return data
 }
 
