@@ -21,7 +21,7 @@ export function computeActivityClassification(repo) {
 //  Bus Factor
 export function computeBusFactor(contributors = []) {
   if (!contributors.length) return { factor: 0, risk: 'unknown' }
-  const getCount = c => c.contributions ?? c.totalContribs ?? 0
+  const getCount = c => (typeof c === 'number' ? c : (c.contributions ?? c.totalContribs ?? 0))
   const total = contributors.reduce((s, c) => s + getCount(c), 0)
   if (!total) return { factor: 0, risk: 'unknown' }
   let cum = 0

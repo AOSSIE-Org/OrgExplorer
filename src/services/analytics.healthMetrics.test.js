@@ -115,8 +115,15 @@ describe('computeBusFactor', () => {
   })
 
   it('supports model contributor objects using totalContribs', () => {
-    const contributors = [{ totalContribs: 60 }, { totalContribs: 40 }]
+    const contributors = [
+      { login: 'alice', totalContribs: 60 },
+      { login: 'bob', totalContribs: 40 }
+    ]
     expect(computeBusFactor(contributors)).toEqual({ factor: 1, risk: 'critical' })
+  })
+
+  it('supports primitive numbers array', () => {
+    expect(computeBusFactor([60, 40])).toEqual({ factor: 1, risk: 'critical' })
   })
 })
 
