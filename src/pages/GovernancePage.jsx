@@ -70,18 +70,29 @@ export default function GovernancePage() {
   }, [repoScorecards, searchQuery])
 
   const totalScorecardPages = Math.ceil(filteredScorecards.length / SCORECARD_ITEMS_PER_PAGE) || 1
+  const currentScorecardPage = Math.min(scorecardPage, totalScorecardPages)
 
   const paginatedScorecards = useMemo(() => {
-    const start = (scorecardPage - 1) * SCORECARD_ITEMS_PER_PAGE
+    const start = (currentScorecardPage - 1) * SCORECARD_ITEMS_PER_PAGE
     return filteredScorecards.slice(start, start + SCORECARD_ITEMS_PER_PAGE)
-  }, [filteredScorecards, scorecardPage])
+  }, [filteredScorecards, currentScorecardPage])
 
-  const scoredRepos = (repoScorecards || []).filter(s => s.overallScore !== null)
-  const avgOrgHealth = scoredRepos.length
-    ? Math.round(scoredRepos.reduce((sum, s) => sum + s.overallScore, 0) / scoredRepos.length)
-    : null
-  const reposAtRiskCount = (repoScorecards || []).filter(s => s.riskLevel === 'critical' || s.riskLevel === 'warning').length
-  const healthyReposCount = (repoScorecards || []).filter(s => s.riskLevel === 'healthy').length
+  const { avgOrgHealth, reposAtRiskCount, healthyReposCount } = useMemo(() => {
+    let scoreSum = 0, scoredCount = 0, atRisk = 0, healthy = 0
+    for (const s of repoScorecards || []) {
+      if (s.overallScore !== null) {
+        scoreSum += s.overallScore
+        scoredCount++
+      }
+      if (s.riskLevel === 'critical' || s.riskLevel === 'warning') atRisk++
+      else if (s.riskLevel === 'healthy') healthy++
+    }
+    return {
+      avgOrgHealth: scoredCount ? Math.round(scoreSum / scoredCount) : null,
+      reposAtRiskCount: atRisk,
+      healthyReposCount: healthy
+    }
+  }, [repoScorecards])
 
   // Flatten all issues and tag with repo/org
   const allIssues = useMemo(() => {
@@ -176,6 +187,23 @@ export default function GovernancePage() {
     const bg = risk === 'healthy' ? 'rgba(34,197,94,.12)' : risk === 'warning' ? 'rgba(250,204,21,.12)' : risk === 'critical' ? 'rgba(239,68,68,.12)' : 'rgba(102,102,102,.12)'
     return <span style={C.pill(color, bg)}>{label || risk?.toUpperCase()}</span>
   }
+
+  const PillarRow = ({ label, pillar, metric }) => (
+    <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr 100px 130px', alignItems: 'center', gap: 12 }}>
+      <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>{label}</span>
+      <div>
+        {pillar.score !== null ? (
+          <HealthBar score={pillar.score} />
+        ) : (
+          <div style={{ fontSize: 12, color: 'var(--text3)' }}>—</div>
+        )}
+      </div>
+      <div style={{ textAlign: 'right' }}>
+        {pillarRiskBadge(pillar.riskLevel, pillar.label)}
+      </div>
+      <span style={{ fontSize: 11, color: 'var(--text2)', textAlign: 'right' }}>{metric}</span>
+    </div>
+  )
 
   return (
     <div style={{ padding: '32px 24px', maxWidth: 1100, margin: '0 auto' }} className="fade-up">
@@ -304,6 +332,7 @@ export default function GovernancePage() {
                 <FiSearch style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text2)' }} size={15} />
                 <input
                   type="text"
+                  aria-label="Search scorecards by repository name or owner"
                   placeholder="Search scorecards by repository name or owner..."
                   value={searchQuery}
                   onChange={e => { setSearchQuery(e.target.value); setScorecardPage(1); }}
@@ -328,7 +357,7 @@ export default function GovernancePage() {
                       }}
                     >
                       {/* Scorecard Card Header */}
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, pb: 12, borderBottom: '1px solid var(--border)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                           <RadialGauge score={sc.overallScore} size={72} />
                           <div>
@@ -356,95 +385,15 @@ export default function GovernancePage() {
 
                       {/* 5 Pillars Breakdown */}
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
-                        {/* Bus Factor */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr 100px 130px', alignItems: 'center', gap: 12 }}>
-                          <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>Bus Factor</span>
-                          <div>
-                            {p.busFactor.score !== null ? (
-                              <HealthBar score={p.busFactor.score} />
-                            ) : (
-                              <div style={{ fontSize: 12, color: 'var(--text3)' }}>—</div>
-                            )}
-                          </div>
-                          <div style={{ textAlign: 'right' }}>
-                            {pillarRiskBadge(p.busFactor.riskLevel, p.busFactor.label)}
-                          </div>
-                          <span style={{ fontSize: 11, color: 'var(--text2)', textAlign: 'right' }}>
-                            {p.busFactor.factor ? `${p.busFactor.factor} contributors` : 'No data'}
-                          </span>
-                        </div>
-
-                        {/* Governance Compliance */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr 100px 130px', alignItems: 'center', gap: 12 }}>
-                          <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>Compliance</span>
-                          <div>
-                            {p.compliance.score !== null ? (
-                              <HealthBar score={p.compliance.score} />
-                            ) : (
-                              <div style={{ fontSize: 12, color: 'var(--text3)' }}>—</div>
-                            )}
-                          </div>
-                          <div style={{ textAlign: 'right' }}>
-                            {pillarRiskBadge(p.compliance.riskLevel, p.compliance.label)}
-                          </div>
-                          <span style={{ fontSize: 11, color: 'var(--text2)', textAlign: 'right' }}>
-                            {p.compliance.checks.license ? 'License ✓' : 'No License ✗'}
-                          </span>
-                        </div>
-
-                        {/* Activity Freshness */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr 100px 130px', alignItems: 'center', gap: 12 }}>
-                          <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>Freshness</span>
-                          <div>
-                            {p.freshness.score !== null ? (
-                              <HealthBar score={p.freshness.score} />
-                            ) : (
-                              <div style={{ fontSize: 12, color: 'var(--text3)' }}>—</div>
-                            )}
-                          </div>
-                          <div style={{ textAlign: 'right' }}>
-                            {pillarRiskBadge(p.freshness.riskLevel, p.freshness.label)}
-                          </div>
-                          <span style={{ fontSize: 11, color: 'var(--text2)', textAlign: 'right' }}>
-                            {p.freshness.daysSince !== null ? `${p.freshness.daysSince} days ago` : 'No data'}
-                          </span>
-                        </div>
-
-                        {/* Responsiveness */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr 100px 130px', alignItems: 'center', gap: 12 }}>
-                          <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>Responsiveness</span>
-                          <div>
-                            {p.responsiveness.score !== null ? (
-                              <HealthBar score={p.responsiveness.score} />
-                            ) : (
-                              <div style={{ fontSize: 12, color: 'var(--text3)' }}>—</div>
-                            )}
-                          </div>
-                          <div style={{ textAlign: 'right' }}>
-                            {pillarRiskBadge(p.responsiveness.riskLevel, p.responsiveness.label)}
-                          </div>
-                          <span style={{ fontSize: 11, color: 'var(--text2)', textAlign: 'right' }}>
-                            {p.responsiveness.staleRatio !== null ? `${Math.round(p.responsiveness.staleRatio * 100)}% stale` : 'No audit data'}
-                          </span>
-                        </div>
-
-                        {/* PR Resolution Rate */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr 100px 130px', alignItems: 'center', gap: 12 }}>
-                          <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>PR Resolution</span>
-                          <div>
-                            {p.prResolution.score !== null ? (
-                              <HealthBar score={p.prResolution.score} />
-                            ) : (
-                              <div style={{ fontSize: 12, color: 'var(--text3)' }}>—</div>
-                            )}
-                          </div>
-                          <div style={{ textAlign: 'right' }}>
-                            {pillarRiskBadge(p.prResolution.riskLevel, p.prResolution.label)}
-                          </div>
-                          <span style={{ fontSize: 11, color: 'var(--text2)', textAlign: 'right' }}>
-                            {p.prResolution.mergeRate !== null ? `${Math.round(p.prResolution.mergeRate * 100)}% merge rate` : 'Insufficient data'}
-                          </span>
-                        </div>
+                        {[
+                          { key: 'busFactor', label: 'Bus Factor', pillar: p.busFactor, metric: p.busFactor.factor ? `${p.busFactor.factor} contributors` : 'No data' },
+                          { key: 'compliance', label: 'Compliance', pillar: p.compliance, metric: p.compliance.checks.license ? 'License ✓' : 'No License ✗' },
+                          { key: 'freshness', label: 'Freshness', pillar: p.freshness, metric: p.freshness.daysSince !== null ? `${p.freshness.daysSince} days ago` : 'No data' },
+                          { key: 'responsiveness', label: 'Responsiveness', pillar: p.responsiveness, metric: p.responsiveness.staleRatio !== null ? `${Math.round(p.responsiveness.staleRatio * 100)}% stale` : 'No audit data' },
+                          { key: 'prResolution', label: 'PR Resolution', pillar: p.prResolution, metric: p.prResolution.mergeRate !== null ? `${Math.round(p.prResolution.mergeRate * 100)}% merge rate` : 'Insufficient data' },
+                        ].map(row => (
+                          <PillarRow key={row.key} label={row.label} pillar={row.pillar} metric={row.metric} />
+                        ))}
                       </div>
 
                       {/* Recommendations section */}
@@ -454,8 +403,8 @@ export default function GovernancePage() {
                         </div>
                         {sc.recommendations.length > 0 ? (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                            {sc.recommendations.map((rec, idx) => (
-                              <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
+                            {sc.recommendations.map(rec => (
+                              <div key={rec.message} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
                                 <FiAlertTriangle size={13} color={rec.severity === 'critical' ? 'var(--red)' : 'var(--amber)'} />
                                 <span style={{ color: rec.severity === 'critical' ? 'var(--red)' : 'var(--text)' }}>
                                   {rec.message}
@@ -481,19 +430,19 @@ export default function GovernancePage() {
             {totalScorecardPages > 1 && (
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 20 }}>
                 <button
-                  onClick={() => setScorecardPage(p => Math.max(1, p - 1))}
-                  disabled={scorecardPage === 1}
-                  style={{ ...C.btn('ghost'), opacity: scorecardPage === 1 ? 0.5 : 1, cursor: scorecardPage === 1 ? 'not-allowed' : 'pointer' }}
+                  onClick={() => setScorecardPage(Math.max(1, currentScorecardPage - 1))}
+                  disabled={currentScorecardPage === 1}
+                  style={{ ...C.btn('ghost'), opacity: currentScorecardPage === 1 ? 0.5 : 1, cursor: currentScorecardPage === 1 ? 'not-allowed' : 'pointer' }}
                 >
                   ← Previous
                 </button>
                 <span style={{ fontSize: 13, color: 'var(--text2)' }}>
-                  Page {scorecardPage} of {totalScorecardPages}
+                  Page {currentScorecardPage} of {totalScorecardPages}
                 </span>
                 <button
-                  onClick={() => setScorecardPage(p => Math.min(totalScorecardPages, p + 1))}
-                  disabled={scorecardPage === totalScorecardPages}
-                  style={{ ...C.btn('ghost'), opacity: scorecardPage === totalScorecardPages ? 0.5 : 1, cursor: scorecardPage === totalScorecardPages ? 'not-allowed' : 'pointer' }}
+                  onClick={() => setScorecardPage(Math.min(totalScorecardPages, currentScorecardPage + 1))}
+                  disabled={currentScorecardPage === totalScorecardPages}
+                  style={{ ...C.btn('ghost'), opacity: currentScorecardPage === totalScorecardPages ? 0.5 : 1, cursor: currentScorecardPage === totalScorecardPages ? 'not-allowed' : 'pointer' }}
                 >
                   Next →
                 </button>

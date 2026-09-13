@@ -217,35 +217,23 @@ export function computeRepoHealthScore(repo, issues = [], pulls = []) {
     factor: 0
   };
 
+  const busFactorPillarFrom = f => {
+    if (f === 1) return { score: 0, weight: 20, label: 'Critical', riskLevel: 'critical', factor: 1 };
+    if (f === 2) return { score: 50, weight: 20, label: 'Warning', riskLevel: 'warning', factor: 2 };
+    if (f >= 3) return { score: Math.min(100, 80 + (f - 3) * 10), weight: 20, label: 'Healthy', riskLevel: 'healthy', factor: f };
+    return { score: null, weight: 20, label: 'No data', riskLevel: 'unknown', factor: 0 };
+  };
+
   const contribs = repo.contributors || repo.contributorsList;
   if (Array.isArray(contribs) && contribs.length > 0) {
-    const bf = computeBusFactor(contribs);
-    const f = bf.factor;
-    if (f === 0) {
-      busFactorPillar = { score: null, weight: 20, label: 'No data', riskLevel: 'unknown', factor: 0 };
-    } else if (f === 1) {
-      busFactorPillar = { score: 0, weight: 20, label: 'Critical', riskLevel: 'critical', factor: 1 };
-    } else if (f === 2) {
-      busFactorPillar = { score: 50, weight: 20, label: 'Warning', riskLevel: 'warning', factor: 2 };
-    } else {
-      const score = Math.min(100, 80 + (f - 3) * 10);
-      busFactorPillar = { score, weight: 20, label: 'Healthy', riskLevel: 'healthy', factor: f };
-    }
+    busFactorPillar = busFactorPillarFrom(computeBusFactor(contribs).factor);
   } else if (repo.busFactor && repo.busFactor.risk !== 'unknown') {
-    const f = repo.busFactor.factor;
-    if (f === 1) {
-      busFactorPillar = { score: 0, weight: 20, label: 'Critical', riskLevel: 'critical', factor: 1 };
-    } else if (f === 2) {
-      busFactorPillar = { score: 50, weight: 20, label: 'Warning', riskLevel: 'warning', factor: 2 };
-    } else if (f >= 3) {
-      const score = Math.min(100, 80 + (f - 3) * 10);
-      busFactorPillar = { score, weight: 20, label: 'Healthy', riskLevel: 'healthy', factor: f };
-    }
+    busFactorPillar = busFactorPillarFrom(repo.busFactor.factor);
   }
 
   // Pillar 2: Governance Compliance
   const hasLicense = Boolean(repo.license || repo.has_license);
-  const hasReadme = repo._files?.readme !== undefined ? Boolean(repo._files.readme) : (repo.has_readme !== undefined ? Boolean(repo.has_readme) : true);
+  const hasReadme = repo._files?.readme !== undefined ? Boolean(repo._files.readme) : (repo.has_readme !== undefined ? Boolean(repo.has_readme) : null);
   const hasContributing = repo._files?.contributing !== undefined ? Boolean(repo._files.contributing) : (repo.has_contributing !== undefined ? Boolean(repo.has_contributing) : null);
   const hasSecurity = repo._files?.security !== undefined ? Boolean(repo._files.security) : (repo.has_security !== undefined ? Boolean(repo.has_security) : null);
 

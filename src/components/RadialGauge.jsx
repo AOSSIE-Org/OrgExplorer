@@ -19,7 +19,7 @@ export default function RadialGauge({ score, size = 80, strokeWidth = 7 }) {
 
   return (
     <div style={{ position: 'relative', width: size, height: size, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
+      <svg width={size} height={size} aria-hidden="true" focusable="false" style={{ transform: 'rotate(-90deg)' }}>
         {/* Background track */}
         <circle
           cx={center}

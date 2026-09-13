@@ -394,15 +394,24 @@ export function AppProvider({ children }) {
       })
   }, [model, issuesData, pullsData])
 
+  const ctxValue = useMemo(() => ({
+    pat, savePat, orgs, model, issuesData, pullsData,
+    rateLimit, loading, loadMsg, govLoading, error, totalRepo,
+    runAdvanceAnalytics, refreshRateLimit, advanceAnalyticsLoading, advanceAnalyticsComplete,
+    runFullAnalytics,
+    isComplete, auditComplete, lastOrgNames, hydrating,
+    explore, runFullExplore, runAudit, runGovernanceAnalysis, setError, staleRepoStats, repoScorecards
+  }), [
+    pat, savePat, orgs, model, issuesData, pullsData,
+    rateLimit, loading, loadMsg, govLoading, error, totalRepo,
+    runAdvanceAnalytics, refreshRateLimit, advanceAnalyticsLoading, advanceAnalyticsComplete,
+    runFullAnalytics,
+    isComplete, auditComplete, lastOrgNames, hydrating,
+    explore, runFullExplore, runAudit, runGovernanceAnalysis, setError, staleRepoStats, repoScorecards
+  ])
+
   return (
-    <Ctx.Provider value={{
-      pat, savePat, orgs, model, issuesData, pullsData,
-      rateLimit, loading, loadMsg, govLoading, error, totalRepo,
-      runAdvanceAnalytics, refreshRateLimit, advanceAnalyticsLoading, advanceAnalyticsComplete,
-      runFullAnalytics,
-      isComplete, auditComplete, lastOrgNames, hydrating,
-      explore, runFullExplore, runAudit, runGovernanceAnalysis, setError, staleRepoStats, repoScorecards
-    }}>
+    <Ctx.Provider value={ctxValue}>
       {children}
     </Ctx.Provider>
   )
