@@ -46,12 +46,11 @@ export default function HomePage() {
       padding: '40px 24px', gap: 32,
     }}>
       {/* Hero */}
-      <div style={{ textAlign: 'center', maxWidth: 580 }}>
+      <div style={{ textAlign: 'center', maxWidth: 680 }}>
         <h1 style={{ fontSize: 'clamp(30px,6vw,58px)', fontWeight: 800, lineHeight: 1.1, marginBottom: 14 }}>
-          Architect Your{' '}
-          <span style={{ color: 'var(--accent)' }}>Insights</span>
+          <span style={{ color: 'var(--accent)' }}>Explore</span> your <br /> Github orgs
         </h1>
-        <p style={{ fontSize: 15, color: 'var(--text2)', lineHeight: 1.7 }}>
+        <p style={{ fontSize: 15, color: 'var(--text2)', lineHeight: 1.7, textWrap: 'pretty' }}>
           Unified analytics across one or many GitHub organizations. Multi-org portfolio analysis, contributor network graphs, time-series trends, and governance audits — entirely in the browser.
         </p>
       </div>
