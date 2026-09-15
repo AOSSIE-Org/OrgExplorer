@@ -316,13 +316,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     font-size: 10px !important;
   }
 
-  .app-navbar>div:last-child button {
-    min-width: 0;
-    white-space: nowrap;
-    padding: 4px 6px !important;
-    font-size: 10px !important;
-  }
-
   .mobile-nav-menu {
     position: absolute;
     inset: 0;

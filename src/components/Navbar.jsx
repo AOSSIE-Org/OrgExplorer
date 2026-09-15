@@ -142,7 +142,7 @@ export default function Navbar() {
               <FiX size={19} />
             </button>
           </div>
-          <div className="mobile-nav-heading">MAIN NAVIGATION</div>
+          <div className="mobile-nav-heading">Main navigation</div>
           {LINKS.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
@@ -161,7 +161,7 @@ export default function Navbar() {
             </NavLink>
           ))}
           <div className="mobile-nav-divider" />
-          <div className="mobile-nav-heading">OTHER CONTROLS</div>
+          <div className="mobile-nav-heading">Other controls</div>
           <button className="mobile-nav-row" onClick={() => { navigate('/settings'); setMobileMenuOpen(false) }}>
             <FiSettings size={16} />
             <span>Settings</span>
