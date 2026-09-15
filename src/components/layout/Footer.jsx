@@ -31,7 +31,7 @@ const footerLinks = [
   },
   {
     label: "Support Us",
-    href:"/support-us"
+    href: "/support-us"
   }
 ];
 
@@ -71,23 +71,23 @@ const socialLinks = [
 export default function Footer() {
   const { theme } = useTheme();
   return (
-    <footer role="contentinfo" style={{ borderTop: "1px solid var(--border)" }}>
-      <div className="flex w-full flex-col gap-8 px-4 py-8 md:px-6 lg:flex-row lg:items-center lg:justify-around">
+    <footer className="site-footer" role="contentinfo" style={{ borderTop: "1px solid var(--border)" }}>
+      <div className="site-footer-inner flex w-full flex-col gap-8 px-4 py-8 md:px-6 lg:flex-row lg:items-center lg:justify-around">
 
         {/* LEFT SECTION */}
-        <div className="flex items-center gap-8 justify-center">
+        <div className="site-footer-brand flex items-center gap-8 justify-center">
           {/* Logo */}
           <img
             src="/aossie-logo.svg"
             alt="AOSSIE"
-            className="h-16 w-auto"/>
+            className="h-16 w-auto" />
 
           {/* Separator */}
-          <div className="h-20 w-px bg-zinc-700" />
+          <div className="site-footer-divider h-20 w-px bg-zinc-700" />
 
           {/* Description */}
-          <div className="max-w-sm">
-            <p className="mt-2 text-sm leading-5" style={{color: "var(--text2)"}}>
+          <div className="site-footer-description max-w-sm">
+            <p className="mt-2 text-sm leading-5" style={{ color: "var(--text2)" }}>
               AOSSIE is a non-profit organization dedicated to building
               impactful open-source software, mentoring contributors,
               and fostering innovation through global collaboration.
@@ -96,20 +96,21 @@ export default function Footer() {
         </div>
 
         {/* MIDDLE SECTION */}
-        <div className="flex flex-col lg:flex-row lg:gap-8 items-center">
+        <div className="site-footer-links flex flex-col lg:flex-row lg:gap-8 items-center">
           {/* Separator */}
-          <div className="h-25 w-px bg-zinc-700 rotate-90 lg:rotate-180" />
-        
-          <div className="flex flex-col gap-6">
+          <div className="site-footer-divider h-25 w-px bg-zinc-700 rotate-90 lg:rotate-180" />
+
+          <div className="site-footer-links-column flex flex-col gap-6">
             {/* NAVIGATION */}
             <nav
               aria-label="Footer Navigation"
-              className="flex flex-wrap items-center gap-x-6 gap-y-3 justify-center"
+              className="site-footer-nav flex flex-wrap items-center gap-x-6 gap-y-3 justify-center"
             >
               {footerLinks.map((item) => (
                 <Link
                   key={item.label}
                   to={item.href}
+                  className={item.label === "Support Us" ? "site-footer-support-link" : undefined}
                   style={{
                     color: "var(--text2)",
                     transition: "color 0.2s ease",
@@ -127,7 +128,7 @@ export default function Footer() {
             </nav>
 
             {/* SOCIAL LINKS */}
-            <div className="flex items-center gap-6 justify-center">
+            <div className="site-footer-socials flex items-center gap-6 justify-center">
               {socialLinks.map((item) => {
                 const Icon = item.icon;
 
@@ -138,6 +139,7 @@ export default function Footer() {
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label={`Visit our ${item.label}`}
+                    className="site-footer-social-link"
                     style={{
                       color: "var(--text2)",
                       transition: "color 0.2s ease",
@@ -156,20 +158,20 @@ export default function Footer() {
             </div>
           </div>
         </div>
-        
+
         {/* RIGHT SECTION */}
-        <div className="flex flex-col lg:flex-row lg:gap-8 items-center">
+        <div className="site-footer-meta-section flex flex-col lg:flex-row lg:gap-8 items-center">
           {/* Separator */}
-          <div className="h-25 w-px bg-zinc-700 rotate-90 lg:rotate-180" />
-          
-          <div className="flex flex-col gap-2 items-end text-right">
+          <div className="site-footer-divider h-25 w-px bg-zinc-700 rotate-90 lg:rotate-180" />
+
+          <div className="site-footer-meta flex flex-col gap-2 items-end text-right">
             <p
               className=" flex items-center
                 text-xs tracking-[0.2em]"
             >
               © {new Date().getFullYear()}
               <span>
-                <Logo className="h-15 w-auto"/>
+                <Logo className="h-15 w-auto" />
               </span>
             </p>
 
