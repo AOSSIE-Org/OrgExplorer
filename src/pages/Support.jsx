@@ -17,16 +17,13 @@ function Support() {
       name: "AOSSIE",
       image: "/aossie-logo.svg",
       link: "https://aossie.org",
-      desc: "AOSSIE is an Australian not-for-profit organization that supports and brings together open-source projects. We believe open source is a resource-efficient and collaborative way to share knowledge, encourage innovation, and make education more accessible through strong community participation.",
+      desc: "AOSSIE is a non-profit organization dedicated to building impactful open-source software, mentoring contributors, and fostering innovation through global collaboration.",
     },
 
     sponsors: [
       {
-        name: "Google",
-      },
-      {
-        name: "Stable Order",
-      },
+        name: "Google Summer of Code",
+      }
     ],
 
     ctaSection: {
