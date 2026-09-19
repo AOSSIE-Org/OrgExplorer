@@ -92,6 +92,10 @@ export async function fetchRepos(org, repoCount, pat) {
   for (let page = 1; page <= maxPages; page++) {
     const url = `https://api.github.com/orgs/${org}/repos?per_page=100&page=${page}&sort=updated`
     const data = await fetchWithCache(url, pat)
+    // The API returns a message/error object instead of an array for some
+    // valid states (disabled issues, empty repo, 204 No Content); treat that
+    // as an empty, final page rather than crashing on the spread below.
+    if (!Array.isArray(data)) break
     all.push(...data)
     if (data.length < 100) break
   }
@@ -104,6 +108,7 @@ export async function fetchContributors(org, repo, pat) {
   for(let page = 1; page<=maxPages ; page++) {
     const url = `https://api.github.com/repos/${org}/${repo}/contributors?per_page=100&page=${page}`
     const data = await fetchWithCache(url, pat)
+    if (!Array.isArray(data)) break
     all.push(...data)
     if(data.length < 100) break
   }
@@ -116,6 +121,7 @@ export async function fetchIssues(org, repo, pat) {
   for(let page = 1; page<=maxPages ; page++) {
     const url = `https://api.github.com/repos/${org}/${repo}/issues?state=all&per_page=100&page=${page}`
     const data = await fetchWithCache(url, pat)
+    if (!Array.isArray(data)) break
     all.push(...data)
     if(data.length < 100) break
   }
@@ -128,6 +134,7 @@ export async function fetchPulls(org, repo, pat) {
   for(let page = 1; page<=maxPages ; page++) {
     const url = `https://api.github.com/repos/${org}/${repo}/pulls?state=all&per_page=100&page=${page}`
     const data = await fetchWithCache(url, pat)
+    if (!Array.isArray(data)) break
     all.push(...data)
     if(data.length < 100) break
   }
