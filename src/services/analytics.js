@@ -152,7 +152,10 @@ export function buildTimeSeries(issues = [], granularity = 'monthly') {
 
 export function escapeCSVCell(val) {
   if (val === null || val === undefined) return ''
-  const str = String(val)
+  let str = String(val)
+  if (typeof val === 'string' && /^[=+\-@\t\r]/.test(str)) {
+    str = `'${str}`
+  }
   if (/[",\n\r]/.test(str)) {
     return `"${str.replace(/"/g, '""')}"`
   }
