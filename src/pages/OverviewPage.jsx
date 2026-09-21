@@ -58,7 +58,9 @@ export default function OverviewPage() {
   const langTotal = langs.reduce((s, [, c]) => s + c, 0)
 
   const topRepos = [...filteredRepos].sort((a, b) => b.healthScore - a.healthScore).slice(0, 5)
-
+  const selectedOrg = orgFilter === 'ALL Organizations'
+    ? (isMulti ? null : orgs[0])
+    : orgs.find(o => o.login === orgFilter)
  
 
 
@@ -169,8 +171,8 @@ export default function OverviewPage() {
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          {!isMulti && orgs[0]?.html_url && (
-            <a href={orgs[0].html_url} target="_blank" rel="noreferrer"
+          {selectedOrg?.html_url && (
+            <a href={selectedOrg.html_url} target="_blank" rel="noreferrer"
               style={{ ...C.btn('primary'), display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
               <FiExternalLink size={13} /> View on GitHub
             </a>
