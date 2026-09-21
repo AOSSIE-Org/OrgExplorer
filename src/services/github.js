@@ -143,3 +143,36 @@ export async function fetchRateLimit(pat) {
     return data.rate
   } catch { return null }
 }
+
+export async function searchOrganizations(query, pat, signal) {
+  try {
+    const headers = { Accept: 'application/vnd.github.v3+json' }
+    if (pat) headers.Authorization = `token ${pat}`
+    
+    const url = `https://api.github.com/search/users?q=${encodeURIComponent(query)}+type:org&per_page=8`
+    const res = await fetch(url, { headers, signal })
+
+    window.dispatchEvent(
+      new CustomEvent('rate-limit-update', {
+        detail: {
+          limit: Number(res.headers.get('x-ratelimit-limit')),
+          remaining: Number(res.headers.get('x-ratelimit-remaining')),
+          used: Number(res.headers.get('x-ratelimit-used')),
+          reset: Number(res.headers.get('x-ratelimit-reset'))
+        }
+      })
+    )
+
+    if (res.status === 403) throw new Error('RATE_LIMIT')
+    if (!res.ok) throw new Error(`HTTP_${res.status}`)
+
+    const data = await res.json()
+    return data.items || []
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      throw err;
+    }
+    console.error('Organization search failed:', err);
+    throw err;
+  }
+}
