@@ -113,4 +113,12 @@ describe('computeBusFactor', () => {
     // cum after 1: 10/100=.1; cum after 2: 100/100=1.0>0.5 -> factor 2
     expect(computeBusFactor(contributors)).toEqual({ factor: 2, risk: 'high' })
   })
+
+  it('supports contributor objects using totalContribs from analytical model', () => {
+    const contributors = [
+      { login: 'alice', totalContribs: 60 },
+      { login: 'bob', totalContribs: 40 }
+    ]
+    expect(computeBusFactor(contributors)).toEqual({ factor: 1, risk: 'critical' })
+  })
 })
