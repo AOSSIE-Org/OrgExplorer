@@ -65,7 +65,7 @@ export default function RepositoriesPage() {
   const { sorted, sortConfig, onSort } = useSortedData(filtered, 'healthScore', 'desc')
   const visible = sorted.slice(0, shown)
 
-  if(loading) return <RepositorySkeleton />
+  if (loading) return <RepositorySkeleton />
   if (!model) return null
 
   const TABLE_COLS = [
@@ -76,6 +76,8 @@ export default function RepositoriesPage() {
     ['healthScore', 'Health'],
     ['pushed_at', 'Repository Activity'],
   ]
+
+  const showNoSearchResults = search.trim() && filtered.length === 0
 
   return (
     <div style={{ padding: '32px 24px', maxWidth: 1100, margin: '0 auto' }} className="fade-up">
@@ -210,70 +212,77 @@ export default function RepositoriesPage() {
           ))}
         </div>
       </div>
-      {allRepos?.length ? (
-        <>
-          {/* Table view */}
-          <div style={{ ...C.card, padding: 0, overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr>
-                  {TABLE_COLS.map(([k, l]) => (
-                    <SortTh key={k} label={l} sortKey={k} sortConfig={sortConfig} onSort={onSort} />
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {visible.map((r, i) => (
-                  <tr key={r.id} style={{ borderBottom: '1px solid var(--border)', background: i % 2 ? 'var(--surface2)' : 'transparent' }}>
-                    <td style={{ padding: '10px 14px' }}>
-                      <a
-                        href={`${r.html_url}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{
-                          textDecoration: 'none',
-                          color: 'inherit',
-                        }}
-                      >
-                        <div style={{ fontWeight: 500, fontSize: 13 }}>{r.name}</div>
-                        {r.orgLogin && <div style={{ fontSize: 11, color: 'var(--text2)' }}>{r.orgLogin}</div>}
-                      </a>
-                    </td>
-                    <td style={{ padding: '10px 14px', fontSize: 13, color: 'var(--text2)' }}>{r.stargazers_count.toLocaleString()}</td>
-                    <td style={{ padding: '10px 14px', fontSize: 13, color: 'var(--text2)' }}>{r.forks_count.toLocaleString()}</td>
-                    <td style={{ padding: '10px 14px', fontSize: 13, color: r.open_issues_count > 30 ? 'var(--red)' : 'var(--text2)' }}>{r.open_issues_count}</td>
-                    <td style={{ padding: '10px 14px', minWidth: 130 }}><HealthBar score={r.healthScore} /></td>
-                    <td style={{ padding: '10px 14px' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}><Badge text={r.activityClassification} />
-                        <span style={{ fontSize: 11, color: 'var(--text2)' }}>
-                          Last push: {r.pushed_at?.slice(0, 10)}
-                        </span>
-                      </div>
-                    </td>
-                  </tr>
+
+      {!allRepos?.length && (
+        <div style={{ padding: '32px 24px', maxWidth: 900, margin: '0 auto' }}>
+          <EmptyStateCard
+            SvgIcon={<FiDatabase size={36} color="var(--accent)" />}
+            title="No repositories available"
+            description="We couldn't find any repositories for this organization yet."
+            buttonText="Go to Home"
+            onButtonClick={() => navigate('/')}
+          />
+        </div>
+      )}
+
+      {allRepos?.length > 0 && showNoSearchResults && (
+        <div style={{ padding: '32px 24px', maxWidth: 900, margin: '0 auto' }}>
+          <EmptyStateCard
+            SvgIcon={<FiDatabase size={36} color="var(--accent)" />}
+            title="No matching repositories"
+            description="No repositories match your search. Try a different search term."
+            buttonText="Clear Search"
+            onButtonClick={() => setSearch('')}
+          />
+        </div>
+      )}
+
+      {allRepos?.length > 0 && !showNoSearchResults && (
+        <div style={{ ...C.card, padding: 0, overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr>
+                {TABLE_COLS.map(([k, l]) => (
+                  <SortTh key={k} label={l} sortKey={k} sortConfig={sortConfig} onSort={onSort} />
                 ))}
-              </tbody>
-            </table>
-            <LoadMore shown={shown} total={sorted.length} onLoad={() => setShown(s => s + 20)} />
-          </div>
-        </>)
-        : (
-          <div
-            style={{
-              padding: '32px 24px',
-              maxWidth: 900,
-              margin: '0 auto',
-            }}
-          >
-            <EmptyStateCard
-              SvgIcon={<FiDatabase size={36} color="var(--accent)" />}
-              title="No repositories available"
-              description="We couldn't find any repositories for this organization yet."
-              buttonText="Go to Home"
-              onButtonClick={() => navigate('/')}
-            />
-          </div>
-        )}
-    </div>
+              </tr>
+            </thead>
+            <tbody>
+              {visible.map((r, i) => (
+                <tr key={r.id} style={{ borderBottom: '1px solid var(--border)', background: i % 2 ? 'var(--surface2)' : 'transparent' }}>
+                 <td style={{ padding: '10px 14px' }}>
+  <a
+    href={`${r.html_url}`}
+    target="_blank"
+    rel="noopener noreferrer"
+    style={{
+      textDecoration: 'none',
+      color: 'inherit',
+    }}
+  >
+    <div style={{ fontWeight: 500, fontSize: 13 }}>{r.name}</div>
+    {r.orgLogin && <div style={{ fontSize: 11, color: 'var(--text2)' }}>{r.orgLogin}</div>}
+  </a>
+</td>
+                  <td style={{ padding: '10px 14px', fontSize: 13, color: 'var(--text2)' }}>{r.stargazers_count.toLocaleString()}</td>
+                  <td style={{ padding: '10px 14px', fontSize: 13, color: 'var(--text2)' }}>{r.forks_count.toLocaleString()}</td>
+                  <td style={{ padding: '10px 14px', fontSize: 13, color: r.open_issues_count > 30 ? 'var(--red)' : 'var(--text2)' }}>{r.open_issues_count}</td>
+                  <td style={{ padding: '10px 14px', minWidth: 130 }}><HealthBar score={r.healthScore} /></td>
+                  <td style={{ padding: '10px 14px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}><Badge text={r.activityClassification} />
+                      <span style={{ fontSize: 11, color: 'var(--text2)' }}>
+                        Last push: {r.pushed_at?.slice(0, 10)}
+                      </span>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <LoadMore shown={shown} total={sorted.length} onLoad={() => setShown(s => s + 20)} />
+        </div>
+  )
+}
+    </div >
   )
 }
