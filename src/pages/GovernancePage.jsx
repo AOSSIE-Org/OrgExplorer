@@ -1,15 +1,17 @@
 import React, { useState, useMemo } from 'react'
-import { FiRefreshCw, FiExternalLink } from 'react-icons/fi'
+import { FiRefreshCw, FiExternalLink, FiSearch, FiAlertTriangle, FiCheckCircle } from 'react-icons/fi'
 import { useApp } from '../context/AppContext'
-import { C, PageTitle, EmptyOk } from '../components/UI'
+import { C, PageTitle, EmptyOk, Badge, HealthBar } from '../components/UI'
 import AnalysisBanner from '../components/AnalysisBanner'
 import { GovernanceSkeleton } from '../components/Orgexplorerskeletons'
+import RadialGauge from '../components/RadialGauge'
 
 const TABS = [
-  { key: 'dead',    label: 'Dead Issues' },
-  { key: 'zombie',  label: 'Zombie PRs'  },
-  { key: 'stale',   label: 'Stale Issues Ratio' },
-  { key: 'license', label: 'No License'  },
+  { key: 'scorecard', label: 'Health Scorecard' },
+  { key: 'dead',      label: 'Dead Issues' },
+  { key: 'zombie',    label: 'Zombie PRs'  },
+  { key: 'stale',     label: 'Stale Issues Ratio' },
+  { key: 'license',   label: 'No License'  },
 ]
 
 const getStatus = ratio => {
@@ -42,17 +44,56 @@ const getStatus = ratio => {
 }
 
 export default function GovernancePage() {
-  const { model, issuesData, runAudit, govLoading, auditComplete, loading, runGovernanceAnalysis,staleRepoStats } = useApp()
-  const [tab, setTab] = useState('dead')
+  const { model, issuesData, runAudit, govLoading, auditComplete, loading, runGovernanceAnalysis, staleRepoStats, repoScorecards } = useApp()
+  const [tab, setTab] = useState('scorecard')
 
   const ITEMS_PER_PAGE = 10
   const [stalePage, setStalePage] = useState(1)
   const totalPages = Math.ceil(staleRepoStats.length / ITEMS_PER_PAGE)
 
+  const SCORECARD_ITEMS_PER_PAGE = 5
+  const [searchQuery, setSearchQuery] = useState('')
+  const [scorecardPage, setScorecardPage] = useState(1)
+
   const paginatedStaleRepos = useMemo(() => {
     const start = (stalePage - 1) * ITEMS_PER_PAGE
     return staleRepoStats.slice(start, start + ITEMS_PER_PAGE)
   }, [staleRepoStats, stalePage])
+
+  // Scorecards filtering & pagination
+  const filteredScorecards = useMemo(() => {
+    if (!searchQuery.trim()) return repoScorecards || []
+    const q = searchQuery.toLowerCase().trim()
+    return (repoScorecards || []).filter(s =>
+      s.repoName.toLowerCase().includes(q) || s.repoKey.toLowerCase().includes(q)
+    )
+  }, [repoScorecards, searchQuery])
+
+  const totalScorecardPages = Math.ceil(filteredScorecards.length / SCORECARD_ITEMS_PER_PAGE) || 1
+  const currentScorecardPage = Math.min(scorecardPage, totalScorecardPages)
+
+  const paginatedScorecards = useMemo(() => {
+    const start = (currentScorecardPage - 1) * SCORECARD_ITEMS_PER_PAGE
+    return filteredScorecards.slice(start, start + SCORECARD_ITEMS_PER_PAGE)
+  }, [filteredScorecards, currentScorecardPage])
+
+  const { avgOrgHealth, reposAtRiskCount, healthyReposCount } = useMemo(() => {
+    let scoreSum = 0, scoredCount = 0, atRisk = 0, healthy = 0
+    for (const s of repoScorecards || []) {
+      if (s.overallScore !== null) {
+        scoreSum += s.overallScore
+        scoredCount++
+      }
+      if (s.riskLevel === 'critical' || s.riskLevel === 'warning') atRisk++
+      else if (s.riskLevel === 'healthy') healthy++
+    }
+    return {
+      avgOrgHealth: scoredCount ? Math.round(scoreSum / scoredCount) : null,
+      reposAtRiskCount: atRisk,
+      healthyReposCount: healthy
+    }
+  }, [repoScorecards])
+
   // Flatten all issues and tag with repo/org
   const allIssues = useMemo(() => {
     const arr = []
@@ -63,7 +104,7 @@ export default function GovernancePage() {
     return arr
   }, [issuesData])
 
-  if(loading) return <GovernanceSkeleton />
+  if (loading) return <GovernanceSkeleton />
   if (!model) return null
 
   const hasAudit = Object.keys(issuesData || {}).length > 0
@@ -75,7 +116,7 @@ export default function GovernancePage() {
     .sort((a, b) => daysSince(b.created_at) - daysSince(a.created_at))
 
   // Health check 2 — Percentage of dead issues relative to all issues
-  const staleIssuesRatio = allIssues.length ? (deadIssues.length / allIssues.length) * 100 : 0;
+  const staleIssuesRatio = allIssues.length ? (deadIssues.length / allIssues.length) * 100 : 0
 
   // Health check 3 — Zombie PRs (>90 days open)
   const zombiePRs = allIssues
@@ -88,7 +129,13 @@ export default function GovernancePage() {
   // Issue resolution rate per repo
   const topRepos = model.allRepos.slice(0, 8)
 
-  const counts = { dead: deadIssues.length, zombie: zombiePRs.length, license: noLicense.length, stale: staleIssuesRatio.toFixed(2) }
+  const counts = {
+    scorecard: repoScorecards ? repoScorecards.length : 0,
+    dead: deadIssues.length,
+    zombie: zombiePRs.length,
+    license: noLicense.length,
+    stale: staleIssuesRatio.toFixed(2)
+  }
 
   // Stat card
   const StatBox = ({ label, value, sub, color }) => (
@@ -133,6 +180,29 @@ export default function GovernancePage() {
         ))}
       </tr>
     </thead>
+  )
+
+  const pillarRiskBadge = (risk, label) => {
+    const color = risk === 'healthy' ? 'var(--green)' : risk === 'warning' ? 'var(--amber)' : risk === 'critical' ? 'var(--red)' : 'var(--text3)'
+    const bg = risk === 'healthy' ? 'rgba(34,197,94,.12)' : risk === 'warning' ? 'rgba(250,204,21,.12)' : risk === 'critical' ? 'rgba(239,68,68,.12)' : 'rgba(102,102,102,.12)'
+    return <span style={C.pill(color, bg)}>{label || risk?.toUpperCase()}</span>
+  }
+
+  const PillarRow = ({ label, pillar, metric }) => (
+    <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr 100px 130px', alignItems: 'center', gap: 12 }}>
+      <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>{label}</span>
+      <div>
+        {pillar.score !== null ? (
+          <HealthBar score={pillar.score} />
+        ) : (
+          <div style={{ fontSize: 12, color: 'var(--text3)' }}>—</div>
+        )}
+      </div>
+      <div style={{ textAlign: 'right' }}>
+        {pillarRiskBadge(pillar.riskLevel, pillar.label)}
+      </div>
+      <span style={{ fontSize: 11, color: 'var(--text2)', textAlign: 'right' }}>{metric}</span>
+    </div>
   )
 
   return (
@@ -222,12 +292,164 @@ export default function GovernancePage() {
               }}
             >
               {t.label}{' '}
-              <span style={{ color: counts[t.key] > 40 ? 'var(--red)' : 'var(--green)', marginLeft: 4 }}>
+              <span style={{ color: t.key === 'scorecard' ? 'var(--accent)' : counts[t.key] > 40 ? 'var(--red)' : 'var(--green)', marginLeft: 4 }}>
                 {counts[t.key]}
               </span>
             </button>
           ))}
         </div>
+
+        {/* Health Scorecard Tab */}
+        {tab === 'scorecard' && (
+          <div>
+            {/* Portfolio Health Summary Bar */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
+              <div style={{ padding: '14px 18px', background: 'var(--surface2)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                <div style={C.label}>Organization Health</div>
+                <div style={{ fontSize: 24, fontWeight: 700, color: avgOrgHealth !== null ? (avgOrgHealth >= 70 ? 'var(--green)' : avgOrgHealth >= 40 ? 'var(--amber)' : 'var(--red)') : 'var(--text3)', marginTop: 4 }}>
+                  {avgOrgHealth !== null ? `${avgOrgHealth} / 100` : 'N/A'}
+                </div>
+              </div>
+
+              <div style={{ padding: '14px 18px', background: 'var(--surface2)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                <div style={C.label}>Repositories at Risk</div>
+                <div style={{ fontSize: 24, fontWeight: 700, color: reposAtRiskCount > 0 ? 'var(--amber)' : 'var(--green)', marginTop: 4 }}>
+                  {reposAtRiskCount}
+                </div>
+              </div>
+
+              <div style={{ padding: '14px 18px', background: 'var(--surface2)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                <div style={C.label}>Healthy Repositories</div>
+                <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--green)', marginTop: 4 }}>
+                  {healthyReposCount}
+                </div>
+              </div>
+            </div>
+
+            {/* Search Input */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
+              <div style={{ position: 'relative', flex: 1 }}>
+                <FiSearch style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text2)' }} size={15} />
+                <input
+                  type="text"
+                  aria-label="Search scorecards by repository name or owner"
+                  placeholder="Search scorecards by repository name or owner..."
+                  value={searchQuery}
+                  onChange={e => { setSearchQuery(e.target.value); setScorecardPage(1); }}
+                  style={{ ...C.input, width: '100%', paddingLeft: 36 }}
+                />
+              </div>
+            </div>
+
+            {/* Scorecard Cards List */}
+            {paginatedScorecards.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {paginatedScorecards.map(sc => {
+                  const p = sc.pillars
+                  return (
+                    <div
+                      key={sc.repoKey}
+                      style={{
+                        background: 'var(--surface2)',
+                        border: '1px solid var(--border)',
+                        borderRadius: 'var(--radius)',
+                        padding: '20px'
+                      }}
+                    >
+                      {/* Scorecard Card Header */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                          <RadialGauge score={sc.overallScore} size={72} />
+                          <div>
+                            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>
+                              {sc.repoName}
+                            </div>
+                            <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 2 }}>
+                              {sc.repoKey}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                          {pillarRiskBadge(sc.riskLevel)}
+                          <a
+                            href={`https://github.com/${sc.repoKey}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{ fontSize: 12, color: 'var(--text2)', display: 'flex', alignItems: 'center', gap: 4 }}
+                          >
+                            <FiExternalLink size={12} /> GitHub
+                          </a>
+                        </div>
+                      </div>
+
+                      {/* 5 Pillars Breakdown */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
+                        {[
+                          { key: 'busFactor', label: 'Bus Factor', pillar: p.busFactor, metric: p.busFactor.factor ? `${p.busFactor.factor} contributors` : 'No data' },
+                          { key: 'compliance', label: 'Compliance', pillar: p.compliance, metric: p.compliance.checks.license ? 'License ✓' : 'No License ✗' },
+                          { key: 'freshness', label: 'Freshness', pillar: p.freshness, metric: p.freshness.daysSince !== null ? `${p.freshness.daysSince} days ago` : 'No data' },
+                          { key: 'responsiveness', label: 'Responsiveness', pillar: p.responsiveness, metric: p.responsiveness.staleRatio !== null ? `${Math.round(p.responsiveness.staleRatio * 100)}% stale` : 'No audit data' },
+                          { key: 'prResolution', label: 'PR Resolution', pillar: p.prResolution, metric: p.prResolution.mergeRate !== null ? `${Math.round(p.prResolution.mergeRate * 100)}% merge rate` : 'Insufficient data' },
+                        ].map(row => (
+                          <PillarRow key={row.key} label={row.label} pillar={row.pillar} metric={row.metric} />
+                        ))}
+                      </div>
+
+                      {/* Recommendations section */}
+                      <div style={{ background: 'var(--surface)', padding: '12px 14px', borderRadius: 6, border: '1px solid var(--border)' }}>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text2)', letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 8 }}>
+                          Actionable Recommendations
+                        </div>
+                        {sc.recommendations.length > 0 ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            {sc.recommendations.map(rec => (
+                              <div key={rec.message} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
+                                <FiAlertTriangle size={13} color={rec.severity === 'critical' ? 'var(--red)' : 'var(--amber)'} />
+                                <span style={{ color: rec.severity === 'critical' ? 'var(--red)' : 'var(--text)' }}>
+                                  {rec.message}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--green)' }}>
+                            <FiCheckCircle size={13} /> No critical governance risks detected. Repository is healthy!
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <EmptyOk msg="No repository scorecards found" sub={searchQuery ? "No repository matched your search query." : "Run the governance audit to compute detailed health scorecards."} />
+            )}
+
+            {/* Pagination Controls */}
+            {totalScorecardPages > 1 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 20 }}>
+                <button
+                  onClick={() => setScorecardPage(Math.max(1, currentScorecardPage - 1))}
+                  disabled={currentScorecardPage === 1}
+                  style={{ ...C.btn('ghost'), opacity: currentScorecardPage === 1 ? 0.5 : 1, cursor: currentScorecardPage === 1 ? 'not-allowed' : 'pointer' }}
+                >
+                  ← Previous
+                </button>
+                <span style={{ fontSize: 13, color: 'var(--text2)' }}>
+                  Page {currentScorecardPage} of {totalScorecardPages}
+                </span>
+                <button
+                  onClick={() => setScorecardPage(Math.min(totalScorecardPages, currentScorecardPage + 1))}
+                  disabled={currentScorecardPage === totalScorecardPages}
+                  style={{ ...C.btn('ghost'), opacity: currentScorecardPage === totalScorecardPages ? 0.5 : 1, cursor: currentScorecardPage === totalScorecardPages ? 'not-allowed' : 'pointer' }}
+                >
+                  Next →
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Dead Issues */}
         {tab === 'dead' && (

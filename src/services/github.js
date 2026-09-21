@@ -143,3 +143,26 @@ export async function fetchRateLimit(pat) {
     return data.rate
   } catch { return null }
 }
+
+export async function fetchRepoFilePresence(org, repo, pat) {
+  if (!pat) return null
+  try {
+    const checkFile = async (filename) => {
+      try {
+        const url = `https://api.github.com/repos/${org}/${repo}/contents/${filename}`
+        await fetchWithCache(url, pat)
+        return true
+      } catch {
+        return false
+      }
+    }
+    const [contributing, security] = await Promise.all([
+      checkFile('CONTRIBUTING.md'),
+      checkFile('SECURITY.md')
+    ])
+    return { contributing, security }
+  } catch {
+    return null
+  }
+}
+
