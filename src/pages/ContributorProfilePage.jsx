@@ -4,6 +4,8 @@ import { FiArrowLeft, FiDownload, FiExternalLink, FiCalendar, FiBriefcase, FiAle
 import { useApp } from '../context/AppContext'
 import { C, PageTitle, Spinner, StatCard } from '../components/UI'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { storage,STORAGE_KEYS } from '../utils/storage'
+
 
 // Reusable ContributionTable component
 function ContributionTable({ items, dateHeader, resolveStatus }) {
@@ -141,15 +143,12 @@ export default function ContributorProfilePage() {
     let list = orgs.map(o => o.login)
     if (!list.length) {
       try {
-        const rawRecent = localStorage.getItem('oe_recent')
-        if (rawRecent) {
-          const recent = JSON.parse(rawRecent)
-          if (Array.isArray(recent) && recent.length && typeof recent[0] === 'string') {
-            list = recent[0].split(',').map(s => s.trim()).filter(Boolean)
-          }
+        const recent = storage.get(STORAGE_KEYS.RECENT_SEARCHES)
+        if (Array.isArray(recent) && recent.length && typeof recent[0] === 'string') {
+          list = recent[0].split(',').map(s => s.trim()).filter(Boolean)
         }
       } catch (e) {
-        console.error('Failed to parse oe_recent from localStorage:', e)
+        console.error('Failed to parse recent searches from storage:', e)
       }
     }
     return list

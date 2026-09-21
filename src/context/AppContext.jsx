@@ -1,32 +1,33 @@
 import { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { fetchOrg, fetchRepos, fetchContributors, fetchIssues, fetchRateLimit, fetchPulls } from '../services/github'
 import { buildAnalyticalModel, getTopRepositories } from '../services/analytics'
+import { storage,STORAGE_KEYS } from '../utils/storage'
 import { saveAnalysis, loadAnalysis } from '../services/cache'
 
 const Ctx = createContext(null)
 
 function getStoredRateLimit() {
-  const stored = localStorage.getItem('oe_rate_limit')
+  const stored = storage.get(STORAGE_KEYS.RATE_LIMIT)
 
   if (!stored) return null
 
   try {
-    const data = JSON.parse(stored)
+  
 
-    if (Date.now() > data.reset * 1000) {
-      localStorage.removeItem('oe_rate_limit')
+    if (Date.now() >  stored.reset * 1000) {
+      storage.remove(STORAGE_KEYS.RATE_LIMIT)
       return null
     }
 
-    return data
+    return stored
   } catch {
-    localStorage.removeItem('oe_rate_limit')
+    storage.remove(STORAGE_KEYS.RATE_LIMIT)
     return null
   }
 }
 
 export function AppProvider({ children }) {
-  const [pat, setPat] = useState(() => localStorage.getItem('oe_pat') || '')
+  const [pat, setPat] = useState(() => storage.get(STORAGE_KEYS.PAT) || '')
   const [orgs, setOrgs] = useState([])
   const [model, setModel] = useState(null)
   const [issuesData, setIssuesData] = useState({})
@@ -38,7 +39,7 @@ export function AppProvider({ children }) {
   const [error, setError] = useState('')
   const [totalRepo, setTotalRepo] = useState(0)
   const [advanceAnalyticsLoading, setAdvanceAnalyticsLoading] = useState(false);
-  const [advanceAnalyticsComplete, setAdvanceAnalyticsComplete] = useState(false) 
+  const [advanceAnalyticsComplete, setAdvanceAnalyticsComplete] = useState(false)
   const [isComplete, setIsComplete] = useState(false)
   const [auditComplete, setAuditComplete] = useState(false)
   const [lastOrgNames, setLastOrgNames] = useState([])
@@ -101,7 +102,7 @@ export function AppProvider({ children }) {
   useEffect(() => {
     const handler = e => {
       setRateLimit(e.detail)
-      localStorage.setItem('oe_rate_limit', JSON.stringify(e.detail))
+      storage.set(STORAGE_KEYS.RATE_LIMIT, e.detail)
     }
 
     window.addEventListener('rate-limit-update', handler)
@@ -115,7 +116,7 @@ export function AppProvider({ children }) {
     if (!rateLimit?.reset) return
 
     const timeout = setTimeout(() => {
-      localStorage.removeItem('oe_rate_limit')
+      storage.remove(STORAGE_KEYS.RATE_LIMIT)
       setRateLimit(null)
     }, Math.max(0, rateLimit.reset * 1000 - Date.now()))
 
@@ -132,7 +133,7 @@ export function AppProvider({ children }) {
   }, [pat])
   const savePat = useCallback(token => {
     setPat(token)
-    token ? localStorage.setItem('oe_pat', token) : localStorage.removeItem('oe_pat')
+    token ? storage.set(STORAGE_KEYS.PAT, token) : storage.remove(STORAGE_KEYS.PAT)
   }, [])
 
   // Multi-org explore
@@ -184,9 +185,9 @@ export function AppProvider({ children }) {
       setIsComplete(!!pat)
 
       // Save to recent searches
-      const prev = JSON.parse(localStorage.getItem('oe_recent') || '[]')
+      const prev = storage.get(STORAGE_KEYS.RECENT_SEARCHES) || []
       const entry = orgNames.join(', ')
-      localStorage.setItem('oe_recent', JSON.stringify([...new Set([entry, ...prev])].slice(0, 6)))
+      storage.set(STORAGE_KEYS.RECENT_SEARCHES, [...new Set([entry, ...prev])].slice(0, 6))
       return builtModel
     } catch (err) {
       setError(err.message === 'RATE_LIMIT'
@@ -344,28 +345,28 @@ export function AppProvider({ children }) {
   }, [model, isComplete, runFullExplore, auditRepos, selectAnalysisRepos, pat, govLoading, advanceAnalyticsLoading])
 
   const STALE_DAYS = 90
-  
+
   const staleRepoStats = useMemo(() => {
     const now = Date.now()
-  
+
     return Object.entries(issuesData || {}).map(([key, issues]) => {
       const [org, repo] = key.split('/')
-  
+
       const normalIssues = issues.filter(i => !i.pull_request)
-  
+
       const openIssues = normalIssues.filter(i => i.state === 'open')
-  
+
       const staleIssues = openIssues.filter(i => {
         const updated = new Date(i.updated_at).getTime()
         const diffDays = (now - updated) / (1000 * 60 * 60 * 24)
         return diffDays >= STALE_DAYS
       })
-  
+
       const ratio =
         openIssues.length === 0
           ? 0
           : Math.round((staleIssues.length / openIssues.length) * 100)
-  
+
       return {
         id: key,
         org,
