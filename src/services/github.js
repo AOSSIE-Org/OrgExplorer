@@ -15,8 +15,11 @@ function openDB() {
 export async function cacheGet(key) {
   try {
     const db = await openDB()
+    // close() only takes effect once the in-flight transaction below settles,
+    // so it's safe to call right away instead of leaving the connection open.
+    const req = db.transaction(STORE, 'readonly').objectStore(STORE).get(key)
+    db.close()
     return new Promise(res => {
-      const req = db.transaction(STORE, 'readonly').objectStore(STORE).get(key)
       req.onsuccess = () => {
         const r = req.result
         if (!r || Date.now() - r.ts > TTL_MS) return res(null)
@@ -30,9 +33,10 @@ export async function cacheGet(key) {
 export async function cacheSet(key, value) {
   try {
     const db = await openDB()
+    const tx = db.transaction(STORE, 'readwrite')
+    tx.objectStore(STORE).put({ k: key, v: value, ts: Date.now() })
+    db.close()
     return new Promise(res => {
-      const tx = db.transaction(STORE, 'readwrite')
-      tx.objectStore(STORE).put({ k: key, v: value, ts: Date.now() })
       tx.oncomplete = () => res(true)
       tx.onerror = () => res(false)
     })
@@ -42,9 +46,10 @@ export async function cacheSet(key, value) {
 export async function cacheClear() {
   try {
     const db = await openDB()
+    const tx = db.transaction(STORE, 'readwrite')
+    tx.objectStore(STORE).clear()
+    db.close()
     return new Promise(res => {
-      const tx = db.transaction(STORE, 'readwrite')
-      tx.objectStore(STORE).clear()
       tx.oncomplete = () => res(true)
       tx.onerror = () => res(false)
     })
