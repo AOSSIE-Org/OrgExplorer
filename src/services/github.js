@@ -76,7 +76,10 @@ async function fetchWithCache(url, pat) {
   if (res.status === 403) throw new Error('RATE_LIMIT')
   if (res.status === 404) throw new Error('NOT_FOUND')
   if (!res.ok) throw new Error(`HTTP_${res.status}`)
-
+  if(res.status==204){
+    cacheSet(url, [])
+    return[]
+  }
   const data = await res.json()
   cacheSet(url, data) // write-back, non-blocking
   return data
@@ -104,6 +107,7 @@ export async function fetchContributors(org, repo, pat) {
   for(let page = 1; page<=maxPages ; page++) {
     const url = `https://api.github.com/repos/${org}/${repo}/contributors?per_page=100&page=${page}`
     const data = await fetchWithCache(url, pat)
+    if (!Array.isArray(data)) break
     all.push(...data)
     if(data.length < 100) break
   }
@@ -116,6 +120,7 @@ export async function fetchIssues(org, repo, pat) {
   for(let page = 1; page<=maxPages ; page++) {
     const url = `https://api.github.com/repos/${org}/${repo}/issues?state=all&per_page=100&page=${page}`
     const data = await fetchWithCache(url, pat)
+    if (!Array.isArray(data)) break
     all.push(...data)
     if(data.length < 100) break
   }
@@ -128,6 +133,7 @@ export async function fetchPulls(org, repo, pat) {
   for(let page = 1; page<=maxPages ; page++) {
     const url = `https://api.github.com/repos/${org}/${repo}/pulls?state=all&per_page=100&page=${page}`
     const data = await fetchWithCache(url, pat)
+    if (!Array.isArray(data)) break
     all.push(...data)
     if(data.length < 100) break
   }
