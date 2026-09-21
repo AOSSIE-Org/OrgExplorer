@@ -380,6 +380,7 @@ logs/
 coverage/
 playwright-report/
 test-results/
+.lighthouseci/
 
 # ===============================
 # IDE / Editor
