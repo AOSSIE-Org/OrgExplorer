@@ -53,9 +53,11 @@ export default function SettingsPage() {
   }
 
   const handleClear = async () => {
-    await cacheClear()
-    setCleared(true)
-    setTimeout(() => setCleared(false), 2000)
+    const success = await cacheClear()
+    if (success) {
+      setCleared(true)
+      setTimeout(() => setCleared(false), 2000)
+    }
   }
 
   const rateColor = rateLimit
