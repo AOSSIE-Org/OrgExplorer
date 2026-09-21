@@ -5,6 +5,8 @@ import { C, PageTitle, EmptyOk } from '../components/UI'
 import AnalysisBanner from '../components/AnalysisBanner'
 import { GovernanceSkeleton } from '../components/Orgexplorerskeletons'
 
+import HealthScorecard from '../components/HealthScorecard'
+
 const TABS = [
   { key: 'dead',    label: 'Dead Issues' },
   { key: 'zombie',  label: 'Zombie PRs'  },
@@ -43,6 +45,7 @@ const getStatus = ratio => {
 
 export default function GovernancePage() {
   const { model, issuesData, runAudit, govLoading, auditComplete, loading, runGovernanceAnalysis,staleRepoStats } = useApp()
+  const [viewMode, setViewMode] = useState('scorecard') // 'scorecard' | 'audit'
   const [tab, setTab] = useState('dead')
 
   const ITEMS_PER_PAGE = 10
@@ -161,13 +164,45 @@ export default function GovernancePage() {
         }
       />
 
-      {/* Summary stat cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 24 }}>
-        <StatBox label="Dead Issues"  value={counts.dead}    sub="OPEN 90+ DAYS"          color="var(--red)"    />
-        <StatBox label="Stale Issues Ratio" value={`${staleIssuesRatio.toFixed(2)}%`} sub={`of ${allIssues.length} total issues`} color={` ${getStatus(staleIssuesRatio).color}`} />
-        <StatBox label="Zombie PRs"   value={counts.zombie}  sub="PENDING 90+ DAYS"       color="var(--amber)"  />
-        <StatBox label="No License"   value={counts.license} sub="COMPLIANCE MISSING"     color="var(--text2)"  />
+      {/* Primary Navigation Tabs */}
+      <div style={{ display: 'flex', gap: 12, marginBottom: 24, borderBottom: '1px solid var(--border)', paddingBottom: 10 }}>
+        <button
+          onClick={() => setViewMode('scorecard')}
+          style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            color: viewMode === 'scorecard' ? 'var(--text)' : 'var(--text2)',
+            fontWeight: viewMode === 'scorecard' ? 600 : 400,
+            fontSize: 14, padding: '8px 16px',
+            borderBottom: viewMode === 'scorecard' ? '2px solid var(--accent)' : '2px solid transparent',
+          }}
+        >
+          🏥 Health Scorecard & Risk Advisor
+        </button>
+        <button
+          onClick={() => setViewMode('audit')}
+          style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            color: viewMode === 'audit' ? 'var(--text)' : 'var(--text2)',
+            fontWeight: viewMode === 'audit' ? 600 : 400,
+            fontSize: 14, padding: '8px 16px',
+            borderBottom: viewMode === 'audit' ? '2px solid var(--accent)' : '2px solid transparent',
+          }}
+        >
+          📋 Structural Audit Details
+        </button>
       </div>
+
+      {viewMode === 'scorecard' ? (
+        <HealthScorecard model={model} issuesData={issuesData} hasAudit={hasAudit} onRunAudit={runAudit} govLoading={govLoading} />
+      ) : (
+        <>
+          {/* Summary stat cards */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 24 }}>
+            <StatBox label="Dead Issues"  value={counts.dead}    sub="OPEN 90+ DAYS"          color="var(--red)"    />
+            <StatBox label="Stale Issues Ratio" value={`${staleIssuesRatio.toFixed(2)}%`} sub={`of ${allIssues.length} total issues`} color={` ${getStatus(staleIssuesRatio).color}`} />
+            <StatBox label="Zombie PRs"   value={counts.zombie}  sub="PENDING 90+ DAYS"       color="var(--amber)"  />
+            <StatBox label="No License"   value={counts.license} sub="COMPLIANCE MISSING"     color="var(--text2)"  />
+          </div>
 
       {/* Issue Resolution Rate */}
       <div style={{ ...C.card, marginBottom: 20 }}>
@@ -374,6 +409,8 @@ export default function GovernancePage() {
           ) : <EmptyOk msg="All repos have licenses" sub="Good compliance across the portfolio." />
         )}
       </div>
+        </>
+      )}
     </div>
   )
 }
