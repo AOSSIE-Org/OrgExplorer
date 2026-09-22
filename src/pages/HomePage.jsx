@@ -36,7 +36,7 @@ export default function HomePage() {
     const orgs = targets || (chips.length ? chips : input.trim() ? [input.trim()] : [])
     if (!orgs.length) return
     const success = await explore(orgs)
-    if(success) navigate('/overview')
+    if (success) navigate('/overview')
   }
 
   return (
@@ -98,7 +98,7 @@ export default function HomePage() {
           <p style={{ color: 'var(--text2)', fontSize: 13 }}>{loadMsg}</p>
         </div>
       )}
-  
+
       {/* Recent */}
       {recent.length > 0 && !loading && (
         <div style={{ textAlign: 'center' }}>
@@ -128,7 +128,7 @@ export default function HomePage() {
       )}
 
       {/* Stats bar */}
-      <div style={{ display: 'flex', gap: 48, padding: '20px 40px', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+      <div className="home-stats-bar" style={{ display: 'flex', gap: 48, padding: '20px 40px', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
         {[['5,000', 'req/hr with PAT', 'var(--green)'], ['1HR', 'intelligent cache', 'var(--green)'], ['ZERO', 'backend latency', 'var(--accent)']].map(([v, l, color]) => (
           <div key={l} style={{ textAlign: 'center' }}>
             <div style={{ fontSize: 22, fontWeight: 800, color }}>{v}</div>
