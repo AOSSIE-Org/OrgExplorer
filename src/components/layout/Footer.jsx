@@ -7,7 +7,7 @@ import {
   FaXTwitter,
 } from "react-icons/fa6";
 import { HiOutlineMail } from "react-icons/hi";
-import Logo from "../../assests/og-logo.svg?react";
+import Logo from "../../assets/og-logo.svg?react";
 import { useTheme } from "../../context/ThemeContext";
 import { BsHeart, BsHeartFill } from "react-icons/bs";
 import { color } from "d3";
