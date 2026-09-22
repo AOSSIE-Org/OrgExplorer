@@ -182,10 +182,23 @@ function dispatchRateLimit(headers) {
   }
 }
 
+export function getCacheKey(url, pat) {
+  const normUrl = normalizeCacheKey(url)
+  if (!pat) return `anon::${normUrl}`
+  let hash = 0
+  for (let i = 0; i < pat.length; i++) {
+    hash = (hash << 5) - hash + pat.charCodeAt(i)
+    hash |= 0
+  }
+  return `pat_${Math.abs(hash)}::${normUrl}`
+}
+
 // Core fetchWithCache 
 export async function fetchWithCache(url, pat) {
+  const cacheKey = getCacheKey(url, pat)
+
   // L2 check
-  const entry = await cacheGetEntry(url)
+  const entry = await cacheGetEntry(cacheKey)
   if (entry && (Date.now() - entry.ts <= TTL_MS)) {
     return entry.v
   }
@@ -195,12 +208,12 @@ export async function fetchWithCache(url, pat) {
     if (pat) headers.Authorization = `token ${pat}`
     if (entry?.etag) headers['If-None-Match'] = entry.etag
 
-    const res = await fetch(url, { headers })
+    const res = await fetch(url, { headers, cache: 'no-store' })
     dispatchRateLimit(res.headers)
 
     if (res.status === 304 && entry) {
       const newEtag = res.headers.get('etag') || entry.etag
-      cacheTouch(url, newEtag)
+      await cacheTouch(cacheKey, newEtag)
       return entry.v
     }
 
@@ -215,7 +228,7 @@ export async function fetchWithCache(url, pat) {
       // All list-endpoint callers treat [] as "no data", and analytics
       // already defaults missing entries to [].
       const empty = []
-      cacheSet(url, empty) // write-back, non-blocking
+      await cacheSet(cacheKey, empty)
       return empty
     }
 
@@ -223,7 +236,7 @@ export async function fetchWithCache(url, pat) {
 
     const data = await res.json()
     const etag = res.headers.get('etag')
-    cacheSet(url, data, etag) // write-back, non-blocking
+    await cacheSet(cacheKey, data, etag)
     return data
   })
 }
