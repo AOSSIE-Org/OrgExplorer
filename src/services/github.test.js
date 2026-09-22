@@ -8,6 +8,7 @@ import {
   fetchWithCache,
   fetchOrg,
   fetchRateLimit,
+  getCacheKey,
   TTL_MS
 } from './github'
 
@@ -83,11 +84,12 @@ describe('github service: IndexedDB ETag Cache & Throttling', () => {
 
   describe('Cache Operations', () => {
     it('sets and retrieves cache entries with ETag', async () => {
-      await cacheSet('https://api.github.com/orgs/AOSSIE-Org', { name: 'AOSSIE' }, 'W/"etag-123"')
-      const entry = await cacheGetEntry('https://api.github.com/orgs/AOSSIE-Org')
+      const key = getCacheKey('https://api.github.com/orgs/AOSSIE-Org')
+      await cacheSet(key, { name: 'AOSSIE' }, 'W/"etag-123"')
+      const entry = await cacheGetEntry(key)
 
       expect(entry).toBeDefined()
-      expect(entry.k).toBe('https://api.github.com/orgs/AOSSIE-Org')
+      expect(entry.k).toBe(key)
       expect(entry.v).toEqual({ name: 'AOSSIE' })
       expect(entry.etag).toBe('W/"etag-123"')
       expect(typeof entry.ts).toBe('number')
@@ -101,14 +103,12 @@ describe('github service: IndexedDB ETag Cache & Throttling', () => {
 
     it('returns null from cacheGet if expired', async () => {
       await cacheSet('key1', { value: 42 })
-      // Manually set timestamp to past TTL
       const record = mockIDB._store.get('key1')
       record.ts = Date.now() - (TTL_MS + 1000)
 
       const val = await cacheGet('key1')
       expect(val).toBeNull()
 
-      // But cacheGetEntry still preserves the record for conditional requests
       const entry = await cacheGetEntry('key1')
       expect(entry).not.toBeNull()
       expect(entry.v).toEqual({ value: 42 })
@@ -136,21 +136,26 @@ describe('github service: IndexedDB ETag Cache & Throttling', () => {
     })
   })
 
-  describe('fetchWithCache with ETag Conditional Requests', () => {
+  describe('fetchWithCache with ETag Conditional Requests & Identity Partitioning', () => {
     it('returns cached data immediately when cache is fresh without network fetch', async () => {
       const mockFetch = vi.fn()
       globalThis.fetch = mockFetch
 
-      await cacheSet('https://api.github.com/test', { data: 'cached' }, 'etag-1')
+      const url = 'https://api.github.com/test'
+      const key = getCacheKey(url)
+      await cacheSet(key, { data: 'cached' }, 'etag-1')
 
-      const result = await fetchWithCache('https://api.github.com/test')
+      const result = await fetchWithCache(url)
       expect(result).toEqual({ data: 'cached' })
       expect(mockFetch).not.toHaveBeenCalled()
     })
 
-    it('sends If-None-Match header when cache is expired', async () => {
-      await cacheSet('https://api.github.com/test', { data: 'old-data' }, 'W/"test-etag"')
-      const entry = mockIDB._store.get('https://api.github.com/test')
+    it('sends If-None-Match header and cache: no-store when cache is expired', async () => {
+      const url = 'https://api.github.com/test'
+      const pat = 'token123'
+      const key = getCacheKey(url, pat)
+      await cacheSet(key, { data: 'old-data' }, 'W/"test-etag"')
+      const entry = mockIDB._store.get(key)
       entry.ts = Date.now() - (TTL_MS + 1000)
 
       const mockFetch = vi.fn().mockResolvedValue({
@@ -167,12 +172,13 @@ describe('github service: IndexedDB ETag Cache & Throttling', () => {
       })
       globalThis.fetch = mockFetch
 
-      const result = await fetchWithCache('https://api.github.com/test', 'token123')
+      const result = await fetchWithCache(url, pat)
       expect(result).toEqual({ data: 'fresh-data' })
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'https://api.github.com/test',
+        url,
         expect.objectContaining({
+          cache: 'no-store',
           headers: expect.objectContaining({
             Authorization: 'token token123',
             'If-None-Match': 'W/"test-etag"'
@@ -182,8 +188,10 @@ describe('github service: IndexedDB ETag Cache & Throttling', () => {
     })
 
     it('handles 304 Not Modified: updates cache TTL and returns cached data without consuming quota', async () => {
-      await cacheSet('https://api.github.com/test', { data: 'cached-content' }, 'W/"etag-304"')
-      const entry = mockIDB._store.get('https://api.github.com/test')
+      const url = 'https://api.github.com/test'
+      const key = getCacheKey(url)
+      await cacheSet(key, { data: 'cached-content' }, 'W/"etag-304"')
+      const entry = mockIDB._store.get(key)
       entry.ts = Date.now() - (TTL_MS + 1000)
 
       let eventDispatched = null
@@ -203,10 +211,9 @@ describe('github service: IndexedDB ETag Cache & Throttling', () => {
       })
       globalThis.fetch = mockFetch
 
-      const result = await fetchWithCache('https://api.github.com/test')
+      const result = await fetchWithCache(url)
       expect(result).toEqual({ data: 'cached-content' })
 
-      // Rate limit event was dispatched
       expect(eventDispatched).toEqual({
         limit: 60,
         remaining: 60,
@@ -214,9 +221,38 @@ describe('github service: IndexedDB ETag Cache & Throttling', () => {
         reset: 1700000000
       })
 
-      // Cache was touched and is now fresh again
-      const refreshedEntry = await cacheGetEntry('https://api.github.com/test')
+      const refreshedEntry = await cacheGetEntry(key)
       expect(Date.now() - refreshedEntry.ts).toBeLessThan(1000)
+    })
+
+    it('partitions cache entries by authentication identity (PAT)', async () => {
+      const mockFetch = vi.fn().mockImplementation((url, opts) => {
+        const isTokenA = opts.headers.Authorization === 'token PAT_A'
+        return Promise.resolve({
+          status: 200,
+          ok: true,
+          headers: new Headers({ 'etag': isTokenA ? 'etag-A' : 'etag-B' }),
+          json: async () => ({ identity: isTokenA ? 'userA' : 'userB' })
+        })
+      })
+      globalThis.fetch = mockFetch
+
+      const resA = await fetchWithCache('https://api.github.com/orgs/test', 'PAT_A')
+      const resB = await fetchWithCache('https://api.github.com/orgs/test', 'PAT_B')
+      const resAnon = await fetchWithCache('https://api.github.com/orgs/test', '')
+
+      expect(resA).toEqual({ identity: 'userA' })
+      expect(resB).toEqual({ identity: 'userB' })
+
+      const keyA = getCacheKey('https://api.github.com/orgs/test', 'PAT_A')
+      const keyB = getCacheKey('https://api.github.com/orgs/test', 'PAT_B')
+      const keyAnon = getCacheKey('https://api.github.com/orgs/test', '')
+
+      expect(keyA).not.toEqual(keyB)
+      expect(keyB).not.toEqual(keyAnon)
+      expect(await cacheGetEntry(keyA)).toBeDefined()
+      expect(await cacheGetEntry(keyB)).toBeDefined()
+      expect(await cacheGetEntry(keyAnon)).toBeDefined()
     })
 
     it('stores ETag and payload on 200 OK responses', async () => {
@@ -237,10 +273,8 @@ describe('github service: IndexedDB ETag Cache & Throttling', () => {
       const res = await fetchOrg('test-org', 'my-pat')
       expect(res).toEqual({ org: 'test-org' })
 
-      // Wait microtask for non-blocking cacheSet
-      await new Promise(r => setTimeout(r, 10))
-
-      const entry = await cacheGetEntry('https://api.github.com/orgs/test-org')
+      const key = getCacheKey('https://api.github.com/orgs/test-org', 'my-pat')
+      const entry = await cacheGetEntry(key)
       expect(entry).toBeDefined()
       expect(entry.v).toEqual({ org: 'test-org' })
       expect(entry.etag).toBe('W/"server-etag-999"')
@@ -314,19 +348,15 @@ describe('github service: IndexedDB ETag Cache & Throttling', () => {
         })
       })
 
-      // Launch 15 concurrent uncached requests
       const promises = Array.from({ length: 15 }, (_, i) =>
         fetchWithCache(`https://api.github.com/throttling-test/${i}`)
       )
 
-      // Allow microtasks to queue and start running
       await new Promise(r => setTimeout(r, 20))
 
-      // Max active fetches should be capped at 6
       expect(maxSimultaneousFetches).toBe(6)
       expect(activeFetchCount).toBe(6)
 
-      // Resolve all
       while (resolvers.length > 0) {
         const r = resolvers.shift()
         r()
@@ -338,4 +368,3 @@ describe('github service: IndexedDB ETag Cache & Throttling', () => {
     })
   })
 })
-
