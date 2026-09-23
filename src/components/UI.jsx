@@ -82,9 +82,9 @@ export function Badge({ text, variant }) {
   return <span style={C.pill(color, bg)}>{String(text).toUpperCase()}</span>
 }
 
-export function HealthBar({ score, onClick, isInteractive = false, title }) {
+export function HealthBar({ score, onClick, isInteractive = false, title, ariaLabel }) {
   const color = score >= 70 ? 'var(--green)' : score >= 40 ? 'var(--amber)' : 'var(--red)'
-  const interactive = Boolean(isInteractive || onClick)
+  const interactive = typeof onClick === 'function' && isInteractive !== false
 
   const handleKeyDown = e => {
     if (interactive && (e.key === 'Enter' || e.key === ' ')) {
@@ -97,10 +97,10 @@ export function HealthBar({ score, onClick, isInteractive = false, title }) {
     <div
       role={interactive ? 'button' : undefined}
       tabIndex={interactive ? 0 : undefined}
-      onClick={onClick}
-      onKeyDown={handleKeyDown}
+      onClick={interactive ? onClick : undefined}
+      onKeyDown={interactive ? handleKeyDown : undefined}
       title={title || (interactive ? 'Click to view health score breakdown & recommendations' : undefined)}
-      aria-label={interactive ? `Health score ${score} out of 100. Click to inspect breakdown.` : undefined}
+      aria-label={interactive ? (ariaLabel || `Health score ${score} out of 100. Open breakdown.`) : undefined}
       style={{
         display: 'flex',
         alignItems: 'center',

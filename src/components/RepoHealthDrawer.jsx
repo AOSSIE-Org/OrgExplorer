@@ -21,15 +21,59 @@ import { computeHealthBreakdown, getHealthRecommendations } from '../services/an
 export default function RepoHealthDrawer({ repo, onClose, isOpen }) {
   const [activeTab, setActiveTab] = useState('breakdown')
   const drawerRef = useRef(null)
+  const previousActiveElementRef = useRef(null)
 
-  // Handle ESC key to close
+  // Reset active tab to breakdown on open or when repository changes
+  useEffect(() => {
+    if (isOpen) {
+      setActiveTab('breakdown')
+    }
+  }, [isOpen, repo?.name, repo?.orgLogin])
+
+  // Focus trap and focus restoration
+  useEffect(() => {
+    if (isOpen) {
+      previousActiveElementRef.current = document.activeElement
+      drawerRef.current?.focus()
+    } else if (previousActiveElementRef.current) {
+      previousActiveElementRef.current.focus?.()
+      previousActiveElementRef.current = null
+    }
+  }, [isOpen])
+
+  // Handle ESC key and Tab focus trapping
   useEffect(() => {
     if (!isOpen) return
+
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
         onClose?.()
+        return
+      }
+
+      if (e.key === 'Tab' && drawerRef.current) {
+        const focusableEls = drawerRef.current.querySelectorAll(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )
+        if (!focusableEls.length) return
+
+        const firstEl = focusableEls[0]
+        const lastEl = focusableEls[focusableEls.length - 1]
+
+        if (e.shiftKey) {
+          if (document.activeElement === firstEl || document.activeElement === drawerRef.current) {
+            e.preventDefault()
+            lastEl.focus()
+          }
+        } else {
+          if (document.activeElement === lastEl) {
+            e.preventDefault()
+            firstEl.focus()
+          }
+        }
       }
     }
+
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [isOpen, onClose])
@@ -43,13 +87,6 @@ export default function RepoHealthDrawer({ repo, onClose, isOpen }) {
     }
     return () => {
       document.body.style.overflow = ''
-    }
-  }, [isOpen])
-
-  // Focus trap / initial focus
-  useEffect(() => {
-    if (isOpen && drawerRef.current) {
-      drawerRef.current.focus()
     }
   }, [isOpen])
 
@@ -73,12 +110,18 @@ export default function RepoHealthDrawer({ repo, onClose, isOpen }) {
 
   const overallScore = breakdown?.overall ?? repo.healthScore ?? 0
   const scoreColor = overallScore >= 70 ? 'var(--green)' : overallScore >= 40 ? 'var(--amber)' : 'var(--red)'
+  const scorePillBg = overallScore >= 70
+    ? 'rgba(34, 197, 94, 0.15)'
+    : overallScore >= 40
+    ? 'rgba(245, 158, 11, 0.15)'
+    : 'rgba(239, 68, 68, 0.15)'
   const scoreRating = overallScore >= 70 ? 'Healthy' : overallScore >= 40 ? 'Moderate Risk' : 'Needs Attention'
 
   const REC_STYLES = {
     critical: {
       border: 'var(--red)',
       bg: 'rgba(239, 68, 68, 0.08)',
+      pillBg: 'rgba(239, 68, 68, 0.15)',
       badge: 'Critical',
       icon: FiAlertCircle,
       color: 'var(--red)',
@@ -86,6 +129,7 @@ export default function RepoHealthDrawer({ repo, onClose, isOpen }) {
     warning: {
       border: 'var(--amber)',
       bg: 'rgba(245, 158, 11, 0.08)',
+      pillBg: 'rgba(245, 158, 11, 0.15)',
       badge: 'Warning',
       icon: FiAlertTriangle,
       color: 'var(--amber)',
@@ -93,6 +137,7 @@ export default function RepoHealthDrawer({ repo, onClose, isOpen }) {
     optimization: {
       border: 'var(--blue)',
       bg: 'rgba(59, 130, 246, 0.08)',
+      pillBg: 'rgba(59, 130, 246, 0.15)',
       badge: 'Optimization',
       icon: FiInfo,
       color: 'var(--blue)',
@@ -100,6 +145,7 @@ export default function RepoHealthDrawer({ repo, onClose, isOpen }) {
     good: {
       border: 'var(--green)',
       bg: 'rgba(34, 197, 94, 0.08)',
+      pillBg: 'rgba(34, 197, 94, 0.15)',
       badge: 'Good Practice',
       icon: FiCheckCircle,
       color: 'var(--green)',
@@ -147,12 +193,10 @@ export default function RepoHealthDrawer({ repo, onClose, isOpen }) {
         display: 'flex',
         justifyContent: 'flex-end',
       }}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="health-drawer-title"
     >
       {/* Backdrop */}
       <div
+        role="presentation"
         onClick={onClose}
         style={{
           position: 'absolute',
@@ -164,9 +208,12 @@ export default function RepoHealthDrawer({ repo, onClose, isOpen }) {
         data-testid="drawer-backdrop"
       />
 
-      {/* Drawer content */}
+      {/* Drawer dialog panel */}
       <div
         ref={drawerRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="health-drawer-title"
         tabIndex={-1}
         style={{
           position: 'relative',
@@ -237,8 +284,9 @@ export default function RepoHealthDrawer({ repo, onClose, isOpen }) {
                     rel="noreferrer"
                     style={{ color: 'var(--text2)', display: 'inline-flex', alignItems: 'center' }}
                     title="Open on GitHub"
+                    aria-label={`View ${repo.name} on GitHub`}
                   >
-                    <FiExternalLink size={15} />
+                    <FiExternalLink size={15} aria-hidden="true" />
                   </a>
                 )}
               </h2>
@@ -272,7 +320,7 @@ export default function RepoHealthDrawer({ repo, onClose, isOpen }) {
               </div>
               <span
                 style={{
-                  ...C.pill(scoreColor, `${scoreColor}22`),
+                  ...C.pill(scoreColor, scorePillBg),
                   fontSize: 10,
                   padding: '1px 6px',
                   marginTop: 2,
@@ -285,6 +333,8 @@ export default function RepoHealthDrawer({ repo, onClose, isOpen }) {
 
           {/* Navigation tabs */}
           <div
+            role="tablist"
+            aria-label="Health inspector views"
             style={{
               display: 'flex',
               gap: 8,
@@ -302,6 +352,11 @@ export default function RepoHealthDrawer({ repo, onClose, isOpen }) {
               return (
                 <button
                   key={tab.id}
+                  id={`tab-${tab.id}`}
+                  role="tab"
+                  aria-selected={active}
+                  aria-controls={`panel-${tab.id}`}
+                  tabIndex={active ? 0 : -1}
                   onClick={() => setActiveTab(tab.id)}
                   style={{
                     background: 'none',
@@ -326,7 +381,13 @@ export default function RepoHealthDrawer({ repo, onClose, isOpen }) {
         <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
           {/* TAB 1: BREAKDOWN */}
           {activeTab === 'breakdown' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <div
+              id="panel-breakdown"
+              role="tabpanel"
+              aria-labelledby="tab-breakdown"
+              tabIndex={0}
+              style={{ display: 'flex', flexDirection: 'column', gap: 20 }}
+            >
               {/* Score formula card */}
               <div
                 style={{
@@ -444,7 +505,13 @@ export default function RepoHealthDrawer({ repo, onClose, isOpen }) {
 
           {/* TAB 2: RECOMMENDATIONS */}
           {activeTab === 'recommendations' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div
+              id="panel-recommendations"
+              role="tabpanel"
+              aria-labelledby="tab-recommendations"
+              tabIndex={0}
+              style={{ display: 'flex', flexDirection: 'column', gap: 14 }}
+            >
               {recommendations.length === 0 ? (
                 <div style={{ padding: '36px', textAlign: 'center', color: 'var(--text2)' }}>
                   <FiCheckCircle size={32} color="var(--green)" style={{ marginBottom: 12 }} />
@@ -473,7 +540,7 @@ export default function RepoHealthDrawer({ repo, onClose, isOpen }) {
                           <Icon size={16} color={styleCfg.color} />
                           <span style={{ fontWeight: 600, fontSize: 13 }}>{rec.title}</span>
                         </div>
-                        <span style={C.pill(styleCfg.color, `${styleCfg.color}22`)}>
+                        <span style={C.pill(styleCfg.color, styleCfg.pillBg)}>
                           {styleCfg.badge.toUpperCase()}
                         </span>
                       </div>
@@ -492,7 +559,13 @@ export default function RepoHealthDrawer({ repo, onClose, isOpen }) {
 
           {/* TAB 3: RAW METRICS */}
           {activeTab === 'raw' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div
+              id="panel-raw"
+              role="tabpanel"
+              aria-labelledby="tab-raw"
+              tabIndex={0}
+              style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
+            >
               <p style={{ fontSize: 12, color: 'var(--text2)', margin: 0 }}>
                 Direct repository metrics and indicators obtained from GitHub API.
               </p>
