@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import {
   computeHealthScore,
+  computeHealthBreakdown,
+  getHealthRecommendations,
   computeActivityClassification,
   computeBusFactor,
 } from './analytics'
@@ -114,3 +116,66 @@ describe('computeBusFactor', () => {
     expect(computeBusFactor(contributors)).toEqual({ factor: 2, risk: 'high' })
   })
 })
+
+describe('computeHealthBreakdown', () => {
+  it('returns breakdown matching overall computeHealthScore', () => {
+    const repo = {
+      pushed_at: daysAgoISO(10),
+      open_issues_count: 5,
+    }
+    const score = computeHealthScore(repo, 3)
+    const breakdown = computeHealthBreakdown(repo, 3)
+
+    expect(breakdown.overall).toBe(score)
+    expect(breakdown.categories).toHaveLength(3)
+
+    const [activity, issues, diversity] = breakdown.categories
+    expect(activity.id).toBe('activity')
+    expect(activity.weight).toBe(0.4)
+    expect(issues.id).toBe('issues')
+    expect(issues.weight).toBe(0.3)
+    expect(diversity.id).toBe('diversity')
+    expect(diversity.weight).toBe(0.3)
+  })
+
+  it('handles missing or invalid pushed_at gracefully', () => {
+    const repo = { pushed_at: null, open_issues_count: 0 }
+    const breakdown = computeHealthBreakdown(repo, 0)
+    expect(breakdown.overall).toBeGreaterThanOrEqual(0)
+    expect(Number.isFinite(breakdown.overall)).toBe(true)
+  })
+})
+
+describe('getHealthRecommendations', () => {
+  it('flags hibernating repos, high issues, single contributor, and missing license', () => {
+    const repo = {
+      pushed_at: daysAgoISO(200),
+      open_issues_count: 45,
+      license: null,
+      description: null,
+    }
+    const recs = getHealthRecommendations(repo, 1)
+
+    expect(recs.some(r => r.category === 'Activity' && r.type === 'critical')).toBe(true)
+    expect(recs.some(r => r.category === 'Issues' && r.type === 'critical')).toBe(true)
+    expect(recs.some(r => r.category === 'Community' && r.type === 'critical')).toBe(true)
+    expect(recs.some(r => r.category === 'Governance' && r.type === 'warning')).toBe(true)
+    expect(recs.some(r => r.category === 'Documentation' && r.type === 'optimization')).toBe(true)
+  })
+
+  it('recognizes healthy activity, clean backlog, and good community', () => {
+    const repo = {
+      pushed_at: daysAgoISO(5),
+      open_issues_count: 0,
+      license: { name: 'MIT' },
+      description: 'An open-source tool',
+    }
+    const recs = getHealthRecommendations(repo, 12)
+
+    expect(recs.some(r => r.category === 'Activity' && r.type === 'good')).toBe(true)
+    expect(recs.some(r => r.category === 'Issues' && r.type === 'good')).toBe(true)
+    expect(recs.some(r => r.category === 'Community' && r.type === 'good')).toBe(true)
+    expect(recs.some(r => r.type === 'critical')).toBe(false)
+  })
+})
+
