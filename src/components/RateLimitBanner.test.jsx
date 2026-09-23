@@ -29,8 +29,37 @@ describe('RateLimitBanner', () => {
 
   it('renders null when limit is 0 or negative', () => {
     app.state = { rateLimit: { remaining: 0, limit: 0, used: 0, reset: 0 }, pat: '' }
+    const { container: containerZero } = renderBanner()
+    expect(containerZero.firstChild).toBeNull()
+
+    app.state = { rateLimit: { remaining: 0, limit: -1, used: 0, reset: 0 }, pat: '' }
+    const { container: containerNeg } = renderBanner()
+    expect(containerNeg.firstChild).toBeNull()
+  })
+
+  it('renders warning banner at exactly 20% quota remaining (12/60) with warning style', () => {
+    // 12 remaining out of 60 limit = 0.2 (not > 0.2, so banner renders; not < 0.1, so not critical)
+    app.state = {
+      rateLimit: { remaining: 12, limit: 60, used: 48, reset: Math.floor(Date.now() / 1000) + 3600 },
+      pat: '',
+    }
     const { container } = renderBanner()
     expect(container.firstChild).toBeNull()
+    expect(screen.getByText('12 / 60')).toBeInTheDocument()
+    const banner = container.firstChild
+    expect(banner.style.borderLeft).toContain('var(--accent)')
+  })
+
+  it('renders warning banner at exactly 10% quota remaining (6/60) with warning style', () => {
+    // 6 remaining out of 60 limit = 0.1 (not < 0.1, so crit is false; renders warning style)
+    app.state = {
+      rateLimit: { remaining: 6, limit: 60, used: 54, reset: Math.floor(Date.now() / 1000) + 3600 },
+      pat: '',
+    }
+    const { container } = renderBanner()
+    expect(screen.getByText('6 / 60')).toBeInTheDocument()
+    const banner = container.firstChild
+    expect(banner.style.borderLeft).toContain('var(--accent)')
   })
 
   it('renders null for unauthenticated users when quota is healthy (> 20%)', () => {
