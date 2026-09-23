@@ -9,6 +9,7 @@ import AnalysisBanner from '../components/AnalysisBanner'
 import { OverviewSkeleton } from '../components/Orgexplorerskeletons'
 import {formatNumber} from '../utils/formatNumber'
 import { useTheme } from '../context/ThemeContext'
+import RepoHealthDrawer from '../components/RepoHealthDrawer'
 
 const LANG_COLORS = ['#22c55e', '#f5c518', '#3b82f6', '#ef4444', '#a855f7', '#f97316', '#06b6d4']
 const fmt = n => n > 999 ? (n / 1000).toFixed(1) + 'k' : String(n)
@@ -20,6 +21,7 @@ export default function OverviewPage() {
   const [open, setOpen] = useState(false)
   const [orgFilter, setOrgFilter] = useState('All Organizations')
   const [showAllOrgs, setShowAllOrgs] = useState(false)
+  const [selectedRepoForHealth, setSelectedRepoForHealth] = useState(null)
   const infoRef = useRef(null)
 
   useEffect(() => {
@@ -279,9 +281,21 @@ export default function OverviewPage() {
             {topRepos.map(r => (
               <div key={r.id}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <span style={{ fontSize: 12, fontWeight: 500 }}>{r.name}</span>
+                  <span
+                    onClick={() => setSelectedRepoForHealth(r)}
+                    style={{ fontSize: 12, fontWeight: 500, cursor: 'pointer' }}
+                    className="hover:text-(--accent) transition"
+                    title={`Click to inspect health breakdown for ${r.name}`}
+                  >
+                    {r.name}
+                  </span>
                 </div>
-                <HealthBar score={r.healthScore} />
+                <HealthBar
+                  score={r.healthScore}
+                  onClick={() => setSelectedRepoForHealth(r)}
+                  isInteractive={true}
+                  title={`Click to inspect health breakdown for ${r.name}`}
+                />
               </div>
             ))}
           </div>
@@ -297,6 +311,12 @@ export default function OverviewPage() {
         <NavCard to="/governance" label="Governance" sub="Dead issues, zombie PRs, risky repos, license compliance" />
         <NavCard to="/settings" label="Settings" sub="PAT authentication, API quota monitoring, cache management" />
       </div>
+
+      <RepoHealthDrawer
+        repo={selectedRepoForHealth}
+        isOpen={Boolean(selectedRepoForHealth)}
+        onClose={() => setSelectedRepoForHealth(null)}
+      />
     </div>
   )
 }
