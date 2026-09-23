@@ -3,6 +3,7 @@ import { FiEye, FiEyeOff, FiTrash2, FiSave, FiRefreshCw } from 'react-icons/fi'
 import { useApp } from '../context/AppContext'
 import { C } from '../components/UI'
 import { cacheClear } from '../services/github'
+import { clearAnalysis } from '../services/cache'
 import { AiOutlineInfoCircle } from "react-icons/ai";
 export default function SettingsPage() {
   const { pat, savePat, rateLimit, refreshRateLimit } = useApp()
@@ -53,7 +54,7 @@ export default function SettingsPage() {
   }
 
   const handleClear = async () => {
-    await cacheClear()
+    await Promise.all([cacheClear(), clearAnalysis()])
     setCleared(true)
     setTimeout(() => setCleared(false), 2000)
   }
