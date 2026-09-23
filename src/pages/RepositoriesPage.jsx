@@ -250,6 +250,7 @@ export default function RepositoriesPage() {
                         onClick={() => setSelectedRepoForHealth(r)}
                         isInteractive={true}
                         title={`Click to inspect health breakdown for ${r.name}`}
+                        ariaLabel={`${r.name}: health score ${r.healthScore} out of 100. Open breakdown.`}
                       />
                     </td>
                     <td style={{ padding: '10px 14px' }}>

@@ -1,12 +1,7 @@
 //  Repo Health Indicator
-// Activity (40%) + Issue Health (30%) + Diversity (30%)
+// Derived directly from computeHealthBreakdown for consistent single-source scoring
 export function computeHealthScore(repo, contributorCount = 0) {
-  const daysSince   = (Date.now() - new Date(repo.pushed_at)) / 86_400_000
-  const activity    = Math.max(0, 100 - daysSince)
-  const total       = (repo.open_issues_count || 0) + 10
-  const issueHealth = Math.max(0, 100 - (repo.open_issues_count / total) * 100)
-  const diversity   = Math.min(100, contributorCount * 10)
-  return Math.round(activity * 0.4 + issueHealth * 0.3 + diversity * 0.3)
+  return computeHealthBreakdown(repo, contributorCount).overall
 }
 
 /**
@@ -14,8 +9,9 @@ export function computeHealthScore(repo, contributorCount = 0) {
  */
 export function computeHealthBreakdown(repo, contributorCount = 0) {
   const pushedAtMs = repo?.pushed_at ? new Date(repo.pushed_at).getTime() : NaN
-  const daysSince = Number.isFinite(pushedAtMs) ? Math.max(0, (Date.now() - pushedAtMs) / 86_400_000) : 365
-  const activity = Math.max(0, 100 - daysSince)
+  const hasPush = Number.isFinite(pushedAtMs)
+  const daysSince = hasPush ? Math.max(0, (Date.now() - pushedAtMs) / 86_400_000) : 365
+  const activity = hasPush ? Math.max(0, 100 - daysSince) : 0
 
   const openIssues = repo?.open_issues_count || 0
   const total = openIssues + 10
@@ -39,7 +35,7 @@ export function computeHealthBreakdown(repo, contributorCount = 0) {
         weightedScore: Number(activityWeighted.toFixed(1)),
         metrics: [
           { label: 'Last Push', value: repo?.pushed_at ? repo.pushed_at.slice(0, 10) : 'No recorded push' },
-          { label: 'Days Since Push', value: Number.isFinite(pushedAtMs) ? Math.floor(daysSince) : 'Unknown' },
+          { label: 'Days Since Push', value: hasPush ? Math.floor(daysSince) : 'Unknown' },
           { label: 'Status', value: computeActivityClassification(repo) }
         ],
         description: 'Measures recent maintenance activity and commit momentum. Repositories updated within the last 30 days earn the highest score.'
@@ -78,11 +74,19 @@ export function computeHealthBreakdown(repo, contributorCount = 0) {
 export function getHealthRecommendations(repo, contributorCount = 0) {
   const recommendations = []
   const pushedAtMs = repo?.pushed_at ? new Date(repo.pushed_at).getTime() : NaN
-  const daysSince = Number.isFinite(pushedAtMs) ? Math.max(0, (Date.now() - pushedAtMs) / 86_400_000) : 365
+  const hasPush = Number.isFinite(pushedAtMs)
+  const daysSince = hasPush ? Math.max(0, (Date.now() - pushedAtMs) / 86_400_000) : 365
   const openIssues = repo?.open_issues_count || 0
 
   // 1. Activity & Recency
-  if (daysSince > 180) {
+  if (!hasPush) {
+    recommendations.push({
+      type: 'critical',
+      category: 'Activity',
+      title: 'No Recorded Push Activity',
+      description: 'No push date is recorded for this repository. Push a commit to establish activity history.'
+    })
+  } else if (daysSince > 180) {
     recommendations.push({
       type: 'critical',
       category: 'Activity',
@@ -135,7 +139,7 @@ export function getHealthRecommendations(repo, contributorCount = 0) {
       type: 'critical',
       category: 'Community',
       title: 'Mitigate Single Maintainer Risk',
-      description: 'Only 1 contributor is recorded. Onboarding co-maintainers or reviewing external PRs is crucial to prevent single point of failure (Bus Factor = 1).'
+      description: `${contributorCount === 0 ? 'No contributors are' : 'Only 1 contributor is'} recorded. Onboarding co-maintainers or reviewing external PRs is crucial to prevent single point of failure.`
     })
   } else if (contributorCount < 5) {
     recommendations.push({

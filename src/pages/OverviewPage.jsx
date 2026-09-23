@@ -281,20 +281,31 @@ export default function OverviewPage() {
             {topRepos.map(r => (
               <div key={r.id}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <span
+                  <button
+                    type="button"
                     onClick={() => setSelectedRepoForHealth(r)}
-                    style={{ fontSize: 12, fontWeight: 500, cursor: 'pointer' }}
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 500,
+                      cursor: 'pointer',
+                      background: 'none',
+                      border: 'none',
+                      padding: 0,
+                      color: 'inherit',
+                      textAlign: 'left',
+                    }}
                     className="hover:text-(--accent) transition"
                     title={`Click to inspect health breakdown for ${r.name}`}
                   >
                     {r.name}
-                  </span>
+                  </button>
                 </div>
                 <HealthBar
                   score={r.healthScore}
                   onClick={() => setSelectedRepoForHealth(r)}
                   isInteractive={true}
                   title={`Click to inspect health breakdown for ${r.name}`}
+                  ariaLabel={`${r.name}: health score ${r.healthScore} out of 100. Open breakdown.`}
                 />
               </div>
             ))}

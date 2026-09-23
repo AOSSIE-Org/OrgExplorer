@@ -141,8 +141,10 @@ describe('computeHealthBreakdown', () => {
   it('handles missing or invalid pushed_at gracefully', () => {
     const repo = { pushed_at: null, open_issues_count: 0 }
     const breakdown = computeHealthBreakdown(repo, 0)
-    expect(breakdown.overall).toBeGreaterThanOrEqual(0)
-    expect(Number.isFinite(breakdown.overall)).toBe(true)
+    const activity = breakdown.categories.find(c => c.id === 'activity')
+    expect(activity.score).toBe(0)
+    expect(activity.metrics.find(m => m.label === 'Days Since Push').value).toBe('Unknown')
+    expect(breakdown.overall).toBe(30) // issueHealth 100 * 0.3
   })
 })
 
