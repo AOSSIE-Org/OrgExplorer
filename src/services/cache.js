@@ -84,11 +84,13 @@ export async function loadAnalysis() {
   }
 }
 
-/** Drop the cached analysis. Never throws. */
+/** Drop the cached analysis. Never throws; resolves true iff the delete succeeded. */
 export async function clearAnalysis() {
   try {
     await withStore('readwrite', store => store.delete(KEY))
+    return true
   } catch {
     // Best effort.
+    return false
   }
 }
