@@ -6,10 +6,10 @@ import { useApp } from '../context/AppContext'
 export default function RateLimitBanner() {
   const { rateLimit, pat } = useApp()
   const navigate = useNavigate()
-  if (!rateLimit) return null
+  if (!rateLimit || !rateLimit.limit || rateLimit.limit <= 0) return null
 
   const pct = rateLimit.remaining / rateLimit.limit
-  if (pct > 0.2 && rateLimit.limit > 60) return null
+  if (pct > 0.2) return null
 
   const crit = pct < 0.1
   const Icon = crit ? FiAlertTriangle : FiZap
