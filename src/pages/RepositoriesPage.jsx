@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react'
-import { FiDatabase, FiDownload, FiGrid, FiList } from 'react-icons/fi'
+import { FiDatabase, FiDownload, FiGrid, FiList, FiX } from 'react-icons/fi'
 import { AiOutlineInfoCircle } from "react-icons/ai";
 import { useApp } from '../context/AppContext'
 import { C, Badge, HealthBar, SortTh, PageTitle, LoadMore } from '../components/UI'
@@ -65,7 +65,7 @@ export default function RepositoriesPage() {
   const { sorted, sortConfig, onSort } = useSortedData(filtered, 'healthScore', 'desc')
   const visible = sorted.slice(0, shown)
 
-  if(loading) return <RepositorySkeleton />
+  if (loading) return <RepositorySkeleton />
   if (!model) return null
 
   const TABLE_COLS = [
@@ -172,11 +172,43 @@ export default function RepositoriesPage() {
       {/* Filter bar */}
       <div style={{ ...C.card, marginBottom: 20 }}>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-          <input
-            value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Filter by repository name or description..."
-            style={{ ...C.input, flex: 1, minWidth: 200 }}
-          />
+          <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Filter by repository name or description..."
+              style={{
+                ...C.input,
+                width: '100%',
+                paddingRight: search ? 36 : undefined,
+              }}
+            />
+
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                aria-label="Clear repository search"
+                title="Clear search"
+                style={{
+                  position: 'absolute',
+                  right: 8,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  border: 'none',
+                  background: 'transparent',
+                  color: 'var(--text2)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: 4,
+                }}
+              >
+                <FiX size={16} />
+              </button>
+            )}
+          </div>
           {orgList.length > 2 && (
             <select
               value={orgFilter}

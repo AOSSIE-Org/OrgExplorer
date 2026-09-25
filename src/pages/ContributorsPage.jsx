@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react'
-import { FiDatabase, FiDownload, FiExternalLink } from 'react-icons/fi'
+import { FiDatabase, FiDownload, FiExternalLink, FiX } from 'react-icons/fi'
 import { useApp } from '../context/AppContext'
 import { C, SortTh, PageTitle, LoadMore } from '../components/UI'
 import { useSortedData } from '../hooks/useSortedData'
@@ -16,7 +16,7 @@ export default function ContributorsPage() {
   const [shown, setShown] = useState(20)
   const [openInfo, setOpenInfo] = useState(null)
   const [selectedOrg, setSelectedOrg] = useState('all')
- const busFactorRef = useRef(null)
+  const busFactorRef = useRef(null)
   const freshnessRef = useRef(null)
   const signalRef = useRef(null)
 
@@ -54,7 +54,7 @@ export default function ContributorsPage() {
   }, [orgs])
 
 
-  
+
 
   const scopedContributors = useMemo(() => {
     if (selectedOrg === 'all') {
@@ -65,7 +65,7 @@ export default function ContributorsPage() {
       contributor.orgs.includes(selectedOrg)
     )
   }, [contributors, selectedOrg])
-  
+
   const busFactor = useMemo(
     () => computeBusFactor(scopedContributors),
     [scopedContributors]
@@ -85,7 +85,7 @@ export default function ContributorsPage() {
   const { sorted, sortConfig, onSort } = useSortedData(filtered, 'totalContribs', 'desc')
   const visible = sorted.slice(0, shown)
 
-  if(loading) return <ContributorSkeleton />
+  if (loading) return <ContributorSkeleton />
   if (!model) return null
 
   const topActive = scopedContributors
@@ -280,11 +280,43 @@ export default function ContributorsPage() {
       {/* Analytical table */}
       <div style={{ ...C.card, padding: 0, overflowX: 'auto' }}>
         <div style={{ padding: '14px 16px', display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', borderBottom: '1px solid var(--border)' }}>
-          <input
-            value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Search by username..."
-            style={{ ...C.input, width: 220 }}
-          />
+          <div style={{ position: 'relative', width: 220 }}>
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search by username..."
+              style={{
+                ...C.input,
+                width: '100%',
+                paddingRight: search ? 36 : undefined,
+              }}
+            />
+
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                aria-label="Clear contributor search"
+                title="Clear search"
+                style={{
+                  position: 'absolute',
+                  right: 8,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  border: 'none',
+                  background: 'transparent',
+                  color: 'var(--text2)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: 4,
+                }}
+              >
+                <FiX size={16} />
+              </button>
+            )}
+          </div>
           {organizationOptions.length > 0 && (
             <select
               value={selectedOrg}
