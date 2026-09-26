@@ -33,10 +33,10 @@ A **Teaser Video** is a short, fast-paced video designed to spark curiosity, exc
 
 Audio is the heartbeat of a teaser video. A dynamic soundtrack transforms static screen captures into an exciting story. However, open-source projects must strictly adhere to digital copyright compliance.
 
-### 🚫 The Golden Rule: Never Use Copyrighted Music
-* **Do NOT** use commercial pop songs, chart-topping hits, movie soundtracks, or viral TikTok audio.
-* **Why this matters**: Using copyrighted tracks causes automated Content ID copyright strikes, video mutes, takedown notices on YouTube/social media, and immediate pull request rejection by AOSSIE maintainers.
-* **Always use Copyright-Free / Royalty-Free music**: Use tracks released under Creative Commons (CC0 or CC-BY with attribution) or dedicated royalty-free open libraries safe for commercial and open-source redistribution.
+### 🚫 The Golden Rule: Never Use Unlicensed or Incompatible Music
+* **Do NOT** use unlicensed commercial tracks, chart-topping pop songs, movie scores, or viral audio lacking open distribution rights.
+* **Why this matters**: Using unlicensed or rights-restricted tracks causes automated Content ID copyright strikes, video mutes, takedown notices on YouTube/social media, and immediate pull request rejection by AOSSIE maintainers.
+* **Always use Properly Licensed Music**: Use tracks released under Creative Commons (CC0 or CC-BY with attribution) or dedicated royalty-free open libraries safe for commercial and open-source redistribution.
 
 ---
 
@@ -173,7 +173,7 @@ Structure your teaser into clear, rapid phases:
 Before submitting your teaser video PR, confirm every item on this checklist:
 
 - [ ] **Runtime**: Total video duration is **between 30 and 45 seconds** (hard maximum **60 seconds**, inclusive of intro/outro).
-- [ ] **Audio Compliance**: Soundtrack is 100% copyright-free / royalty-free (no commercial or copyrighted tracks).
+- [ ] **Audio Compliance**: Soundtrack is properly licensed and compatible (royalty-free, CC0, or CC-BY with attribution; no unlicensed commercial audio).
 - [ ] **Attribution Documented**: If using CC-BY audio, attribution details are included in the PR description.
 - [ ] **Resolution & Aspect Ratio**: 1080p (`1920x1080`), 16:9 widescreen, 30 or 60 fps.
 - [ ] **AOSSIE Branding**: Contains the official AOSSIE animated intro bumper and closing CTA outro card.
