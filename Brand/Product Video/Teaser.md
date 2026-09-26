@@ -67,7 +67,7 @@ Here are top recommended platforms to source copyright-free music for your video
    * Place markers on the musical downbeats on your editing timeline.
    * Sync visual cuts, screen zooms, and text transitions directly to the rhythm.
 3. **Volume Balance & Ducking**:
-   * If your teaser uses **text overlays only** (music-driven): Set master music volume so peak audio levels sit around `-1 dB` to `-3 dB` (approx. `-14 LUFS`), avoiding clipping or distortion.
+   * If your teaser uses **text overlays only** (music-driven): Aim for an integrated loudness of approximately `-14 LUFS`, while keeping true peak levels between `-1 dBTP` and `-3 dBTP` to prevent inter-sample clipping or distortion during encoding.
    * If your teaser includes **voiceover or sound bites**: Apply **Audio Ducking** to reduce music volume down to `-20 dB` to `-25 dB` whenever the narrator speaks, returning to full energy during visual pauses.
 
 ---
