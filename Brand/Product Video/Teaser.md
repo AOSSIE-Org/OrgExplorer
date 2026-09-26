@@ -148,6 +148,7 @@ Structure your teaser into clear, rapid phases:
 * Browse [Pixabay Music](https://pixabay.com/music/) or the [YouTube Audio Library](https://studio.youtube.com/).
 * Search for keywords: `Technology`, `Cyberpunk`, `Upbeat Electronic`, `Future Bass`, or `Corporate Tech`.
 * Download an MP3 or WAV file and verify the license terms.
+* If you publish the video on X, LinkedIn, or another platform, confirm that the selected track's license permits that use and record any required attribution.
 
 ---
 
