@@ -175,7 +175,7 @@ Before submitting your teaser video PR, confirm every item on this checklist:
 - [ ] **Runtime**: Total video duration is **between 30 and 45 seconds** (hard maximum **60 seconds**, inclusive of intro/outro).
 - [ ] **Audio Compliance**: Soundtrack is properly licensed and compatible (royalty-free, CC0, or CC-BY with attribution; no unlicensed commercial audio).
 - [ ] **Attribution Documented**: If using CC-BY audio, attribution details are included in the PR description.
-- [ ] **Resolution & Aspect Ratio**: 1080p (`1920x1080`), 16:9 widescreen, 30 or 60 fps.
+- [ ] **Resolution & Aspect Ratio**: 1080p (`1920x1080`, 16:9 landscape) at 30 or 60 fps, alongside a separate vertical (`1080x1920`, 9:16) or square (`1080x1080`, 1:1) export for YouTube Shorts and mobile feeds.
 - [ ] **AOSSIE Branding**: Contains the official AOSSIE animated intro bumper and closing CTA outro card.
 - [ ] **Watermark-Free**: No third-party editor logos or platform watermarks are visible.
 - [ ] **Pacing**: Visual cuts are snappy (1–3s per shot), visually synced to musical rhythm.
