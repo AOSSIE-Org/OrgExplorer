@@ -82,7 +82,7 @@ You have full flexibility in choosing your video production tools. Several excel
   * Rich library of dynamic text presets, kinetic animations, and glitch/motion transitions.
   * Built-in beat detection (`Auto Beat`) to effortlessly snap cuts to musical tempo.
   * In-app commercial audio library and sound effects (whooshes, clicks, pops).
-  * Direct 1080p 60fps export with **no watermark**.
+  * Direct 1080p 60fps export with zero watermarks on standard free exports (verify available export settings and stick to eligible free assets, as settings and watermark policies can vary by platform, assets, or subscription).
 * **Best used for**: Assembling screen recordings, adding punchy text callouts, beat-synced cutting, and final branding.
 
 ### 2. [Arcade](https://app.arcade.software/) (Available Option for UI Snippets)

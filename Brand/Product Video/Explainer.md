@@ -42,7 +42,7 @@ Contributors have the flexibility to choose the workflow and software that best 
   * **Built-in Voiceover Recording**: Record clean narration directly over your timeline with background noise reduction.
   * **Callouts & Zoom Effects**: Easily add arrows, highlight boxes, and smooth zoom-ins to guide viewers' eyes to important UI buttons.
   * **Audio Ducking**: Automatically lowers background music levels when voiceover narration is speaking.
-  * **Watermark-Free Export**: Exports crisp 1080p 60fps H.264 MP4 with **zero watermarks**.
+  * **Watermark-Free Export**: Supports crisp 1080p 60fps H.264 MP4 exports with zero watermarks on standard free exports; verify your available export settings and stick to eligible free assets/features, as export options and watermark behavior can vary by platform (desktop vs. mobile/web), project assets, or subscription tier.
 
 ### Option B — [Arcade](https://app.arcade.software/) (Available AI-Assisted Screen Capture Tool)
 * **Overview**: A browser-based product walkthrough platform that automates UI recording, step detection, and brand color extraction.
