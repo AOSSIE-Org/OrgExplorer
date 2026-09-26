@@ -110,18 +110,21 @@ and track repository health across dozens of repos.
 
 [0:15 - 0:25] Solution (15-20 words):
 OrgExplorer solves this with an interactive visual intelligence dashboard that runs 
-entirely in your browser.
+entirely in your browser without requiring complex setup.
 
 [0:25 - 0:45] Feature Demo 1 (30-40 words):
-Simply search for any GitHub organization. OrgExplorer instantly analyzes commit activity, 
-technology stacks, and open pull requests.
+Simply search for any GitHub organization to load live repository data. OrgExplorer automatically 
+inspects public repos, breaks down language distributions across tech stacks, and visualizes recent 
+commit frequency alongside active pull request velocity.
 
 [0:45 - 1:05] Feature Demo 2 (30-40 words):
-With the Contributor Network graph, maintainers can visualize collaboration patterns, 
-spot single points of failure, and identify community leaders.
+Next, explore the interactive Contributor Network graph. Maintainers can instantly trace collaboration 
+clusters across team boundaries, identify key community champions, and detect single-developer 
+dependencies to proactively mitigate bus-factor risk before it impacts the project.
 
-[1:05 - 1:15] Summary (15 words):
-Gain instant visibility into your open-source ecosystem without complex setup.
+[1:05 - 1:15] Summary (15-20 words):
+Gain instant visibility into your entire open-source ecosystem, audit health metrics, 
+and empower maintainers without friction.
 
 [1:15 - 1:20] [AOSSIE Official Closing CTA Outro]
 ```
