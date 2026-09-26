@@ -54,7 +54,7 @@ Here are top recommended platforms to source copyright-free music for your video
 | **CapCut Built-In Commercial Music** | Filterable by "Commercial Use" within CapCut's audio tab. | Quick in-editor soundtrack selection without external downloads. | Included in CapCut App |
 
 > [!TIP]
-> **Attribution Requirement**: If you choose a track licensed under **Creative Commons Attribution (CC-BY)**, include the artist credit, song title, and license link in your PR description so maintainers can append it to the video's public description upon publishing.
+> **Attribution Requirement**: If you choose a track licensed under **Creative Commons Attribution (CC-BY)**, include the artist credit, song title, license link, the track's source URL (when supplied by the licensor), and a statement indicating whether changes were made to the audio (as required by CC BY 4.0) in your PR description so maintainers can append it to the video's public description upon publishing.
 
 ---
 
