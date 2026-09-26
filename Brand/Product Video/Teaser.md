@@ -116,7 +116,7 @@ You have full flexibility in choosing your video production tools. Several excel
 ```
 
 ### Step 1 — Define the 3-Second Hook
-Online viewers decide whether to keep watching within the first 3 seconds. Start with an intriguing hook:
+Online viewers decide whether to keep watching within the first 3 seconds. Introduce your hook immediately during the opening 0:00–0:03 window (for example, as a bold text overlay across the official intro bumper):
 * *Example (Question)*: *"Struggling to track contributor impact across 50+ repositories?"*
 * *Example (Bold Statement)*: *"GitHub analytics shouldn't require complex SQL queries."*
 
@@ -127,8 +127,8 @@ Structure your teaser into clear, rapid phases:
 
 | Timestamp | Phase | Content |
 | :--- | :--- | :--- |
-| **0:00 – 0:03** | **Official Intro** | Official AOSSIE 2–3s animated bumper. |
-| **0:03 – 0:08** | **The Hook & Problem** | Rapid text punchline highlighting the developer pain point. |
+| **0:00 – 0:03** | **Official Intro & Hook** | Official AOSSIE 2–3s animated bumper with hook text overlay to capture viewer attention within the first 3 seconds. |
+| **0:03 – 0:08** | **The Problem** | Rapid text punchline highlighting the developer pain point. |
 | **0:08 – 0:15** | **The Reveal** | *"Introducing [Project Name]"* + Logo reveal with dynamic transition. |
 | **0:15 – 0:35** | **Hero Feature Blitz** | 2 to 3 rapid snippets showcasing visually impressive UI actions (e.g., interactive graph, one-click report, live filtering). Each shot lasts 2–4 seconds max. |
 | **0:35 – 0:42** | **Key Impact / Value** | Punchy text: *"Open Source. Fast. 100% In-Browser."* |
