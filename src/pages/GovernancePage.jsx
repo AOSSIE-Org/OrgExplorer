@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo ,useEffect} from 'react'
 import { FiRefreshCw, FiExternalLink } from 'react-icons/fi'
 import { useApp } from '../context/AppContext'
 import { C, PageTitle, EmptyOk } from '../components/UI'
@@ -40,14 +40,22 @@ const getStatus = ratio => {
     bg: 'rgba(239,68,68,.12)'
   }
 }
+const ITEMS_PER_PAGE = 10
 
 export default function GovernancePage() {
   const { model, issuesData, runAudit, govLoading, auditComplete, loading, runGovernanceAnalysis,staleRepoStats } = useApp()
   const [tab, setTab] = useState('dead')
 
-  const ITEMS_PER_PAGE = 10
   const [stalePage, setStalePage] = useState(1)
+  const [deadPage, setDeadPage] = useState(1)   
+  const [zombiePage, setZombiePage] = useState(1)
   const totalPages = Math.ceil(staleRepoStats.length / ITEMS_PER_PAGE)
+
+  useEffect(() => {
+    setDeadPage(1)
+    setZombiePage(1)
+    setStalePage(1)
+  }, [issuesData])
 
   const paginatedStaleRepos = useMemo(() => {
     const start = (stalePage - 1) * ITEMS_PER_PAGE
@@ -74,6 +82,9 @@ export default function GovernancePage() {
     .filter(i => !i.pull_request && i.state === 'open' && daysSince(i.created_at) >= 90)
     .sort((a, b) => daysSince(b.created_at) - daysSince(a.created_at))
 
+  const deadTotalPages = Math.ceil(deadIssues.length / ITEMS_PER_PAGE)
+  const paginatedDeadIssues = deadIssues.slice((deadPage - 1) * ITEMS_PER_PAGE, deadPage * ITEMS_PER_PAGE)
+
   // Health check 2 — Percentage of dead issues relative to all issues
   const staleIssuesRatio = allIssues.length ? (deadIssues.length / allIssues.length) * 100 : 0;
 
@@ -81,6 +92,9 @@ export default function GovernancePage() {
   const zombiePRs = allIssues
     .filter(i => i.pull_request && i.state === 'open' && daysSince(i.created_at) >= 90)
     .sort((a, b) => daysSince(b.created_at) - daysSince(a.created_at))
+
+  const zombieTotalPages = Math.ceil(zombiePRs.length / ITEMS_PER_PAGE)
+  const paginatedZombiePRs = zombiePRs.slice((zombiePage - 1) * ITEMS_PER_PAGE, zombiePage * ITEMS_PER_PAGE)
 
   // Health check 4 — No license
   const noLicense = model.allRepos.filter(r => !r.license && !r.archived && !r.fork)
@@ -134,6 +148,40 @@ export default function GovernancePage() {
       </tr>
     </thead>
   )
+
+  const Pagination = ({ page, totalPages, onPrev, onNext }) => {
+    if (totalPages <= 1) return null
+    return (
+      <div
+       style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 16 }}>
+        <button
+          onClick={onPrev}
+          disabled={page === 1}
+          style={{
+            ...C.btn('primary'),
+            padding: '8px 14px',
+            cursor: page === 1 ? 'not-allowed' : 'pointer',
+            opacity: page === 1 ? 0.5 : 1
+          }}
+        >
+          ← Previous
+        </button>
+        <span style={{ fontSize: 13, color: 'var(--text2)' }}>Page {page} of {totalPages}</span>
+        <button
+          onClick={onNext}
+          disabled={page === totalPages}
+          style={{
+            ...C.btn('primary'),
+            padding: '8px 14px',
+            cursor: page === totalPages ? 'not-allowed' : 'pointer',
+            opacity: page === totalPages ? 0.5 : 1
+          }}
+        >
+          Next →
+        </button>
+      </div>
+    )
+  }
 
   return (
     <div style={{ padding: '32px 24px', maxWidth: 1100, margin: '0 auto' }} className="fade-up">
@@ -232,24 +280,29 @@ export default function GovernancePage() {
         {/* Dead Issues */}
         {tab === 'dead' && (
           deadIssues.length ? (
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <TableHead />
-                <tbody>{deadIssues.slice(0, 25).map((item, i) => <IssueRow key={item.id} item={item} i={i} />)}</tbody>
-              </table>
-            </div>
+            <>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <TableHead />
+                  <tbody>{paginatedDeadIssues.map((item, i) => <IssueRow key={item.id} item={item} i={i} />)}</tbody>
+                </table>
+              </div>
+              <Pagination page={deadPage} totalPages={deadTotalPages} onPrev={() => setDeadPage(p => p - 1)} onNext={() => setDeadPage(p => p + 1)} />
+            </>
           ) : <EmptyOk msg="No dead issues found" sub="This org actively maintains its open items." />
         )}
-
         {/* Zombie PRs */}
         {tab === 'zombie' && (
           zombiePRs.length ? (
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <TableHead />
-                <tbody>{zombiePRs.slice(0, 25).map((item, i) => <IssueRow key={item.id} item={item} i={i} />)}</tbody>
-              </table>
-            </div>
+            <>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <TableHead />
+                  <tbody>{paginatedZombiePRs.map((item, i) => <IssueRow key={item.id} item={item} i={i} />)}</tbody>
+                </table>
+              </div>
+              <Pagination page={zombiePage} totalPages={zombieTotalPages} onPrev={() => setZombiePage(p => p - 1)} onNext={() => setZombiePage(p => p + 1)} />
+            </>
           ) : <EmptyOk msg="No zombie PRs found" sub="This org reviews and closes contributions actively." />
         )}
 
