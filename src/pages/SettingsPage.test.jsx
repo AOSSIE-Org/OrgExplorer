@@ -48,4 +48,21 @@ describe('SettingsPage', () => {
     expect(screen.queryByRole('button', { name: /cleared/i })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: /clear all/i })).toBeInTheDocument()
   })
+
+  it('does not keep showing "Cleared" from a prior success once a later clear fails', async () => {
+    cacheClear.mockResolvedValue(true)
+    clearAnalysis.mockResolvedValue(true)
+
+    render(<SettingsPage />)
+
+    await userEvent.click(screen.getByRole('button', { name: /clear all/i }))
+    expect(await screen.findByRole('button', { name: /cleared/i })).toBeInTheDocument()
+
+    clearAnalysis.mockResolvedValue(false)
+
+    await userEvent.click(screen.getByRole('button', { name: /cleared/i }))
+
+    expect(screen.queryByRole('button', { name: /cleared/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /clear all/i })).toBeInTheDocument()
+  })
 })
