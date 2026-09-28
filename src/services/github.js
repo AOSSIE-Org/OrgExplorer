@@ -1,6 +1,10 @@
 // IndexedDB Cache (L2) 
 const DB_NAME = 'orgexplorer_cache'
 const STORE = 'cache'
+// Excludes bot accounts (CodeRabbit, dependabot, etc.) from maintainer attribution.
+function isBot(user) {
+  return user?.type === 'Bot' || /\[bot\]$/i.test(user?.login || '')
+}
 const TTL_MS = 3_600_000 // 1 hour
 
 function openDB() {
@@ -132,6 +136,44 @@ export async function fetchPulls(org, repo, pat) {
     if(data.length < 100) break
   }
   return all
+}
+// Fetch per-PR detail needed for maintainer attribution:
+//   - merged_by: who merged the PR (only present on the single-PR endpoint, not the list)
+//   - reviewers: unique logins who submitted a review
+// Reuses fetchWithCache, so each PR's detail + reviews are cached in IndexedDB.
+export async function fetchPullDetails(org, repo, number, pat) {
+  const base = `https://api.github.com/repos/${org}/${repo}/pulls/${number}`
+
+  let merged_by = null
+  let merged_by_avatar = ''
+  try {
+    const detail = await fetchWithCache(base, pat)
+    if (detail?.merged_by && !isBot(detail.merged_by)) {
+      merged_by = detail.merged_by.login
+      merged_by_avatar = detail.merged_by.avatar_url || ''
+    }
+  } catch {
+    // leave merged_by null on failure; this PR's merge simply isn't counted
+  }
+
+  let reviewers = []
+  try {
+    const reviews = await fetchWithCache(`${base}/reviews?per_page=100`, pat)
+    if (Array.isArray(reviews)) {
+      const seen = new Set()
+      for (const rv of reviews) {
+        const login = rv?.user?.login
+        if (login && !seen.has(login) && !isBot(rv.user)) {
+          seen.add(login)
+          reviewers.push({ login, avatar: rv.user.avatar_url || '' })
+        }
+      }
+    }
+  } catch {
+    // leave reviewers empty on failure
+  }
+
+  return { merged_by, merged_by_avatar, reviewers }
 }
 
 export async function fetchRateLimit(pat) {
