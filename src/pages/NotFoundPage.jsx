@@ -4,12 +4,13 @@ import { FiArrowLeft, FiHome } from 'react-icons/fi'
 import { C } from '../components/UI'
 
 export default function NotFoundPage() {
-  const { pathname } = useLocation()
+  const { pathname, key } = useLocation()
   const navigate = useNavigate()
 
-  // React Router stores the history index in window.history.state.idx;
-  // only offer "Go back" when there is an in-app page to return to.
-  const canGoBack = (window.history.state?.idx ?? 0) > 0
+  // React Router gives the first location of a session the key "default".
+  // Any other key means the user reached this page through in-app history,
+  // so "Go back" has an OrgExplorer page to return to.
+  const canGoBack = key !== 'default'
 
   return (
     <div
