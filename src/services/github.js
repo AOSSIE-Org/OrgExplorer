@@ -176,6 +176,43 @@ export async function fetchPullDetails(org, repo, number, pat) {
   return { merged_by, merged_by_avatar, reviewers }
 }
 
+// The cap on how many recent merged/closed PRs to enrich for maintainer
+// attribution. Enriching each PR costs 2 API calls, so this bounds the work.
+export const MAINTAINER_PR_CAP = 100
+
+// Selects the most-recent merged/closed PRs from pullsData, capped. Pure — no
+// fetching. Exported so it can be unit-tested independently of the network.
+export function selectPRsToEnrich(pullsData, cap = MAINTAINER_PR_CAP) {
+  const flat = []
+  for (const [key, prs] of Object.entries(pullsData || {})) {
+    if (!Array.isArray(prs)) continue
+    const [org, repo] = key.split('/')
+    for (const pr of prs) {
+      // Only merged or closed PRs carry meaningful merge/review attribution
+      if (pr?.merged_at || pr?.state === 'closed') {
+        flat.push({ org, repo, number: pr.number, updated_at: pr.updated_at })
+      }
+    }
+  }
+  flat.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
+  return flat.slice(0, cap)
+}
+
+// Enriches the capped set of recent PRs with merged_by + reviewers, then returns
+// the enriched array (ready for computeMaintainerAttribution). PAT-gated: without
+// a token this returns [] rather than burning the tiny unauthenticated quota.
+// Sequential by design — parallel bursts trip GitHub's abuse detection.
+export async function enrichMaintainerPRs(pullsData, pat, cap = MAINTAINER_PR_CAP) {
+  if (!pat) return []
+  const selected = selectPRsToEnrich(pullsData, cap)
+  const enriched = []
+  for (const { org, repo, number } of selected) {
+    if (number == null) continue
+    const details = await fetchPullDetails(org, repo, number, pat)
+    enriched.push(details)
+  }
+  return enriched
+}
 export async function fetchRateLimit(pat) {
   try {
     const headers = { Accept: 'application/vnd.github.v3+json' }
