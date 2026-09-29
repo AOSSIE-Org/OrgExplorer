@@ -160,23 +160,25 @@ export default function Navbar() {
               <FiChevronRight className="mobile-nav-arrow" size={15} />
             </NavLink>
           ))}
-          <div className="mobile-nav-divider" />
-          <div className="mobile-nav-heading">Other controls</div>
-          <button className="mobile-nav-row" onClick={() => { navigate('/settings'); setMobileMenuOpen(false) }}>
-            <FiSettings size={16} />
-            <span>Settings</span>
-            <FiChevronRight className="mobile-nav-arrow" size={15} />
-          </button>
-          <div className="mobile-nav-row">
-            <FiSun size={16} />
-            <span>Theme</span>
-            <span className="mobile-nav-theme-toggle"><ThemeToggle /></span>
+          <div className="tablet-hidden-other-controls">
+            <div className="mobile-nav-divider" />
+            <div className="mobile-nav-heading">Other controls</div>
+            <button className="mobile-nav-row" onClick={() => { navigate('/settings'); setMobileMenuOpen(false) }}>
+              <FiSettings size={16} />
+              <span>Settings</span>
+              <FiChevronRight className="mobile-nav-arrow" size={15} />
+            </button>
+            <div className="mobile-nav-row">
+              <FiSun size={16} />
+              <span>Theme</span>
+              <span className="mobile-nav-theme-toggle"><ThemeToggle /></span>
+            </div>
+            <button className="mobile-nav-row" onClick={() => { navigate('/support-us'); setMobileMenuOpen(false) }}>
+              <FiHeart size={16} />
+              <span>Support Us</span>
+              <FiExternalLink className="mobile-nav-arrow" size={15} />
+            </button>
           </div>
-          <button className="mobile-nav-row" onClick={() => { navigate('/support-us'); setMobileMenuOpen(false) }}>
-            <FiHeart size={16} />
-            <span>Support Us</span>
-            <FiExternalLink className="mobile-nav-arrow" size={15} />
-          </button>
         </div>
       )}
     </nav>

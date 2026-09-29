@@ -51,6 +51,32 @@ button {
   font-family: inherit;
 }
 
+.pat-modal {
+  width: 720px;
+}
+
+@media (max-width: 600px) {
+  .pat-modal {
+    width: calc(100vw - 24px) !important;
+    max-width: calc(100vw - 24px) !important;
+    max-height: calc(100vh - 24px) !important;
+  }
+
+  .pat-modal>div {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+
+  .pat-modal-instructions {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+.info-popover {
+  box-sizing: border-box;
+  max-width: calc(100vw - 56px) !important;
+}
+
 input,
 select {
   font-family: inherit;
@@ -444,6 +470,10 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 @media (min-width: 601px) and (max-width: 1024px) {
+  .tablet-hidden-other-controls {
+    display: none;
+  }
+
   .app-navbar.app-navbar-menu-open .navbar-menu-icon {
     display: none;
   }
@@ -737,6 +767,18 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 @media (max-width: 600px) {
+  .governance-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .contributors-signal-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .settings-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
   .site-footer-inner {
     align-items: stretch;
     gap: 0;
