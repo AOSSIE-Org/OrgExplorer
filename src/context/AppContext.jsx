@@ -143,6 +143,7 @@ export function AppProvider({ children }) {
     setOrgs([]);
     setIssuesData({});
     setLastOrgNames(orgNames);
+    setIsComplete(false);
     setAuditComplete(false);
     setAdvanceAnalyticsComplete(false);
     try {

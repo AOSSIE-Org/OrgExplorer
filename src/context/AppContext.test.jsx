@@ -78,6 +78,19 @@ describe('explore', () => {
     expect(app.current.error).not.toMatch(/org-a/)
   })
 
+  it('clears a previous complete status when a new exploration fails', async () => {
+    const app = await renderApp()
+
+    await act(async () => { await app.current.explore(['org-a']) })
+    expect(app.current.isComplete).toBe(true)
+
+    fetchRepos.mockRejectedValue(new Error('TEST_REPO_FAILURE'))
+    await act(async () => { await app.current.explore(['org-b']) })
+
+    expect(app.current.model).toBeNull()
+    expect(app.current.isComplete).toBe(false)
+  })
+
   it('shows the rate limit message when a repository fetch hits the rate limit', async () => {
     fetchRepos.mockRejectedValue(new Error('RATE_LIMIT'))
     const app = await renderApp()
