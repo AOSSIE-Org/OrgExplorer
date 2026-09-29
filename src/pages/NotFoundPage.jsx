@@ -48,7 +48,7 @@ export default function NotFoundPage() {
         </h1>
 
         <p style={{ color: 'var(--text2)', fontSize: 14, lineHeight: 1.7, marginBottom: 8 }}>
-          We couldn't find a page at
+          No page could be found at
         </p>
         <code
           data-testid="not-found-path"
