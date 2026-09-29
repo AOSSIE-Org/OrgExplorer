@@ -17,8 +17,12 @@ export default function SettingsPage() {
   const [deletePending, setDeletePending] = useState(false)
   const [clearPending, setClearPending] = useState(false)
   const [deleted, setDeleted] = useState(false)
+  const [clearError, setClearError] = useState(false)
   const deleteTimer = useRef(null)
   const clearTimer = useRef(null)
+  const deletedTimer = useRef(null)
+  const clearedTimer = useRef(null)
+  const clearErrorTimer = useRef(null)
 
   const handleSave = async () => {
     const token = draft.trim();
@@ -62,7 +66,7 @@ export default function SettingsPage() {
       setDraft('')
       setTokenError('')
       setDeleted(true)
-      setTimeout(() => setDeleted(false), 2000)
+      deletedTimer.current = setTimeout(() => setDeleted(false), 2000)
     }
   }
 
@@ -73,9 +77,14 @@ export default function SettingsPage() {
     } else {
       clearTimeout(clearTimer.current)
       setClearPending(false)
-      await cacheClear()
-      setCleared(true)
-      setTimeout(() => setCleared(false), 2000)
+      const success = await cacheClear()
+      if (success) {
+        setCleared(true)
+        clearedTimer.current = setTimeout(() => setCleared(false), 2000)
+      } else {
+        setClearError(true)
+        clearErrorTimer.current = setTimeout(() => setClearError(false), 2000)
+      }
     }
   }
 
@@ -83,6 +92,9 @@ export default function SettingsPage() {
     return () => {
       clearTimeout(deleteTimer.current)
       clearTimeout(clearTimer.current)
+      clearTimeout(deletedTimer.current)
+      clearTimeout(clearedTimer.current)
+      clearTimeout(clearErrorTimer.current)
     }
   }, [])
 
@@ -267,7 +279,7 @@ export default function SettingsPage() {
                 }}
               >
                 <FiTrash2 size={13} />
-                {cleared ? 'Cleared' : clearPending ? 'Confirm Clear?' : 'Clear All'}
+                {cleared ? 'Cleared' : clearError ? 'Clear Failed!' : clearPending ? 'Confirm Clear?' : 'Clear All'}
               </button>
             </div>
             <p style={{ fontSize: 12, color: 'var(--text2)', lineHeight: 1.6 }}>
