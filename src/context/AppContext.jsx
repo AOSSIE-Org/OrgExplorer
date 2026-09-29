@@ -153,10 +153,16 @@ export function AppProvider({ children }) {
       setOrgs(validOrgs)
 
       setLoadMsg('Fetching repositories...')
-      const reposPerOrg = {}
-      await Promise.allSettled(validOrgs.map(async org => {
-        reposPerOrg[org.login] = await fetchRepos(org.login, org.public_repos, pat)
-      }))
+      const repoRes = await Promise.allSettled(
+        validOrgs.map(org => fetchRepos(org.login, org.public_repos, pat))
+      )
+      const failed = repoRes.filter(r => r.status === 'rejected')
+      if (failed.length) {
+        if (failed.some(r => r.reason?.message === 'RATE_LIMIT')) throw new Error('RATE_LIMIT')
+        const failedOrgs = validOrgs.filter((_, i) => repoRes[i].status === 'rejected').map(org => org.login)
+        throw new Error(`Could not fetch repositories for ${failedOrgs.join(', ')}. Please try again.`)
+      }
+      const reposPerOrg = Object.fromEntries(validOrgs.map((org, i) => [org.login, repoRes[i].value]))
 
       const total = Object.values(reposPerOrg).reduce((sum, repos) => sum + repos.length, 0);
       setTotalRepo(total);
