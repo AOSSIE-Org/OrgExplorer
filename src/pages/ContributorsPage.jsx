@@ -288,7 +288,6 @@ export default function ContributorsPage() {
               style={{
                 ...C.input,
                 width: '100%',
-                paddingRight: search ? 36 : undefined,
               }}
             />
 
