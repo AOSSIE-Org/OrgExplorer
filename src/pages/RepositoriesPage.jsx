@@ -16,6 +16,7 @@ const ACTIVITY_COLORS = { Thriving: 'var(--green)', Active: 'var(--blue)', Dorma
 export default function RepositoriesPage() {
   const { model, isComplete, loading, runFullExplore } = useApp()
   const [search, setSearch] = useState('')
+  const searchInputRef = useRef(null)
   const [activityClassification, setActivityClassification] = useState('All')
   const [lang, setLang] = useState('All Languages')
   const [orgFilter, setOrgFilter] = useState('All Organizations')
@@ -174,6 +175,7 @@ export default function RepositoriesPage() {
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
           <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
             <input
+              ref={searchInputRef}
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Filter by repository name or description..."
@@ -187,7 +189,10 @@ export default function RepositoriesPage() {
             {search && (
               <button
                 type="button"
-                onClick={() => setSearch('')}
+                onClick={() => {
+                  setSearch('')
+                  searchInputRef.current?.focus()
+                }}
                 aria-label="Clear repository search"
                 title="Clear search"
                 style={{

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react'
-import { FiDatabase, FiDownload, FiExternalLink, FiX } from 'react-icons/fi'
+import { FiDatabase, FiDownload, FiExternalLink } from 'react-icons/fi'
 import { useApp } from '../context/AppContext'
 import { C, SortTh, PageTitle, LoadMore } from '../components/UI'
 import { useSortedData } from '../hooks/useSortedData'
@@ -292,30 +292,7 @@ export default function ContributorsPage() {
               }}
             />
 
-            {search && (
-              <button
-                type="button"
-                onClick={() => setSearch('')}
-                aria-label="Clear contributor search"
-                title="Clear search"
-                style={{
-                  position: 'absolute',
-                  right: 8,
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  border: 'none',
-                  background: 'transparent',
-                  color: 'var(--text2)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: 4,
-                }}
-              >
-                <FiX size={16} />
-              </button>
-            )}
+           
           </div>
           {organizationOptions.length > 0 && (
             <select
