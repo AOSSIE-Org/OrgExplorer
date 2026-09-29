@@ -16,15 +16,6 @@ export default function SettingsPage() {
   const [refreshError, setRefreshError] = useState(false)
   const [isValidating, setIsValidating] = useState(false)
   const [tokenError, setTokenError] = useState('')
-  const [deletePending, setDeletePending] = useState(false)
-  const [clearPending, setClearPending] = useState(false)
-  const [deleted, setDeleted] = useState(false)
-  const [clearError, setClearError] = useState(false)
-  const deleteTimer = useRef(null)
-  const clearTimer = useRef(null)
-  const deletedTimer = useRef(null)
-  const clearedTimer = useRef(null)
-  const clearErrorTimer = useRef(null)
 
   const handleSave = async () => {
     const token = draft.trim();
@@ -58,54 +49,27 @@ export default function SettingsPage() {
   }
 
   const handleDelete = () => {
-    if (!deletePending) {
-      setDeletePending(true)
-      deleteTimer.current = setTimeout(() => setDeletePending(false), 3000)
-    } else {
-      clearTimeout(deleteTimer.current)
-      setDeletePending(false)
-      savePat('')
-      setDraft('')
-      setTokenError('')
-      setDeleted(true)
-      deletedTimer.current = setTimeout(() => setDeleted(false), 2000)
-    }
+    if (!window.confirm('Delete your PAT? This cannot be undone.')) return
+    savePat('')
+    setDraft('')
+    setTokenError('')
   }
 
   const handleClear = async () => {
-    if (!clearPending) {
-      setClearPending(true)
-      clearTimer.current = setTimeout(() => setClearPending(false), 3000)
-    } else {
-      clearTimeout(clearTimer.current)
-      setClearPending(false)
-      if (clearing) return
-      setClearing(true)
-      setCleared(false)
-      try {
-        const [cacheOk, analysisOk] = await Promise.all([cacheClear(), clearAnalysis()])
-        if (cacheOk && analysisOk) {
-          setCleared(true)
-          clearedTimer.current = setTimeout(() => setCleared(false), 2000)
-        } else {
-          setClearError(true)
-          clearErrorTimer.current = setTimeout(() => setClearError(false), 2000)
-        }
-      } finally {
-        setClearing(false)
+    if (!window.confirm('Clear all cached data?')) return
+    if (clearing) return
+    setClearing(true)
+    setCleared(false)
+    try {
+      const [cacheOk, analysisOk] = await Promise.all([cacheClear(), clearAnalysis()])
+      if (cacheOk && analysisOk) {
+        setCleared(true)
+        setTimeout(() => setCleared(false), 2000)
       }
+    } finally {
+      setClearing(false)
     }
   }
-
-  useEffect(() => {
-    return () => {
-      clearTimeout(deleteTimer.current)
-      clearTimeout(clearTimer.current)
-      clearTimeout(deletedTimer.current)
-      clearTimeout(clearedTimer.current)
-      clearTimeout(clearErrorTimer.current)
-    }
-  }, [])
 
   const rateColor = rateLimit
     ? rateLimit.remaining / rateLimit.limit > 0.3 ? 'var(--green)' : 'var(--red)'
@@ -240,14 +204,9 @@ export default function SettingsPage() {
               <button
                 onClick={handleDelete}
                 disabled={!draft.trim() || isValidating}
-                style={{
-                  ...C.btn('danger'),
-                  display: 'flex', alignItems: 'center', gap: 5, fontSize: 13,
-                  ...(deletePending && { outline: '2px solid var(--red)', outlineOffset: 2 })
-                }}
+                style={{ ...C.btn('danger'), display: 'flex', alignItems: 'center', gap: 5, fontSize: 13 }}
               >
-                <FiTrash2 size={13} />
-                {deleted ? 'Deleted' : deletePending ? 'Confirm Delete?' : 'Delete'}
+                <FiTrash2 size={13} /> Delete
               </button>
             </div>
           </div>
@@ -282,14 +241,10 @@ export default function SettingsPage() {
               <button
                 onClick={handleClear}
                 disabled={clearing}
-                style={{
-                  ...C.btn('danger'),
-                  fontSize: 12, display: 'flex', alignItems: 'center', gap: 5,
-                  ...(clearPending && { outline: '2px solid var(--red)', outlineOffset: 2 })
-                }}
+                style={{ ...C.btn('danger'), fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}
               >
                 <FiTrash2 size={13} />
-                {clearing ? 'Clearing...' : cleared ? 'Cleared' : clearError ? 'Clear Failed!' : clearPending ? 'Confirm Clear?' : 'Clear All'}
+                {clearing ? 'Clearing...' : cleared ? 'Cleared' : 'Clear All'}
               </button>
             </div>
             <p style={{ fontSize: 12, color: 'var(--text2)', lineHeight: 1.6 }}>
