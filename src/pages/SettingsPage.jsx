@@ -14,6 +14,11 @@ export default function SettingsPage() {
   const [refreshError, setRefreshError] = useState(false)
   const [isValidating, setIsValidating] = useState(false)
   const [tokenError, setTokenError] = useState('')
+  const [deletePending, setDeletePending] = useState(false)
+  const [clearPending, setClearPending] = useState(false)
+  const [deleted, setDeleted] = useState(false)
+  const deleteTimer = useRef(null)
+  const clearTimer = useRef(null)
 
   const handleSave = async () => {
     const token = draft.trim();
@@ -47,16 +52,39 @@ export default function SettingsPage() {
   }
 
   const handleDelete = () => {
-    savePat('')
-    setDraft('')
-    setTokenError('')
+    if (!deletePending) {
+      setDeletePending(true)
+      deleteTimer.current = setTimeout(() => setDeletePending(false), 3000)
+    } else {
+      clearTimeout(deleteTimer.current)
+      setDeletePending(false)
+      savePat('')
+      setDraft('')
+      setTokenError('')
+      setDeleted(true)
+      setTimeout(() => setDeleted(false), 2000)
+    }
   }
 
   const handleClear = async () => {
-    await cacheClear()
-    setCleared(true)
-    setTimeout(() => setCleared(false), 2000)
+    if (!clearPending) {
+      setClearPending(true)
+      clearTimer.current = setTimeout(() => setClearPending(false), 3000)
+    } else {
+      clearTimeout(clearTimer.current)
+      setClearPending(false)
+      await cacheClear()
+      setCleared(true)
+      setTimeout(() => setCleared(false), 2000)
+    }
   }
+
+  useEffect(() => {
+    return () => {
+      clearTimeout(deleteTimer.current)
+      clearTimeout(clearTimer.current)
+    }
+  }, [])
 
   const rateColor = rateLimit
     ? rateLimit.remaining / rateLimit.limit > 0.3 ? 'var(--green)' : 'var(--red)'
@@ -191,9 +219,14 @@ export default function SettingsPage() {
               <button
                 onClick={handleDelete}
                 disabled={!draft.trim() || isValidating}
-                style={{ ...C.btn('danger'), display: 'flex', alignItems: 'center', gap: 5, fontSize: 13 }}
+                style={{
+                  ...C.btn('danger'),
+                  display: 'flex', alignItems: 'center', gap: 5, fontSize: 13,
+                  ...(deletePending && { outline: '2px solid var(--red)', outlineOffset: 2 })
+                }}
               >
-                <FiTrash2 size={13} /> Delete
+                <FiTrash2 size={13} />
+                {deleted ? 'Deleted' : deletePending ? 'Confirm Delete?' : 'Delete'}
               </button>
             </div>
           </div>
@@ -227,9 +260,14 @@ export default function SettingsPage() {
               </div>
               <button
                 onClick={handleClear}
-                style={{ ...C.btn('danger'), fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}
+                style={{
+                  ...C.btn('danger'),
+                  fontSize: 12, display: 'flex', alignItems: 'center', gap: 5,
+                  ...(clearPending && { outline: '2px solid var(--red)', outlineOffset: 2 })
+                }}
               >
-                <FiTrash2 size={13} /> {cleared ? 'Cleared' : 'Clear All'}
+                <FiTrash2 size={13} />
+                {cleared ? 'Cleared' : clearPending ? 'Confirm Clear?' : 'Clear All'}
               </button>
             </div>
             <p style={{ fontSize: 12, color: 'var(--text2)', lineHeight: 1.6 }}>
