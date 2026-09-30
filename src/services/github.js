@@ -105,11 +105,11 @@ export async function fetchRepos(org, repoCount, pat) {
 export async function fetchContributors(org, repo, pat) {
   const all = []
   const maxPages = pat ? 10 : 1
-  for(let page = 1; page<=maxPages ; page++) {
+  for (let page = 1; page <= maxPages; page++) {
     const url = `https://api.github.com/repos/${org}/${repo}/contributors?per_page=100&page=${page}`
     const data = await fetchWithCache(url, pat)
     all.push(...data)
-    if(data.length < 100) break
+    if (data.length < 100) break
   }
   return all
 }
@@ -117,11 +117,11 @@ export async function fetchContributors(org, repo, pat) {
 export async function fetchIssues(org, repo, pat) {
   const all = []
   const maxPages = pat ? 10 : 1
-  for(let page = 1; page<=maxPages ; page++) {
+  for (let page = 1; page <= maxPages; page++) {
     const url = `https://api.github.com/repos/${org}/${repo}/issues?state=all&per_page=100&page=${page}`
     const data = await fetchWithCache(url, pat)
     all.push(...data)
-    if(data.length < 100) break
+    if (data.length < 100) break
   }
   return all
 }
@@ -129,11 +129,11 @@ export async function fetchIssues(org, repo, pat) {
 export async function fetchPulls(org, repo, pat) {
   const all = []
   const maxPages = pat ? 10 : 1
-  for(let page = 1; page<=maxPages ; page++) {
+  for (let page = 1; page <= maxPages; page++) {
     const url = `https://api.github.com/repos/${org}/${repo}/pulls?state=all&per_page=100&page=${page}`
     const data = await fetchWithCache(url, pat)
     all.push(...data)
-    if(data.length < 100) break
+    if (data.length < 100) break
   }
   return all
 }
@@ -176,40 +176,42 @@ export async function fetchPullDetails(org, repo, number, pat) {
   return { merged_by, merged_by_avatar, reviewers }
 }
 
-// The cap on how many recent merged/closed PRs to enrich for maintainer
-// attribution. Enriching each PR costs 2 API calls, so this bounds the work.
-export const MAINTAINER_PR_CAP = 100
+// Per-repo cap: take the most-recent merged/closed PRs from EACH repo, so a busy
+// repo can't crowd out quieter ones (which would drop their maintainers entirely).
+export const MAINTAINER_PR_PER_REPO = 30
 
-// Selects the most-recent merged/closed PRs from pullsData, capped. Pure — no
-// fetching. Exported so it can be unit-tested independently of the network.
-export function selectPRsToEnrich(pullsData, cap = MAINTAINER_PR_CAP) {
-  const flat = []
+// Selects the most-recent merged/closed PRs per repo. Pure — no fetching. Carries
+// org/repo and the merge/update date so the page can filter by org and compute
+// recency-based "Active". Exported so it can be unit-tested independently.
+export function selectPRsToEnrich(pullsData, perRepo = MAINTAINER_PR_PER_REPO) {
+  const selected = []
   for (const [key, prs] of Object.entries(pullsData || {})) {
     if (!Array.isArray(prs)) continue
     const [org, repo] = key.split('/')
-    for (const pr of prs) {
-      // Only merged or closed PRs carry meaningful merge/review attribution
-      if (pr?.merged_at || pr?.state === 'closed') {
-        flat.push({ org, repo, number: pr.number, updated_at: pr.updated_at })
-      }
+    const recent = prs
+      .filter(pr => pr?.merged_at || pr?.state === 'closed')
+      .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
+      .slice(0, perRepo)
+    for (const pr of recent) {
+      selected.push({ org, repo, number: pr.number, updated_at: pr.updated_at, merged_at: pr.merged_at })
     }
   }
-  flat.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
-  return flat.slice(0, cap)
+  return selected
 }
 
-// Enriches the capped set of recent PRs with merged_by + reviewers, then returns
-// the enriched array (ready for computeMaintainerAttribution). PAT-gated: without
-// a token this returns [] rather than burning the tiny unauthenticated quota.
-// Sequential by design — parallel bursts trip GitHub's abuse detection.
-export async function enrichMaintainerPRs(pullsData, pat, cap = MAINTAINER_PR_CAP) {
+// Enriches the selected PRs with merged_by + reviewers, then returns the enriched
+// array (ready for computeMaintainerAttribution). PAT-gated: without a token this
+// returns [] rather than burning the tiny unauthenticated quota. Sequential by
+// design — parallel bursts trip GitHub's abuse detection. Each result carries
+// org/repo (for filtering) and activity_at (for recency-based "Active").
+export async function enrichMaintainerPRs(pullsData, pat, perRepo = MAINTAINER_PR_PER_REPO) {
   if (!pat) return []
-  const selected = selectPRsToEnrich(pullsData, cap)
+  const selected = selectPRsToEnrich(pullsData, perRepo)
   const enriched = []
-  for (const { org, repo, number } of selected) {
+  for (const { org, repo, number, merged_at, updated_at } of selected) {
     if (number == null) continue
     const details = await fetchPullDetails(org, repo, number, pat)
-    enriched.push(details)
+    enriched.push({ ...details, org, repo, activity_at: merged_at || updated_at })
   }
   return enriched
 }
