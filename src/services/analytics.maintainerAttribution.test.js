@@ -42,3 +42,40 @@ describe('computeMaintainerAttribution', () => {
     expect(() => computeMaintainerAttribution([null, { merged_by: null, reviewers: [] }])).not.toThrow()
   })
 })
+
+
+describe('computeMaintainerAttribution — repos and lastActive', () => {
+  const prs = [
+    { merged_by: 'alice', reviewers: [], repo: 'RepoA', activity_at: '2026-09-01T00:00:00Z' },
+    { merged_by: 'alice', reviewers: [], repo: 'RepoB', activity_at: '2026-09-10T00:00:00Z' },
+    { merged_by: 'alice', reviewers: [], repo: 'RepoA', activity_at: '2026-09-05T00:00:00Z' },
+    { merged_by: null,    reviewers: ['bob'], repo: 'RepoC', activity_at: '2026-09-03T00:00:00Z' },
+  ]
+
+  it('counts distinct repos per maintainer', () => {
+    const rows = computeMaintainerAttribution(prs)
+    // alice merged in RepoA (twice) and RepoB -> 2 distinct repos
+    expect(rows.find(r => r.login === 'alice').repos).toBe(2)
+    // bob reviewed in RepoC only -> 1
+    expect(rows.find(r => r.login === 'bob').repos).toBe(1)
+  })
+
+  it('tracks lastActive as the most recent activity date', () => {
+    const alice = computeMaintainerAttribution(prs).find(r => r.login === 'alice')
+    expect(alice.lastActive).toBe('2026-09-10T00:00:00Z') // the latest of her three
+  })
+
+  it('returns repos as a number, not a Set', () => {
+    const alice = computeMaintainerAttribution(prs).find(r => r.login === 'alice')
+    expect(typeof alice.repos).toBe('number')
+  })
+
+  it('handles PRs missing repo or activity_at', () => {
+    const rows = computeMaintainerAttribution([
+      { merged_by: 'carol', reviewers: [] }, // no repo, no activity_at
+    ])
+    const carol = rows.find(r => r.login === 'carol')
+    expect(carol.repos).toBe(0)
+    expect(carol.lastActive).toBeNull()
+  })
+})
