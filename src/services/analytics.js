@@ -235,17 +235,27 @@ export function computeMaintainerMetrics(pullsData) {
 }
 
 // Maintainer attribution — Step 2: tallies per-maintainer activity from ENRICHED PRs.
-// Each enriched PR is expected to carry: merged_by (login or null), and reviewers
-// (array of reviewer logins). Returns one row per maintainer with merged/reviewed
-// counts, org-wide. A person counts as a "reviewer" once per PR even if they left
-// multiple reviews on it.
+// Each enriched PR carries: merged_by (login or null), reviewers (array), repo, and
+// activity_at (the merge/update date). Returns one row per maintainer with merged +
+// reviewed counts, distinct repos managed, and lastActive (most recent activity),
+// org-wide. A person counts as a reviewer once per PR even with multiple reviews.
 export function computeMaintainerAttribution(enrichedPRs = []) {
   const map = {}
 
   const ensure = (login, avatar) => {
     if (!login) return null
-    if (!map[login]) map[login] = { login, avatar: avatar || '', merged: 0, reviewed: 0 }
+    if (!map[login]) {
+      map[login] = { login, avatar: avatar || '', merged: 0, reviewed: 0, repos: new Set(), lastActive: null }
+    }
     return map[login]
+  }
+
+  const touch = (entry, pr) => {
+    if (!entry) return
+    if (pr.repo) entry.repos.add(pr.repo)
+    if (pr.activity_at && (!entry.lastActive || pr.activity_at > entry.lastActive)) {
+      entry.lastActive = pr.activity_at
+    }
   }
 
   for (const pr of enrichedPRs) {
@@ -253,7 +263,7 @@ export function computeMaintainerAttribution(enrichedPRs = []) {
 
     if (pr.merged_by) {
       const m = ensure(pr.merged_by, pr.merged_by_avatar)
-      if (m) m.merged++
+      if (m) { m.merged++; touch(m, pr) }
     }
 
     const seen = new Set()
@@ -262,9 +272,12 @@ export function computeMaintainerAttribution(enrichedPRs = []) {
       if (!login || seen.has(login)) continue
       seen.add(login)
       const rev = ensure(login, typeof r === 'object' ? r?.avatar : undefined)
-      if (rev) rev.reviewed++
+      if (rev) { rev.reviewed++; touch(rev, pr) }
     }
   }
 
-  return Object.values(map).sort((a, b) => (b.merged + b.reviewed) - (a.merged + a.reviewed))
+  // Finalize: repos Set -> count, keep lastActive for recency-based "Active"
+  return Object.values(map)
+    .map(m => ({ ...m, repos: m.repos.size }))
+    .sort((a, b) => (b.merged + b.reviewed) - (a.merged + a.reviewed))
 }
