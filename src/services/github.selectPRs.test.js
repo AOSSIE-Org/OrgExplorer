@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { selectPRsToEnrich } from './github'
 
-describe('selectPRsToEnrich', () => {
+describe('selectPRsToEnrich (per-repo)', () => {
   const pullsData = {
     'AOSSIE-Org/OrgExplorer': [
       { number: 1, state: 'closed', merged_at: '2026-09-01T00:00:00Z', updated_at: '2026-09-01T00:00:00Z' },
@@ -18,24 +18,45 @@ describe('selectPRsToEnrich', () => {
     expect(sel.find(p => p.number === 2)).toBeUndefined()
   })
 
-  it('includes merged and closed-unmerged PRs', () => {
-    const nums = selectPRsToEnrich(pullsData).map(p => p.number).sort()
+  it('includes merged and closed-unmerged PRs from all repos', () => {
+    const nums = selectPRsToEnrich(pullsData).map(p => p.number).sort((a, b) => a - b)
     expect(nums).toEqual([1, 3, 4])
   })
 
-  it('sorts by updated_at, most recent first', () => {
-    const nums = selectPRsToEnrich(pullsData).map(p => p.number)
-    expect(nums).toEqual([4, 3, 1]) // 09-08, 09-05, 09-01
+  it('sorts most-recent-first within each repo', () => {
+    // OrgExplorer has #3 (09-05) and #1 (09-01) -> #3 before #1
+    const oe = selectPRsToEnrich(pullsData).filter(p => p.repo === 'OrgExplorer').map(p => p.number)
+    expect(oe).toEqual([3, 1])
   })
 
-  it('splits org/repo from the key', () => {
-    const first = selectPRsToEnrich(pullsData)[0]
-    expect(first.org).toBe('AOSSIE-Org')
-    expect(first.repo).toBe('PictoPy')
+  it('carries org, repo, and dates on each selected PR', () => {
+    const pictopy = selectPRsToEnrich(pullsData).find(p => p.number === 4)
+    expect(pictopy.org).toBe('AOSSIE-Org')
+    expect(pictopy.repo).toBe('PictoPy')
+    expect(pictopy.merged_at).toBe('2026-09-08T00:00:00Z')
   })
 
-  it('respects the cap', () => {
-    expect(selectPRsToEnrich(pullsData, 2)).toHaveLength(2)
+  it('applies the cap per repo, not globally', () => {
+    // cap=1 per repo -> 1 from OrgExplorer + 1 from PictoPy = 2 total
+    const sel = selectPRsToEnrich(pullsData, 1)
+    expect(sel).toHaveLength(2)
+    // OrgExplorer keeps its most-recent (#3), not #1
+    expect(sel.find(p => p.repo === 'OrgExplorer').number).toBe(3)
+  })
+
+  it('does not let a busy repo crowd out a quieter one', () => {
+    // The key fix for #250: every repo is represented regardless of others' volume.
+    const busy = {
+      'AOSSIE-Org/Busy':  Array.from({ length: 50 }, (_, i) => ({
+        number: 100 + i, state: 'closed', merged_at: '2026-09-20T00:00:00Z', updated_at: '2026-09-20T00:00:00Z',
+      })),
+      'AOSSIE-Org/Quiet': [
+        { number: 5, state: 'closed', merged_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+      ],
+    }
+    const sel = selectPRsToEnrich(busy, 30)
+    // Quiet repo's single old PR must still be present, despite Busy having 50 recent ones
+    expect(sel.find(p => p.repo === 'Quiet')).toBeTruthy()
   })
 
   it('handles empty / malformed input', () => {

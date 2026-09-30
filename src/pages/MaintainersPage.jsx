@@ -3,7 +3,7 @@ import { FiUsers, FiDownload, FiExternalLink } from 'react-icons/fi'
 import { useApp } from '../context/AppContext'
 import { C, SortTh, PageTitle, LoadMore, StatCard, Spinner } from '../components/UI'
 import { useSortedData } from '../hooks/useSortedData'
-import { enrichMaintainerPRs, MAINTAINER_PR_CAP } from '../services/github'
+import { enrichMaintainerPRs, MAINTAINER_PR_PER_REPO } from '../services/github'
 import { computeMaintainerAttribution } from '../services/analytics'
 import { useNavigate } from 'react-router-dom'
 import EmptyStateCard from '../components/EmptyStateCard'
@@ -50,7 +50,7 @@ export default function MaintainersPage() {
     <div style={{ padding: '32px 24px', maxWidth: 1100, margin: '0 auto' }} className="fade-up">
       <PageTitle
         title="Maintainer Intelligence"
-        subtitle={`Merge and review activity across the ${MAINTAINER_PR_CAP} most recent PRs`}
+        subtitle={`Merge and review activity across the ${MAINTAINER_PR_PER_REPO} most recent PRs per repository`}
       />
 
       {/* Summary cards */}
