@@ -83,7 +83,11 @@ export default function Footer() {
             className="h-16 w-auto"/>
 
           {/* Separator */}
+<<<<<<< Updated upstream
           <div className="h-20 w-px bg-zinc-700" />
+=======
+          <div className="site-footer-divider site-footer-brand-divider h-20 w-px bg-zinc-700" />
+>>>>>>> Stashed changes
 
           {/* Description */}
           <div className="max-w-sm">
