@@ -10,6 +10,7 @@ const LINKS = [
   { to: '/overview', label: 'Overview' },
   { to: '/repositories', label: 'Repositories' },
   { to: '/contributors', label: 'Contributors' },
+  { to: '/issues', label: 'Issues' },
   { to: '/network', label: 'Network' },
   { to: '/analytics', label: 'Analytics' },
   { to: '/governance', label: 'Governance' },
