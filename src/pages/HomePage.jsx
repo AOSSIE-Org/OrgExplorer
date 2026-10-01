@@ -16,7 +16,15 @@ export default function HomePage() {
 
   const addChip = raw => {
     const parts = raw.split(/[,+\s]+/).map(s => s.trim()).filter(Boolean)
-    setChips(prev => [...new Set([...prev, ...parts])])
+    setChips(prev => {
+      const next = [...prev]
+      for (const p of parts) {
+        if (!next.some(existing => existing.toLowerCase() === p.toLowerCase())) {
+          next.push(p)
+        }
+      }
+      return next
+    })
     setInput('')
   }
 
