@@ -4,99 +4,72 @@ import { FiArrowLeft, FiHome } from 'react-icons/fi'
 import { C } from '../components/UI'
 
 export default function NotFoundPage() {
-  const { pathname, key } = useLocation()
+  const { key } = useLocation()
   const navigate = useNavigate()
 
   // React Router gives the first location of a session the key "default".
-  // Any other key means the user reached this page through in-app history,
-  // so "Go back" has an OrgExplorer page to return to.
+  // Any other key means the user arrived via in-app history, so "Go back"
+  // has an OrgExplorer page to return to.
   const canGoBack = key !== 'default'
 
   return (
     <div
       style={{
         display: 'flex',
+        flexDirection: 'column',
         justifyContent: 'center',
         alignItems: 'center',
+        textAlign: 'center',
         padding: '64px 20px',
-        minHeight: '60vh',
+        minHeight: '70vh',
       }}
     >
-      <section
-        aria-labelledby="not-found-title"
+      <h1
+        aria-label="404"
         style={{
-          ...C.card,
-          width: '100%',
-          maxWidth: 560,
-          padding: '40px 32px',
-          textAlign: 'center',
+          color: 'var(--accent)',
+          fontSize: 'clamp(4rem, 14vw, 7rem)',
+          fontWeight: 800,
+          lineHeight: 1,
+          margin: 0,
         }}
       >
-        <p style={{ ...C.label, color: 'var(--accent)', marginBottom: 12 }}>Error 404</p>
+        404
+      </h1>
 
-        <h1
-          id="not-found-title"
-          style={{
-            color: 'var(--text)',
-            fontSize: 'clamp(1.75rem, 5vw, 2.5rem)',
-            fontWeight: 700,
-            lineHeight: 1.2,
-            marginBottom: 16,
-          }}
-        >
-          Page not found
-        </h1>
+      <h2
+        style={{
+          color: 'var(--text)',
+          fontSize: 'clamp(1.25rem, 4vw, 1.75rem)',
+          fontWeight: 700,
+          margin: '12px 0 8px',
+        }}
+      >
+        Page not found
+      </h2>
 
-        <p style={{ color: 'var(--text2)', fontSize: 14, lineHeight: 1.7, marginBottom: 8 }}>
-          No page could be found at
-        </p>
-        <code
-          data-testid="not-found-path"
-          style={{
-            display: 'inline-block',
-            maxWidth: '100%',
-            overflowWrap: 'anywhere',
-            background: 'var(--surface2)',
-            border: '1px solid var(--border)',
-            borderRadius: 6,
-            padding: '4px 10px',
-            fontSize: 13,
-            color: 'var(--text)',
-          }}
-        >
-          {pathname}
-        </code>
-        <p style={{ color: 'var(--text2)', fontSize: 14, lineHeight: 1.7, marginTop: 8 }}>
-          The link may be mistyped or outdated.
-        </p>
+      <p style={{ color: 'var(--text2)', fontSize: 14, lineHeight: 1.6, maxWidth: 380, margin: 0 }}>
+        The page you are looking for does not exist or may have been moved.
+      </p>
 
-        <div
-          style={{
-            display: 'flex',
-            gap: 12,
-            justifyContent: 'center',
-            flexWrap: 'wrap',
-            marginTop: 28,
-          }}
+      <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', marginTop: 28 }}>
+        <button
+          type="button"
+          onClick={() => navigate('/')}
+          style={{ ...C.btn('primary'), display: 'flex', alignItems: 'center', gap: 6 }}
         >
+          <FiHome size={14} aria-hidden="true" /> Go to Home
+        </button>
+        {canGoBack && (
           <button
             type="button"
-            onClick={() => navigate('/')}
-            style={{ ...C.btn('primary'), display: 'flex', alignItems: 'center', gap: 6 }}
+            onClick={() => navigate(-1)}
+            style={{ ...C.btn('ghost'), display: 'flex', alignItems: 'center', gap: 6 }}
           >
-            <FiHome size={14} aria-hidden="true" /> Go to Home
+            <FiArrowLeft size={14} aria-hidden="true" /> Go back
           </button>
-          {canGoBack && (
-            <button
-              type="button"
-              onClick={() => navigate(-1)}
-              style={{ ...C.btn('ghost'), display: 'flex', alignItems: 'center', gap: 6 }}
-            >
-              <FiArrowLeft size={14} aria-hidden="true" /> Go back
-            </button>
-          )}
-        </div>
-      </section>
+        )}
+      </div>
     </div>
   )
 }
