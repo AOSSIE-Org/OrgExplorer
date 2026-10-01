@@ -250,11 +250,11 @@ export function computeMaintainerAttribution(enrichedPRs = []) {
     return map[login]
   }
 
-  const touch = (entry, pr) => {
+  const touch = (entry, repo, when) => {
     if (!entry) return
-    if (pr.repo) entry.repos.add(pr.repo)
-    if (pr.activity_at && (!entry.lastActive || pr.activity_at > entry.lastActive)) {
-      entry.lastActive = pr.activity_at
+    if (repo) entry.repos.add(repo)
+    if (when && (!entry.lastActive || when > entry.lastActive)) {
+      entry.lastActive = when
     }
   }
 
@@ -263,7 +263,8 @@ export function computeMaintainerAttribution(enrichedPRs = []) {
 
     if (pr.merged_by) {
       const m = ensure(pr.merged_by, pr.merged_by_avatar)
-      if (m) { m.merged++; touch(m, pr) }
+      // the merger's activity date is when they merged
+      if (m) { m.merged++; touch(m, pr.repo, pr.merged_at || pr.updated_at) }
     }
 
     const seen = new Set()
@@ -272,11 +273,12 @@ export function computeMaintainerAttribution(enrichedPRs = []) {
       if (!login || seen.has(login)) continue
       seen.add(login)
       const rev = ensure(login, typeof r === 'object' ? r?.avatar : undefined)
-      if (rev) { rev.reviewed++; touch(rev, pr) }
+      // each reviewer's activity date is their own review, not the PR's merge
+      const when = (typeof r === 'object' ? r?.reviewed_at : null) || pr.updated_at
+      if (rev) { rev.reviewed++; touch(rev, pr.repo, when) }
     }
   }
 
-  // Finalize: repos Set -> count, keep lastActive for recency-based "Active"
   return Object.values(map)
     .map(m => ({ ...m, repos: m.repos.size }))
     .sort((a, b) => (b.merged + b.reviewed) - (a.merged + a.reviewed))

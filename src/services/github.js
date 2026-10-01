@@ -146,11 +146,13 @@ export async function fetchPullDetails(org, repo, number, pat) {
 
   let merged_by = null
   let merged_by_avatar = ''
+  let merged_at = null
   try {
     const detail = await fetchWithCache(base, pat)
     if (detail?.merged_by && !isBot(detail.merged_by)) {
       merged_by = detail.merged_by.login
       merged_by_avatar = detail.merged_by.avatar_url || ''
+      merged_at = detail.merged_at || null
     }
   } catch {
     // leave merged_by null on failure; this PR's merge simply isn't counted
@@ -160,20 +162,24 @@ export async function fetchPullDetails(org, repo, number, pat) {
   try {
     const reviews = await fetchWithCache(`${base}/reviews?per_page=100`, pat)
     if (Array.isArray(reviews)) {
-      const seen = new Set()
+      const latest = {} // login -> most recent submitted_at
+      const avatars = {}
       for (const rv of reviews) {
         const login = rv?.user?.login
-        if (login && !seen.has(login) && !isBot(rv.user)) {
-          seen.add(login)
-          reviewers.push({ login, avatar: rv.user.avatar_url || '' })
-        }
+        if (!login || isBot(rv.user)) continue
+        const at = rv.submitted_at || null
+        if (!latest[login] || (at && at > latest[login])) latest[login] = at
+        avatars[login] = rv.user.avatar_url || ''
       }
+      reviewers = Object.keys(latest).map(login => ({
+        login, avatar: avatars[login], reviewed_at: latest[login],
+      }))
     }
   } catch {
     // leave reviewers empty on failure
   }
 
-  return { merged_by, merged_by_avatar, reviewers }
+  return { merged_by, merged_by_avatar, merged_at, reviewers }
 }
 
 // Per-repo cap: take the most-recent merged/closed PRs from EACH repo, so a busy
@@ -236,7 +242,7 @@ export async function enrichMaintainerPRs(pullsData, pat, perRepo = MAINTAINER_P
   for (const { org, repo, number, merged_at, updated_at } of selected) {
     if (number == null) continue
     const details = await fetchPullDetails(org, repo, number, pat)
-    enriched.push({ ...details, org, repo, activity_at: merged_at || updated_at })
+    enriched.push({ ...details, org, repo, updated_at })
   }
   return enriched
 }

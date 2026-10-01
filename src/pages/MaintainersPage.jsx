@@ -116,10 +116,11 @@ export default function MaintainersPage() {
               style={{ ...C.input, width: 220 }}
             />
             {organizationOptions.length > 0 && (
-              <select
+             <select
                 value={selectedOrg}
                 onChange={e => { setSelectedOrg(e.target.value); setShown(20) }}
                 style={{ ...C.input, width: 200 }}
+                aria-label="Filter by organization"
               >
                 <option value="all">All Organizations</option>
                 {organizationOptions.map(org => (
