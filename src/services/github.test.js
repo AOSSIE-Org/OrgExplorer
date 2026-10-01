@@ -183,6 +183,9 @@ describe('github.js cache and API service', () => {
 
       const contributors = await fetchContributors('AOSSIE-Org', 'not-found-repo')
       expect(contributors).toEqual([])
+      const again = await fetchContributors('aossie-org', 'not-found-repo')
+      expect(again).toEqual([])
+      expect(fetchMock).toHaveBeenCalledTimes(1)
     })
   })
 })
