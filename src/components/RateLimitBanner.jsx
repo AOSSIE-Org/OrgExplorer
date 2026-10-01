@@ -27,13 +27,17 @@ export default function RateLimitBanner() {
           API RATE LIMIT: <strong style={{ marginLeft: 2 }}>{rateLimit.remaining} / {rateLimit.limit}</strong> <span className="rate-limit-remaining-label">REQUESTS REMAINING</span>
         </span>
         {!pat && (
-          <span
+          <button
+            type="button"
             className="rate-limit-pat"
             onClick={() => navigate('/settings')}
-            style={{ color: 'var(--accent)', marginLeft: 10, cursor: 'pointer', fontWeight: 600 }}
+            style={{
+              color: 'var(--accent)', marginLeft: 10, cursor: 'pointer', fontWeight: 600,
+              background: 'transparent', border: 'none', padding: 0, font: 'inherit',
+            }}
           >
             Add PAT for 5,000 req/hr
-          </span>
+          </button>
         )}
       </span>
       <span className="rate-limit-used" style={{ fontSize: 11, color: 'var(--text2)' }}>
