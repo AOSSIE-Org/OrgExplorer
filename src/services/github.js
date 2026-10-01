@@ -1,7 +1,7 @@
 // IndexedDB Cache (L2) 
 const DB_NAME = 'orgexplorer_cache'
 const STORE = 'cache'
-const TTL_MS = 3_600_000 // 1 hour
+export const TTL_MS = 3_600_000 // 1 hour
 
 function openDB() {
   return new Promise((resolve, reject) => {
@@ -12,27 +12,50 @@ function openDB() {
   })
 }
 
-export async function cacheGet(key) {
+export async function cacheGetEntry(key) {
   try {
     const db = await openDB()
     return new Promise(res => {
       const req = db.transaction(STORE, 'readonly').objectStore(STORE).get(key)
-      req.onsuccess = () => {
-        const r = req.result
-        if (!r || Date.now() - r.ts > TTL_MS) return res(null)
-        res(r.v)
-      }
+      req.onsuccess = () => res(req.result || null)
       req.onerror = () => res(null)
     })
   } catch { return null }
 }
 
-export async function cacheSet(key, value) {
+export async function cacheGet(key) {
+  const entry = await cacheGetEntry(key)
+  if (!entry || Date.now() - entry.ts > TTL_MS) return null
+  return entry.v
+}
+
+export async function cacheSet(key, value, etag = null) {
   try {
     const db = await openDB()
     return new Promise(res => {
       const tx = db.transaction(STORE, 'readwrite')
-      tx.objectStore(STORE).put({ k: key, v: value, ts: Date.now() })
+      tx.objectStore(STORE).put({ k: key, v: value, ts: Date.now(), etag })
+      tx.oncomplete = () => res(true)
+      tx.onerror = () => res(false)
+    })
+  } catch { return false }
+}
+
+export async function cacheTouch(key, etag = null) {
+  try {
+    const db = await openDB()
+    return new Promise(res => {
+      const tx = db.transaction(STORE, 'readwrite')
+      const store = tx.objectStore(STORE)
+      const getReq = store.get(key)
+      getReq.onsuccess = () => {
+        const record = getReq.result
+        if (record) {
+          record.ts = Date.now()
+          if (etag) record.etag = etag
+          store.put(record)
+        }
+      }
       tx.oncomplete = () => res(true)
       tx.onerror = () => res(false)
     })
@@ -51,35 +74,92 @@ export async function cacheClear() {
   } catch { return false }
 }
 
-// Core fetchWithCache 
-async function fetchWithCache(url, pat) {
-  // L2 check
-  const cached = await cacheGet(url)
-  if (cached) return cached
+// Request Throttling / Concurrency Limiter
+const MAX_CONCURRENT_REQUESTS = 6
+let activeRequests = 0
+const requestQueue = []
 
-  const headers = { Accept: 'application/vnd.github.v3+json' }
-  if (pat) headers.Authorization = `token ${pat}`
+function enqueueRequest(task) {
+  return new Promise((resolve, reject) => {
+    requestQueue.push({ task, resolve, reject })
+    dequeue()
+  })
+}
 
-  const res = await fetch(url, { headers })
-
-  window.dispatchEvent(
-    new CustomEvent('rate-limit-update', {
-      detail: {
-        limit: Number(res.headers.get('x-ratelimit-limit')),
-        remaining: Number(res.headers.get('x-ratelimit-remaining')),
-        used: Number(res.headers.get('x-ratelimit-used')),
-        reset: Number(res.headers.get('x-ratelimit-reset'))
-      }
+function dequeue() {
+  if (activeRequests >= MAX_CONCURRENT_REQUESTS || requestQueue.length === 0) {
+    return
+  }
+  const { task, resolve, reject } = requestQueue.shift()
+  activeRequests++
+  task()
+    .then(resolve, reject)
+    .finally(() => {
+      activeRequests--
+      dequeue()
     })
-  )
+}
 
-  if (res.status === 403) throw new Error('RATE_LIMIT')
-  if (res.status === 404) throw new Error('NOT_FOUND')
-  if (!res.ok) throw new Error(`HTTP_${res.status}`)
+function dispatchRateLimit(headers) {
+  if (typeof window === 'undefined' || !headers) return
+  const limit = headers.get('x-ratelimit-limit')
+  if (limit !== null) {
+    window.dispatchEvent(
+      new CustomEvent('rate-limit-update', {
+        detail: {
+          limit: Number(headers.get('x-ratelimit-limit')),
+          remaining: Number(headers.get('x-ratelimit-remaining')),
+          used: Number(headers.get('x-ratelimit-used')),
+          reset: Number(headers.get('x-ratelimit-reset'))
+        }
+      })
+    )
+  }
+}
 
-  const data = await res.json()
-  cacheSet(url, data) // write-back, non-blocking
-  return data
+export function getCacheKey(url, pat) {
+  if (!pat) return `anon::${url}`
+  let hash = 0
+  for (let i = 0; i < pat.length; i++) {
+    hash = (hash << 5) - hash + pat.charCodeAt(i)
+    hash |= 0
+  }
+  return `pat_${Math.abs(hash)}::${url}`
+}
+
+// Core fetchWithCache 
+export async function fetchWithCache(url, pat) {
+  const cacheKey = getCacheKey(url, pat)
+
+  // L2 check
+  const entry = await cacheGetEntry(cacheKey)
+  if (entry && (Date.now() - entry.ts <= TTL_MS)) {
+    return entry.v
+  }
+
+  return enqueueRequest(async () => {
+    const headers = { Accept: 'application/vnd.github.v3+json' }
+    if (pat) headers.Authorization = `token ${pat}`
+    if (entry?.etag) headers['If-None-Match'] = entry.etag
+
+    const res = await fetch(url, { headers, cache: 'no-store' })
+    dispatchRateLimit(res.headers)
+
+    if (res.status === 304 && entry) {
+      const newEtag = res.headers.get('etag') || entry.etag
+      await cacheTouch(cacheKey, newEtag)
+      return entry.v
+    }
+
+    if (res.status === 403) throw new Error('RATE_LIMIT')
+    if (res.status === 404) throw new Error('NOT_FOUND')
+    if (!res.ok) throw new Error(`HTTP_${res.status}`)
+
+    const data = await res.json()
+    const etag = res.headers.get('etag')
+    await cacheSet(cacheKey, data, etag)
+    return data
+  })
 }
 
 // Public service functions
@@ -139,6 +219,7 @@ export async function fetchRateLimit(pat) {
     const headers = { Accept: 'application/vnd.github.v3+json' }
     if (pat) headers.Authorization = `token ${pat}`
     const res = await fetch('https://api.github.com/rate_limit', { headers })
+    dispatchRateLimit(res.headers)
     const data = await res.json()
     return data.rate
   } catch { return null }
