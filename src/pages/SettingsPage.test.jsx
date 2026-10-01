@@ -68,4 +68,17 @@ describe('SettingsPage', () => {
     expect(screen.queryByRole('button', { name: /cleared/i })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: /clear all/i })).toBeInTheDocument()
   })
+
+  it('does not clear anything when the user cancels the confirmation', async () => {
+    cacheClear.mockResolvedValue(true)
+    clearAnalysis.mockResolvedValue(true)
+    window.confirm.mockReturnValue(false) // user declines
+
+    render(<SettingsPage />)
+
+    await userEvent.click(screen.getByRole('button', { name: /clear all/i }))
+
+    expect(cacheClear).not.toHaveBeenCalled()
+    expect(clearAnalysis).not.toHaveBeenCalled()
+  })
 })
