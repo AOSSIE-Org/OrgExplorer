@@ -250,9 +250,9 @@ export function computeMaintainerAttribution(enrichedPRs = []) {
     return map[login]
   }
 
-  const touch = (entry, repo, when) => {
+    const touch = (entry, org, repo, when) => {
     if (!entry) return
-    if (repo) entry.repos.add(repo)
+    if (repo) entry.repos.add(org ? `${org}/${repo}` : repo)
     if (when && (!entry.lastActive || when > entry.lastActive)) {
       entry.lastActive = when
     }
@@ -261,12 +261,10 @@ export function computeMaintainerAttribution(enrichedPRs = []) {
   for (const pr of enrichedPRs) {
     if (!pr) continue
 
-    if (pr.merged_by) {
+        if (pr.merged_by) {
       const m = ensure(pr.merged_by, pr.merged_by_avatar)
-      // the merger's activity date is when they merged
-      if (m) { m.merged++; touch(m, pr.repo, pr.merged_at || pr.updated_at) }
+      if (m) { m.merged++; touch(m, pr.org, pr.repo, pr.merged_at || pr.updated_at) }
     }
-
     const seen = new Set()
     for (const r of pr.reviewers || []) {
       const login = typeof r === 'string' ? r : r?.login
@@ -275,7 +273,7 @@ export function computeMaintainerAttribution(enrichedPRs = []) {
       const rev = ensure(login, typeof r === 'object' ? r?.avatar : undefined)
       // each reviewer's activity date is their own review, not the PR's merge
       const when = (typeof r === 'object' ? r?.reviewed_at : null) || pr.updated_at
-      if (rev) { rev.reviewed++; touch(rev, pr.repo, when) }
+      if (rev) { rev.reviewed++; touch(rev, pr.org, pr.repo, when) }
     }
   }
 
