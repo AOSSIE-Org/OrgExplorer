@@ -51,10 +51,24 @@ export async function cacheClear() {
   } catch { return false }
 }
 
+// Hash a PAT to a short non-secret identifier for cache keying (fixes #228)
+function hashPAT(pat) {
+  let h = 0
+  for (let i = 0; i < pat.length; i++) {
+    h = ((h << 5) - h + pat.charCodeAt(i)) | 0
+  }
+  return (h >>> 0).toString(36)
+}
+
 // Core fetchWithCache 
 async function fetchWithCache(url, pat) {
+  // Include a non-secret per-identity hash in the cache key so each
+  // unique PAT gets its own cache entries, without storing the raw
+  // token in IndexedDB (fixes #228, addresses CodeRabbit CWE-524)
+  const cacheKey = pat ? `${url}::${hashPAT(pat)}` : url
+
   // L2 check
-  const cached = await cacheGet(url)
+  const cached = await cacheGet(cacheKey)
   if (cached) return cached
 
   const headers = { Accept: 'application/vnd.github.v3+json' }
@@ -78,7 +92,7 @@ async function fetchWithCache(url, pat) {
   if (!res.ok) throw new Error(`HTTP_${res.status}`)
 
   const data = await res.json()
-  cacheSet(url, data) // write-back, non-blocking
+  cacheSet(cacheKey, data) // write-back, non-blocking
   return data
 }
 
