@@ -85,4 +85,13 @@ describe('computeMaintainerAttribution — repos and lastActive', () => {
     expect(rows.find(r => r.login === 'alice').lastActive).toBe('2026-01-01T00:00:00Z')
     expect(rows.find(r => r.login === 'bob').lastActive).toBe('2026-01-10T00:00:00Z')
   })
+
+  it('counts same-named repos in different orgs separately (CodeRabbit #276)', () => {
+    const prs = [
+      { merged_by: 'alice', merged_at: '2026-01-01T00:00:00Z', reviewers: [], org: 'orgA', repo: 'project' },
+      { merged_by: 'alice', merged_at: '2026-01-02T00:00:00Z', reviewers: [], org: 'orgB', repo: 'project' },
+    ]
+    // orgA/project and orgB/project are distinct repos -> count 2, not 1
+    expect(computeMaintainerAttribution(prs).find(r => r.login === 'alice').repos).toBe(2)
+  })
 })
