@@ -178,13 +178,15 @@ export async function fetchPullDetails(org, repo, number, pat) {
 
 // Per-repo cap: take the most-recent merged/closed PRs from EACH repo, so a busy
 // repo can't crowd out quieter ones (which would drop their maintainers entirely).
-export const MAINTAINER_PR_PER_REPO = 30
+export const MAINTAINER_PR_PER_REPO = 10
+export const MAINTAINER_PR_TOTAL_CAP = 150
 
 // Selects the most-recent merged/closed PRs per repo. Pure — no fetching. Carries
 // org/repo and the merge/update date so the page can filter by org and compute
 // recency-based "Active". Exported so it can be unit-tested independently.
-export function selectPRsToEnrich(pullsData, perRepo = MAINTAINER_PR_PER_REPO) {
-  const selected = []
+export function selectPRsToEnrich(pullsData, perRepo = MAINTAINER_PR_PER_REPO, totalCap = MAINTAINER_PR_TOTAL_CAP) {
+  // Per repo: most-recent merged/closed PRs, newest first.
+  const perRepoLists = []
   for (const [key, prs] of Object.entries(pullsData || {})) {
     if (!Array.isArray(prs)) continue
     const [org, repo] = key.split('/')
@@ -192,9 +194,26 @@ export function selectPRsToEnrich(pullsData, perRepo = MAINTAINER_PR_PER_REPO) {
       .filter(pr => pr?.merged_at || pr?.state === 'closed')
       .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
       .slice(0, perRepo)
-    for (const pr of recent) {
-      selected.push({ org, repo, number: pr.number, updated_at: pr.updated_at, merged_at: pr.merged_at })
+      .map(pr => ({ org, repo, number: pr.number, updated_at: pr.updated_at, merged_at: pr.merged_at }))
+    if (recent.length) perRepoLists.push(recent)
+  }
+
+  // Round-robin across repos so every repo is represented before any repo fills up,
+  // then stop at the total cap. Keeps the page bounded without a busy repo crowding
+  // out quieter ones.
+  const selected = []
+  let i = 0
+  while (selected.length < totalCap) {
+    let took = false
+    for (const list of perRepoLists) {
+      if (i < list.length) {
+        selected.push(list[i])
+        took = true
+        if (selected.length >= totalCap) break
+      }
     }
+    if (!took) break // all repos exhausted
+    i++
   }
   return selected
 }

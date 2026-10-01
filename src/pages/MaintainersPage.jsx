@@ -1,38 +1,58 @@
 import React, { useState, useMemo, useEffect } from 'react'
-import { FiUsers, FiDownload, FiExternalLink } from 'react-icons/fi'
+import { FiUsers, FiExternalLink, FiInfo } from 'react-icons/fi'
 import { useApp } from '../context/AppContext'
 import { C, SortTh, PageTitle, LoadMore, StatCard, Spinner } from '../components/UI'
 import { useSortedData } from '../hooks/useSortedData'
-import { enrichMaintainerPRs, MAINTAINER_PR_PER_REPO } from '../services/github'
+import { enrichMaintainerPRs, MAINTAINER_PR_PER_REPO, MAINTAINER_PR_TOTAL_CAP } from '../services/github'
 import { computeMaintainerAttribution } from '../services/analytics'
 import { useNavigate } from 'react-router-dom'
 import EmptyStateCard from '../components/EmptyStateCard'
 
+// A maintainer is "Active" if their most recent merge/review was within this window.
+const ACTIVE_DAYS = 30
+
+function isActive(lastActive) {
+  if (!lastActive) return false
+  const days = (Date.now() - new Date(lastActive)) / 86_400_000
+  return Number.isFinite(days) && days <= ACTIVE_DAYS
+}
+
 export default function MaintainersPage() {
-  const { pat, pullsData, advanceAnalyticsLoading } = useApp()
+  const { pat, pullsData, orgs, advanceAnalyticsLoading } = useApp()
   const navigate = useNavigate()
 
   const [search, setSearch] = useState('')
   const [shown, setShown] = useState(20)
-  const [rows, setRows] = useState([])
+  const [selectedOrg, setSelectedOrg] = useState('all')
+  const [enrichedPRs, setEnrichedPRs] = useState([])
   const [enriching, setEnriching] = useState(false)
+  const [showInfo, setShowInfo] = useState(false)
 
   const hasPulls = pullsData && Object.keys(pullsData).length > 0
+  const organizationOptions = useMemo(() => (orgs ?? []).map(o => o.login), [orgs])
 
-  // Enrich the recent PRs with merged_by + reviewers, then attribute per maintainer.
+  // Enrich recent PRs once (org filtering happens after, in-memory).
   useEffect(() => {
     let cancelled = false
     async function run() {
-      if (!pat || !hasPulls) { setRows([]); return }
+      if (!pat || !hasPulls) { setEnrichedPRs([]); return }
       setEnriching(true)
       const enriched = await enrichMaintainerPRs(pullsData, pat)
       if (cancelled) return
-      setRows(computeMaintainerAttribution(enriched))
+      setEnrichedPRs(enriched)
       setEnriching(false)
     }
     run()
     return () => { cancelled = true }
   }, [pat, pullsData, hasPulls])
+
+  // Attribute per-maintainer, scoped to the selected org.
+  const rows = useMemo(() => {
+    const scoped = selectedOrg === 'all'
+      ? enrichedPRs
+      : enrichedPRs.filter(pr => pr.org === selectedOrg)
+    return computeMaintainerAttribution(scoped)
+  }, [enrichedPRs, selectedOrg])
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -45,22 +65,21 @@ export default function MaintainersPage() {
 
   const totalMerged = rows.reduce((s, r) => s + r.merged, 0)
   const totalReviewed = rows.reduce((s, r) => s + r.reviewed, 0)
+  const activeCount = rows.filter(r => isActive(r.lastActive)).length
 
   return (
     <div style={{ padding: '32px 24px', maxWidth: 1100, margin: '0 auto' }} className="fade-up">
       <PageTitle
         title="Maintainer Intelligence"
-        subtitle={`Merge and review activity across the ${MAINTAINER_PR_PER_REPO} most recent PRs per repository`}
+        subtitle={`Merge and review activity across recent PRs (up to ${MAINTAINER_PR_PER_REPO} per repo, ${MAINTAINER_PR_TOTAL_CAP} total)`}
       />
 
-      {/* Summary cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 24 }}>
-        <StatCard label="Active Maintainers" value={rows.length} />
+        <StatCard label="Active Maintainers" value={activeCount} sub={`Active in last ${ACTIVE_DAYS} days`} />
         <StatCard label="PRs Merged" value={totalMerged} accent="var(--green)" />
         <StatCard label="PRs Reviewed" value={totalReviewed} accent="var(--purple)" />
       </div>
 
-      {/* Gating states */}
       {!pat ? (
         <div style={{ padding: '32px 24px', maxWidth: 900, margin: '0 auto' }}>
           <EmptyStateCard
@@ -93,7 +112,39 @@ export default function MaintainersPage() {
               placeholder="Search by username..."
               style={{ ...C.input, width: 220 }}
             />
+            {organizationOptions.length > 0 && (
+              <select
+                value={selectedOrg}
+                onChange={e => { setSelectedOrg(e.target.value); setShown(20) }}
+                style={{ ...C.input, width: 200 }}
+              >
+                <option value="all">All Organizations</option>
+                {organizationOptions.map(org => (
+                  <option key={org} value={org}>{org}</option>
+                ))}
+              </select>
+            )}
             <span style={{ fontSize: 12, color: 'var(--text2)' }}>{filtered.length} maintainers found</span>
+
+            {/* SIGNALS-style info tooltip */}
+            <span
+              style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', marginLeft: 'auto', color: 'var(--text2)', cursor: 'help' }}
+              onMouseEnter={() => setShowInfo(true)}
+              onMouseLeave={() => setShowInfo(false)}
+            >
+              <FiInfo size={15} />
+              {showInfo && (
+                <div style={{ position: 'absolute', top: '120%', right: 0, width: 300, zIndex: 10, ...C.card, padding: 14, fontSize: 12, lineHeight: 1.5 }}>
+                  <strong style={{ color: 'var(--accent)' }}>Maintainer Signals</strong>
+                  <p style={{ margin: '8px 0 0', color: 'var(--text2)' }}>
+                    <strong>PRs Merged</strong> — pull requests this person merged.<br />
+                    <strong>PRs Reviewed</strong> — pull requests they submitted a review on.<br />
+                    <strong>Repos</strong> — distinct repositories they merged or reviewed in.<br />
+                    <strong>Active</strong> — merged or reviewed within the last {ACTIVE_DAYS} days.
+                  </p>
+                </div>
+              )}
+            </span>
           </div>
 
           {filtered.length ? (
@@ -104,6 +155,8 @@ export default function MaintainersPage() {
                     <SortTh label="Maintainer" sortKey="login" sortConfig={sortConfig} onSort={onSort} />
                     <SortTh label="PRs Merged" sortKey="merged" sortConfig={sortConfig} onSort={onSort} />
                     <SortTh label="PRs Reviewed" sortKey="reviewed" sortConfig={sortConfig} onSort={onSort} />
+                    <SortTh label="Repos" sortKey="repos" sortConfig={sortConfig} onSort={onSort} />
+                    <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 12, color: 'var(--text2)' }}>Status</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -118,7 +171,6 @@ export default function MaintainersPage() {
                             target="_blank" rel="noopener noreferrer"
                             style={{ display: 'inline-flex', alignItems: 'center', color: 'var(--text2)', opacity: 0.7 }}
                             title="View GitHub profile" aria-label="View GitHub profile"
-                            className="hover:opacity-100 hover:text-(--accent)"
                           >
                             <FiExternalLink size={12} />
                           </a>
@@ -126,6 +178,10 @@ export default function MaintainersPage() {
                       </td>
                       <td style={{ padding: '10px 14px', fontSize: 13, color: 'var(--text2)' }}>{m.merged}</td>
                       <td style={{ padding: '10px 14px', fontSize: 13, color: 'var(--text2)' }}>{m.reviewed}</td>
+                      <td style={{ padding: '10px 14px', fontSize: 13, color: 'var(--text2)' }}>{m.repos}</td>
+                      <td style={{ padding: '10px 14px' }}>
+                        {isActive(m.lastActive) && <span style={C.pill('var(--green)', 'rgba(34,197,94,.12)')}>ACTIVE</span>}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

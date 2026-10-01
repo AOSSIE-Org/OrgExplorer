@@ -65,3 +65,28 @@ describe('selectPRsToEnrich (per-repo)', () => {
     expect(() => selectPRsToEnrich({ 'x/y': null })).not.toThrow()
   })
 })
+  it('caps the total at totalCap across all repos', () => {
+    // 20 repos x 10 PRs each = 200 candidates, but totalCap should bound it.
+    const big = {}
+    for (let r = 0; r < 20; r++) {
+      big[`AOSSIE-Org/Repo${r}`] = Array.from({ length: 10 }, (_, i) => ({
+        number: r * 100 + i, state: 'closed', merged_at: `2026-09-${String((i % 28) + 1).padStart(2, '0')}T00:00:00Z`,
+        updated_at: `2026-09-${String((i % 28) + 1).padStart(2, '0')}T00:00:00Z`,
+      }))
+    }
+    const sel = selectPRsToEnrich(big, 10, 150)
+    expect(sel.length).toBe(150)
+  })
+
+  it('round-robins so every repo is represented before the cap is hit', () => {
+    const big = {}
+    for (let r = 0; r < 20; r++) {
+      big[`AOSSIE-Org/Repo${r}`] = [
+        { number: r, state: 'closed', merged_at: '2026-09-01T00:00:00Z', updated_at: '2026-09-01T00:00:00Z' },
+      ]
+    }
+    const sel = selectPRsToEnrich(big, 10, 150)
+    // 20 repos x 1 PR = 20 total, all under cap, every repo present
+    const repos = new Set(sel.map(p => p.repo))
+    expect(repos.size).toBe(20)
+  })
