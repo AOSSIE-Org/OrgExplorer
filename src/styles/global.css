@@ -55,12 +55,20 @@ button {
   width: 720px;
 }
 
+.settings-pat-grid {
+  grid-template-columns: 1fr 1fr;
+}
+
 @media (max-width: 600px) {
   .pat-modal {
     width: calc(100vw - 24px) !important;
     max-width: calc(100vw - 24px) !important;
     max-height: calc(100vh - 24px) !important;
     max-height: calc(100dvh - 24px) !important;
+  }
+
+  .settings-pat-grid {
+    grid-template-columns: 1fr;
   }
 
   .pat-modal>div {

@@ -202,7 +202,7 @@ export default function SettingsPage() {
           {/* How to create a PAT */}
           <div style={C.card}>
             <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 14 }}>How to create a PAT</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div className="settings-pat-grid" style={{ display: 'grid', gap: 10 }}>
               {[
                 ['01', 'Go to GitHub Settings → Developer settings → Personal access tokens'],
                 ['02', 'Click "Generate new token" and choose "Fine-grained token"'],
