@@ -36,7 +36,7 @@ export function computeHealthBreakdown(repo, contributorCount = 0) {
         metrics: [
           { label: 'Last Push', value: repo?.pushed_at ? repo.pushed_at.slice(0, 10) : 'No recorded push' },
           { label: 'Days Since Push', value: hasPush ? Math.floor(daysSince) : 'Unknown' },
-          { label: 'Status', value: computeActivityClassification(repo) }
+          { label: 'Status', value: hasPush ? computeActivityClassification(repo) : 'Unknown' }
         ],
         description: 'Measures recent maintenance activity and commit momentum. Repositories updated within the last 30 days earn the highest score.'
       },
