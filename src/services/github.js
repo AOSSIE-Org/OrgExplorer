@@ -180,6 +180,9 @@ export async function fetchPullDetails(org, repo, number, pat) {
 // repo can't crowd out quieter ones (which would drop their maintainers entirely).
 export const MAINTAINER_PR_PER_REPO = 10
 export const MAINTAINER_PR_TOTAL_CAP = 150
+// Absolute ceiling on PRs enriched in one load, regardless of slider setting, so
+// a high per-repo value can't recreate the thousands-of-calls / minutes-long load.
+export const MAINTAINER_PR_HARD_MAX = 600
 
 // Selects the most-recent merged/closed PRs per repo. Pure — no fetching. Carries
 // org/repo and the merge/update date so the page can filter by org and compute
@@ -223,9 +226,12 @@ export function selectPRsToEnrich(pullsData, perRepo = MAINTAINER_PR_PER_REPO, t
 // returns [] rather than burning the tiny unauthenticated quota. Sequential by
 // design — parallel bursts trip GitHub's abuse detection. Each result carries
 // org/repo (for filtering) and activity_at (for recency-based "Active").
-export async function enrichMaintainerPRs(pullsData, pat, perRepo = MAINTAINER_PR_PER_REPO) {
+// totalCap bounds the work; it's clamped to MAINTAINER_PR_HARD_MAX so even a high
+// per-repo slider setting can't blow up load time / the user's rate limit.
+export async function enrichMaintainerPRs(pullsData, pat, perRepo = MAINTAINER_PR_PER_REPO, totalCap = MAINTAINER_PR_TOTAL_CAP) {
   if (!pat) return []
-  const selected = selectPRsToEnrich(pullsData, perRepo)
+  const cap = Math.min(totalCap, MAINTAINER_PR_HARD_MAX)
+  const selected = selectPRsToEnrich(pullsData, perRepo, cap)
   const enriched = []
   for (const { org, repo, number, merged_at, updated_at } of selected) {
     if (number == null) continue

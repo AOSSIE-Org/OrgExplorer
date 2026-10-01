@@ -3,7 +3,7 @@ import { FiUsers, FiExternalLink, FiInfo } from 'react-icons/fi'
 import { useApp } from '../context/AppContext'
 import { C, SortTh, PageTitle, LoadMore, StatCard, Spinner } from '../components/UI'
 import { useSortedData } from '../hooks/useSortedData'
-import { enrichMaintainerPRs, MAINTAINER_PR_PER_REPO, MAINTAINER_PR_TOTAL_CAP } from '../services/github'
+import { enrichMaintainerPRs, MAINTAINER_PR_PER_REPO } from '../services/github'
 import { computeMaintainerAttribution } from '../services/analytics'
 import { useNavigate } from 'react-router-dom'
 import EmptyStateCard from '../components/EmptyStateCard'
@@ -27,24 +27,27 @@ export default function MaintainersPage() {
   const [enrichedPRs, setEnrichedPRs] = useState([])
   const [enriching, setEnriching] = useState(false)
   const [showInfo, setShowInfo] = useState(false)
+  const [perRepo, setPerRepo] = useState(MAINTAINER_PR_PER_REPO)
 
   const hasPulls = pullsData && Object.keys(pullsData).length > 0
   const organizationOptions = useMemo(() => (orgs ?? []).map(o => o.login), [orgs])
 
-  // Enrich recent PRs once (org filtering happens after, in-memory).
+  // Enrich recent PRs. Re-runs when the per-repo depth slider changes; the
+  // IndexedDB cache means increasing it only fetches the additional PRs.
   useEffect(() => {
     let cancelled = false
     async function run() {
       if (!pat || !hasPulls) { setEnrichedPRs([]); return }
       setEnriching(true)
-      const enriched = await enrichMaintainerPRs(pullsData, pat)
+      const totalCap = perRepo * Object.keys(pullsData).length
+      const enriched = await enrichMaintainerPRs(pullsData, pat, perRepo, totalCap)
       if (cancelled) return
       setEnrichedPRs(enriched)
       setEnriching(false)
     }
     run()
     return () => { cancelled = true }
-  }, [pat, pullsData, hasPulls])
+  }, [pat, pullsData, hasPulls, perRepo])
 
   // Attribute per-maintainer, scoped to the selected org.
   const rows = useMemo(() => {
@@ -71,7 +74,7 @@ export default function MaintainersPage() {
     <div style={{ padding: '32px 24px', maxWidth: 1100, margin: '0 auto' }} className="fade-up">
       <PageTitle
         title="Maintainer Intelligence"
-        subtitle={`Merge and review activity across recent PRs (up to ${MAINTAINER_PR_PER_REPO} per repo, ${MAINTAINER_PR_TOTAL_CAP} total)`}
+        subtitle="Merge and review activity across recent pull requests (adjust depth with the slider)"
       />
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 24 }}>
@@ -124,6 +127,21 @@ export default function MaintainersPage() {
                 ))}
               </select>
             )}
+
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--text2)' }}>
+              PRs per repo: <strong style={{ color: 'var(--text)' }}>{perRepo}</strong>
+              <input
+                type="range"
+                min="5"
+                max="30"
+                step="5"
+                value={perRepo}
+                onChange={e => { setPerRepo(Number(e.target.value)); setShown(20) }}
+                style={{ accentColor: 'var(--accent)', cursor: 'pointer' }}
+                title="Higher = more complete, slower to load"
+              />
+            </label>
+
             <span style={{ fontSize: 12, color: 'var(--text2)' }}>{filtered.length} maintainers found</span>
 
             {/* SIGNALS-style info tooltip */}
@@ -140,7 +158,8 @@ export default function MaintainersPage() {
                     <strong>PRs Merged</strong> — pull requests this person merged.<br />
                     <strong>PRs Reviewed</strong> — pull requests they submitted a review on.<br />
                     <strong>Repos</strong> — distinct repositories they merged or reviewed in.<br />
-                    <strong>Active</strong> — merged or reviewed within the last {ACTIVE_DAYS} days.
+                    <strong>Active</strong> — merged or reviewed within the last {ACTIVE_DAYS} days.<br />
+                    <strong>PRs per repo</strong> — how many recent PRs are analyzed per repository. Higher is more complete but slower.
                   </p>
                 </div>
               )}
