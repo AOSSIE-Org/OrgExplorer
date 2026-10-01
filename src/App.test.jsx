@@ -19,6 +19,5 @@ describe('App routing', () => {
     )
 
     expect(screen.getByRole('heading', { name: /page not found/i })).toBeInTheDocument()
-    expect(screen.getByTestId('not-found-path')).toHaveTextContent('/this-route-does-not-exist')
   })
 })

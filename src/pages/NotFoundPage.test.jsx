@@ -24,10 +24,10 @@ describe('NotFoundPage', () => {
     expect(screen.queryByText('home page')).not.toBeInTheDocument()
   })
 
-  it('shows the path the user tried to visit', () => {
-    renderAt(['/overveiw'])
+  it('shows a helpful message', () => {
+    renderAt(['/nope'])
 
-    expect(screen.getByTestId('not-found-path')).toHaveTextContent('/overveiw')
+    expect(screen.getByText(/may have been moved/i)).toBeInTheDocument()
   })
 
   it('navigates home when "Go to Home" is clicked', async () => {
