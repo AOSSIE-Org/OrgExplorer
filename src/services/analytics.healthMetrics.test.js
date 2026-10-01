@@ -77,6 +77,12 @@ describe('computeActivityClassification', () => {
   it('treats the exact 30-day boundary as Thriving (inclusive)', () => {
     expect(computeActivityClassification({ pushed_at: daysAgoISO(30) })).toBe('Thriving')
   })
+
+  it('returns Unknown when pushed_at is missing or invalid', () => {
+    expect(computeActivityClassification({})).toBe('Unknown')
+    expect(computeActivityClassification({ pushed_at: null })).toBe('Unknown')
+    expect(computeActivityClassification({ pushed_at: 'not-a-valid-date' })).toBe('Unknown')
+  })
 })
 
 describe('computeBusFactor', () => {
@@ -152,6 +158,16 @@ describe('computeHealthBreakdown', () => {
     expect(activity.metrics.find(m => m.label === 'Status').value).toBe('Unknown')
     expect(breakdown.overall).toBe(30) // issueHealth 100 * 0.3
   })
+
+  it('handles unfetched / unavailable contributor data gracefully without diversity penalty', () => {
+    const repo = { pushed_at: daysAgoISO(10), open_issues_count: 0 }
+    const breakdown = computeHealthBreakdown(repo, null)
+    const diversity = breakdown.categories.find(c => c.id === 'diversity')
+    expect(diversity.score).toBeNull()
+    expect(diversity.isAvailable).toBe(false)
+    expect(diversity.metrics.find(m => m.label === 'Contributors').value).toBe('Unavailable')
+    expect(breakdown.overall).toBeGreaterThanOrEqual(90)
+  })
 })
 
 describe('getHealthRecommendations', () => {
@@ -184,6 +200,12 @@ describe('getHealthRecommendations', () => {
     expect(recs.some(r => r.category === 'Issues' && r.type === 'good')).toBe(true)
     expect(recs.some(r => r.category === 'Community' && r.type === 'good')).toBe(true)
     expect(recs.some(r => r.type === 'critical')).toBe(false)
+  })
+
+  it('omits community maintainer recommendations when contributor data is unavailable (null)', () => {
+    const repo = { pushed_at: daysAgoISO(10), open_issues_count: 0 }
+    const recs = getHealthRecommendations(repo, null)
+    expect(recs.some(r => r.category === 'Community')).toBe(false)
   })
 })
 

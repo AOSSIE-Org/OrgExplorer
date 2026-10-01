@@ -90,11 +90,29 @@ export default function RepoHealthDrawer({ repo, onClose, isOpen }) {
     }
   }, [isOpen])
 
+  const hasContributorData = useMemo(() => {
+    if (!repo) return false
+    if (typeof repo.contributorsFetched === 'boolean') {
+      return repo.contributorsFetched
+    }
+    if (typeof repo.hasContributorData === 'boolean') {
+      return repo.hasContributorData
+    }
+    if (Array.isArray(repo.contributors) && repo.contributors.length > 0) {
+      return true
+    }
+    if (typeof repo.contributors_count === 'number') {
+      return true
+    }
+    return false
+  }, [repo])
+
   const contributorCount = useMemo(() => {
+    if (!hasContributorData) return null
     if (Array.isArray(repo?.contributors)) return repo.contributors.length
     if (typeof repo?.contributors_count === 'number') return repo.contributors_count
     return 0
-  }, [repo])
+  }, [repo, hasContributorData])
 
   const breakdown = useMemo(() => {
     if (!repo) return null
@@ -165,8 +183,20 @@ export default function RepoHealthDrawer({ repo, onClose, isOpen }) {
       icon: FiShield,
     },
     { label: 'Default Branch', value: repo.default_branch || 'main', icon: FiCode },
-    { label: 'Activity Classification', value: repo.activityClassification || 'Unknown', icon: FiActivity },
-    { label: 'Recorded Contributors', value: contributorCount.toString(), icon: FiUsers },
+    {
+      label: 'Activity Classification',
+      value: repo.pushed_at && Number.isFinite(new Date(repo.pushed_at).getTime())
+        ? (repo.activityClassification || 'Unknown')
+        : 'Unknown',
+      icon: FiActivity,
+    },
+    {
+      label: 'Recorded Contributors',
+      value: hasContributorData && typeof contributorCount === 'number'
+        ? contributorCount.toString()
+        : 'Unavailable',
+      icon: FiUsers,
+    },
     {
       label: 'Bus Factor Risk',
       value: repo.busFactor?.risk ? repo.busFactor.risk.toUpperCase() : 'UNKNOWN',
@@ -416,18 +446,20 @@ export default function RepoHealthDrawer({ repo, onClose, isOpen }) {
                     border: '1px solid var(--border)',
                   }}
                 >
-                  <span>Activity (40%)</span>
+                  <span>Activity ({breakdown?.weights?.activity ? Math.round(breakdown.weights.activity * 100) : (hasContributorData ? 40 : 57)}%)</span>
                   <span>+</span>
-                  <span>Issue Health (30%)</span>
+                  <span>Issue Health ({breakdown?.weights?.issues ? Math.round(breakdown.weights.issues * 100) : (hasContributorData ? 30 : 43)}%)</span>
                   <span>+</span>
-                  <span>Diversity (30%)</span>
+                  <span>Diversity ({hasContributorData ? `${breakdown?.weights?.diversity ? Math.round(breakdown.weights.diversity * 100) : 30}%` : 'Unavailable'})</span>
                 </div>
               </div>
 
               {/* Category cards */}
               {breakdown?.categories.map((cat) => {
-                const catColor =
-                  cat.score >= 70 ? 'var(--green)' : cat.score >= 40 ? 'var(--amber)' : 'var(--red)'
+                const isAvailable = cat.score !== null && cat.score !== undefined
+                const catColor = !isAvailable
+                  ? 'var(--text2)'
+                  : cat.score >= 70 ? 'var(--green)' : cat.score >= 40 ? 'var(--amber)' : 'var(--red)'
                 return (
                   <div
                     key={cat.id}
@@ -443,15 +475,23 @@ export default function RepoHealthDrawer({ repo, onClose, isOpen }) {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span style={{ fontWeight: 600, fontSize: 14 }}>{cat.name}</span>
-                        <span style={C.pill('var(--accent)', 'rgba(245, 197, 24, 0.12)')}>
-                          {Math.round(cat.weight * 100)}% WEIGHT
+                        <span style={C.pill(isAvailable ? 'var(--accent)' : 'var(--text2)', isAvailable ? 'rgba(245, 197, 24, 0.12)' : 'rgba(150, 150, 150, 0.12)')}>
+                          {isAvailable ? `${Math.round(cat.weight * 100)}% WEIGHT` : 'UNAVAILABLE'}
                         </span>
                       </div>
                       <div style={{ textAlign: 'right' }}>
-                        <strong style={{ fontSize: 15, color: catColor }}>{cat.score}</strong>
-                        <span style={{ fontSize: 11, color: 'var(--text2)', marginLeft: 4 }}>
-                          (+{cat.weightedScore} pts)
-                        </span>
+                        {isAvailable ? (
+                          <>
+                            <strong style={{ fontSize: 15, color: catColor }}>{cat.score}</strong>
+                            <span style={{ fontSize: 11, color: 'var(--text2)', marginLeft: 4 }}>
+                              (+{cat.weightedScore} pts)
+                            </span>
+                          </>
+                        ) : (
+                          <span style={{ fontSize: 12, color: 'var(--text2)', fontWeight: 500 }}>
+                            Unavailable
+                          </span>
+                        )}
                       </div>
                     </div>
 
@@ -468,7 +508,7 @@ export default function RepoHealthDrawer({ repo, onClose, isOpen }) {
                       <div
                         style={{
                           height: '100%',
-                          width: `${cat.score}%`,
+                          width: isAvailable ? `${cat.score}%` : '0%',
                           background: catColor,
                           borderRadius: 3,
                           transition: 'width 0.4s ease',
