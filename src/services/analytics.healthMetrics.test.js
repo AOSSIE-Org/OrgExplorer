@@ -149,6 +149,7 @@ describe('computeHealthBreakdown', () => {
     const activity = breakdown.categories.find(c => c.id === 'activity')
     expect(activity.score).toBe(0)
     expect(activity.metrics.find(m => m.label === 'Days Since Push').value).toBe('Unknown')
+    expect(activity.metrics.find(m => m.label === 'Status').value).toBe('Unknown')
     expect(breakdown.overall).toBe(30) // issueHealth 100 * 0.3
   })
 })
