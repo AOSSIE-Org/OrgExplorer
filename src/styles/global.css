@@ -60,6 +60,7 @@ button {
     width: calc(100vw - 24px) !important;
     max-width: calc(100vw - 24px) !important;
     max-height: calc(100vh - 24px) !important;
+    max-height: calc(100dvh - 24px) !important;
   }
 
   .pat-modal>div {
