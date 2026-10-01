@@ -172,9 +172,13 @@ export function AppProvider({ children }) {
         const top = pat ? (reposPerOrg[org.login] || []) : getTopRepositories(reposPerOrg[org.login] || [], 10);
         reposPerOrg[org.login] = top;
 
-        await Promise.allSettled(top.map(async repo => {
-          contribsPerRepo[`${org.login}/${repo.name}`] = await fetchContributors(org.login, repo.name, pat)
-        }))
+        // Batch contributor requests to prevent API abuse limits
+        for (let i = 0; i < top.length; i += 5) {
+          const batch = top.slice(i, i + 5)
+          await Promise.allSettled(batch.map(async repo => {
+            contribsPerRepo[`${org.login}/${repo.name}`] = await fetchContributors(org.login, repo.name, pat)
+          }))
+        }
       }
 
       setLoadMsg('Building analytical data model...')
