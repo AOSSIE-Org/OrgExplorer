@@ -791,7 +791,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     text-align: center;
   }
 
-  .site-footer-brand .site-footer-divider {
+  .site-footer-brand-divider {
     display: none;
   }
 

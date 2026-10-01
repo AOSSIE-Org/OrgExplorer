@@ -83,7 +83,7 @@ export default function Footer() {
             className="h-16 w-auto" />
 
           {/* Separator */}
-          <div className="site-footer-divider h-20 w-px bg-zinc-700" />
+          <div className="site-footer-divider site-footer-brand-divider h-20 w-px bg-zinc-700" />
 
           {/* Description */}
           <div className="site-footer-description max-w-sm">
@@ -197,3 +197,4 @@ export default function Footer() {
     </footer>
   );
 }
+
