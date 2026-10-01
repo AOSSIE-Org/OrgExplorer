@@ -1,0 +1,9 @@
+services:
+  orgexplorer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: orgexplorer-app
+    ports:
+      - "8080:80"
+    restart: unless-stopped
