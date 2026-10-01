@@ -49,12 +49,14 @@ export default function SettingsPage() {
   }
 
   const handleDelete = () => {
+    if (!window.confirm('Delete your PAT? This cannot be undone.')) return
     savePat('')
     setDraft('')
     setTokenError('')
   }
 
   const handleClear = async () => {
+    if (!window.confirm('Clear all cached data?')) return
     if (clearing) return
     setClearing(true)
     setCleared(false)
@@ -241,7 +243,8 @@ export default function SettingsPage() {
                 disabled={clearing}
                 style={{ ...C.btn('danger'), fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}
               >
-                <FiTrash2 size={13} /> {cleared ? 'Cleared' : 'Clear All'}
+                <FiTrash2 size={13} />
+                {clearing ? 'Clearing...' : cleared ? 'Cleared' : 'Clear All'}
               </button>
             </div>
             <p style={{ fontSize: 12, color: 'var(--text2)', lineHeight: 1.6 }}>
