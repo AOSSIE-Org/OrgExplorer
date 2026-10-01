@@ -112,4 +112,45 @@ describe('RepoHealthDrawer', () => {
     fireEvent.keyDown(window, { key: 'Escape' })
     expect(onClose).toHaveBeenCalledTimes(1)
   })
+
+  it('displays Unknown for Activity Classification in Raw Metrics when pushed_at is missing or invalid', () => {
+    const repoWithInvalidDate = {
+      ...sampleRepo,
+      pushed_at: null,
+      activityClassification: 'Hibernating',
+    }
+    render(<RepoHealthDrawer repo={repoWithInvalidDate} isOpen={true} onClose={() => {}} />)
+
+    const rawTab = screen.getByRole('tab', { name: /Raw Metrics/i })
+    fireEvent.click(rawTab)
+
+    expect(screen.getByRole('tabpanel', { name: /Raw Metrics/i })).toBeInTheDocument()
+    expect(screen.getByText('Activity Classification')).toBeInTheDocument()
+    expect(screen.getByText('Unknown')).toBeInTheDocument()
+    expect(screen.queryByText('Hibernating')).not.toBeInTheDocument()
+  })
+
+  it('handles unfetched contributor data by displaying Unavailable and avoiding zero-based single maintainer warnings', () => {
+    const repoWithUnfetchedContribs = {
+      ...sampleRepo,
+      contributors: [],
+      contributorsFetched: false,
+    }
+    render(<RepoHealthDrawer repo={repoWithUnfetchedContribs} isOpen={true} onClose={() => {}} />)
+
+    // Breakdown tab should show UNAVAILABLE for diversity
+    expect(screen.getByText('Contributor Diversity')).toBeInTheDocument()
+    expect(screen.getByText('UNAVAILABLE')).toBeInTheDocument()
+
+    // Raw metrics tab should show Unavailable for Recorded Contributors
+    const rawTab = screen.getByRole('tab', { name: /Raw Metrics/i })
+    fireEvent.click(rawTab)
+    expect(screen.getByText('Recorded Contributors')).toBeInTheDocument()
+    expect(screen.getByText('Unavailable')).toBeInTheDocument()
+
+    // Recommendations tab should not flag single maintainer risk
+    const recTab = screen.getByRole('tab', { name: /Recommendations/i })
+    fireEvent.click(recTab)
+    expect(screen.queryByText(/Mitigate Single Maintainer Risk/i)).not.toBeInTheDocument()
+  })
 })
