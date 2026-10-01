@@ -22,6 +22,9 @@ describe('SettingsPage', () => {
   beforeEach(() => {
     cacheClear.mockReset()
     clearAnalysis.mockReset()
+    // #267 added a window.confirm guard to handleClear; auto-confirm it in tests
+    // so the clear flow proceeds. (jsdom's window.confirm returns false by default.)
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
   })
 
   it('clears both the raw-response cache and the persisted analysis cache on Clear All', async () => {
