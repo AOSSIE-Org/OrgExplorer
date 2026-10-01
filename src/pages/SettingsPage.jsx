@@ -89,10 +89,10 @@ export default function SettingsPage() {
   }, [])
 
   return (
-    <div style={{ padding: '32px 24px', maxWidth: 1100, margin: '0 auto' }} className="fade-up">
+    <div style={{ padding: '32px 24px', maxWidth: 1100, margin: '0 auto' }} className="fade-up settings-page">
       <h1 style={{ fontSize: 26, fontWeight: 700, marginBottom: 24 }}>Settings</h1>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+      <div className="settings-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
 
         {/* Left column */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -115,8 +115,8 @@ export default function SettingsPage() {
                   <p>GitHub Authentication</p>
 
                   <button
-                    onMouseEnter={()=> setOpen(true)}
-                    onMouseLeave={()=> setOpen(false)}
+                    onMouseEnter={() => setOpen(true)}
+                    onMouseLeave={() => setOpen(false)}
                     className="p-2 rounded-full hover:bg-(--bg) transition"
                   >
                     <AiOutlineInfoCircle className="text-(--text) cursor-pointer" />
@@ -132,6 +132,7 @@ export default function SettingsPage() {
                         width: '340px',
                         zIndex: 100,
                       }}
+                      className="info-popover"
                     >
                       <h4 className='mb-2 text-(--accent) font-semibold'>
                         PAT Security
@@ -274,9 +275,9 @@ export default function SettingsPage() {
                     setTimeout(() => setIsRefreshing(false), 500); // Minimum spin duration for visual feedback
                   }
                 }}
-                style={{ 
-                  background: 'none', 
-                  border: 'none', 
+                style={{
+                  background: 'none',
+                  border: 'none',
                   padding: '4px',
                   cursor: 'pointer',
                   display: 'flex',
@@ -288,10 +289,10 @@ export default function SettingsPage() {
                 title={refreshError ? "Failed to refresh" : "Refresh API Quota"}
                 className="hover:bg-(--bg) transition"
               >
-                <FiRefreshCw 
-                  size={14} 
-                  color={refreshError ? "var(--red)" : "var(--text2)"} 
-                  style={{ transition: 'transform 0.3s ease', transform: isRefreshing ? 'rotate(180deg)' : 'none' }} 
+                <FiRefreshCw
+                  size={14}
+                  color={refreshError ? "var(--red)" : "var(--text2)"}
+                  style={{ transition: 'transform 0.3s ease', transform: isRefreshing ? 'rotate(180deg)' : 'none' }}
                 />
               </button>
             </div>

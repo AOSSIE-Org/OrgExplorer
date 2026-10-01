@@ -6,10 +6,10 @@ import AnalysisBanner from '../components/AnalysisBanner'
 import { GovernanceSkeleton } from '../components/Orgexplorerskeletons'
 
 const TABS = [
-  { key: 'dead',    label: 'Dead Issues' },
-  { key: 'zombie',  label: 'Zombie PRs'  },
-  { key: 'stale',   label: 'Stale Issues Ratio' },
-  { key: 'license', label: 'No License'  },
+  { key: 'dead', label: 'Dead Issues' },
+  { key: 'zombie', label: 'Zombie PRs' },
+  { key: 'stale', label: 'Stale Issues Ratio' },
+  { key: 'license', label: 'No License' },
 ]
 
 const getStatus = ratio => {
@@ -42,7 +42,7 @@ const getStatus = ratio => {
 }
 
 export default function GovernancePage() {
-  const { model, issuesData, runAudit, govLoading, auditComplete, loading, runGovernanceAnalysis,staleRepoStats } = useApp()
+  const { model, issuesData, runAudit, govLoading, auditComplete, loading, runGovernanceAnalysis, staleRepoStats } = useApp()
   const [tab, setTab] = useState('dead')
 
   const ITEMS_PER_PAGE = 10
@@ -63,7 +63,7 @@ export default function GovernancePage() {
     return arr
   }, [issuesData])
 
-  if(loading) return <GovernanceSkeleton />
+  if (loading) return <GovernanceSkeleton />
   if (!model) return null
 
   const hasAudit = Object.keys(issuesData || {}).length > 0
@@ -162,11 +162,11 @@ export default function GovernancePage() {
       />
 
       {/* Summary stat cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 24 }}>
-        <StatBox label="Dead Issues"  value={counts.dead}    sub="OPEN 90+ DAYS"          color="var(--red)"    />
+      <div className="governance-summary-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 24 }}>
+        <StatBox label="Dead Issues" value={counts.dead} sub="OPEN 90+ DAYS" color="var(--red)" />
         <StatBox label="Stale Issues Ratio" value={`${staleIssuesRatio.toFixed(2)}%`} sub={`of ${allIssues.length} total issues`} color={` ${getStatus(staleIssuesRatio).color}`} />
-        <StatBox label="Zombie PRs"   value={counts.zombie}  sub="PENDING 90+ DAYS"       color="var(--amber)"  />
-        <StatBox label="No License"   value={counts.license} sub="COMPLIANCE MISSING"     color="var(--text2)"  />
+        <StatBox label="Zombie PRs" value={counts.zombie} sub="PENDING 90+ DAYS" color="var(--amber)" />
+        <StatBox label="No License" value={counts.license} sub="COMPLIANCE MISSING" color="var(--text2)" />
       </div>
 
       {/* Issue Resolution Rate */}
@@ -175,10 +175,10 @@ export default function GovernancePage() {
         <div style={{ ...C.label, marginBottom: 16 }}>Resolution velocity across key repositories</div>
         {topRepos.map(r => {
           const repoIssues = allIssues.filter(i => i.repoName === r.name)
-          const closed     = repoIssues.filter(i => i.state === 'closed').length
-          const total      = repoIssues.length
-          const rate       = total ? Math.round(closed / total * 100) : null
-          const color      = rate === null ? 'var(--text3)' : rate >= 70 ? 'var(--green)' : rate >= 30 ? 'var(--amber)' : 'var(--red)'
+          const closed = repoIssues.filter(i => i.state === 'closed').length
+          const total = repoIssues.length
+          const rate = total ? Math.round(closed / total * 100) : null
+          const color = rate === null ? 'var(--text3)' : rate >= 70 ? 'var(--green)' : rate >= 30 ? 'var(--amber)' : 'var(--red)'
 
           return (
             <div key={r.id} style={{ marginBottom: 12 }}>
