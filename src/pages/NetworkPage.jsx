@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState , useMemo } from 'react'
 import * as d3 from 'd3'
 import { useApp } from '../context/AppContext'
 import { C, PageTitle } from '../components/UI'
@@ -20,6 +20,19 @@ export default function NetworkPage() {
   const [openInfo, setOpenInfo] = useState(false)
   const infoRef = useRef(null)
 
+  const eligibleReposCount = useMemo(() => {
+    if (!model?.allRepos) return 0
+    const relevantRepoKeys = new Set()
+    model.contributors.forEach(c => {
+      c.repos.forEach(repo => {
+        relevantRepoKeys.add(`${repo.org}/${repo.name}`)
+      })
+    })
+    return model.allRepos.filter(r =>
+      relevantRepoKeys.has(`${r.orgLogin}/${r.name}`)
+    ).length
+  }, [model])
+
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (infoRef.current && !infoRef.current.contains(e.target)) {
@@ -31,10 +44,10 @@ export default function NetworkPage() {
   }, [])
   
   useEffect(() => {
-    if (model?.allRepos?.length) {
-      setRepoLimit(Math.min(30, model.allRepos.length))
+    if (eligibleReposCount) {
+      setRepoLimit(Math.min(30, eligibleReposCount))     
     }
-  }, [model])
+  }, [eligibleReposCount])
 
   useEffect(() => {
     if (!svgRef.current || !model?.allRepos.length) return
@@ -64,8 +77,11 @@ export default function NetworkPage() {
       })
     })
 
-    const topRepos = model.allRepos
-      .filter(r => relevantRepoKeys.has(`${r.orgLogin}/${r.name}`))
+    const eligibleRepos = model.allRepos.filter(r =>
+      relevantRepoKeys.has(`${r.orgLogin}/${r.name}`)
+    )
+
+    const topRepos = eligibleRepos
       .slice(0, repoLimit)
       .map(r => {
         const meta = repoMetaByKey.get(`${r.orgLogin}/${r.name}`)
@@ -86,11 +102,19 @@ export default function NetworkPage() {
 
     topContribs.forEach(c => {
       c.repos.forEach(repo => {
+        const repoKey = `${repo.org}/${repo.name}`
+        if (topRepos.some(r => `${r.orgLogin}/${r.name}` === repoKey)) {
+          contributorsWithLinks.add(`user:${c.login}`)
+        }
+      })
+    })
+
+    topContribs.forEach(c => {
+      c.repos.forEach(repo => {
         const s = `user:${c.login}`
         const t = `repo:${repo.org}/${repo.name}`
         if (nodeSet.has(s) && nodeSet.has(t)) {
           links.push({ source: s, target: t, weight: repo.count })
-          contributorsWithLinks.add(s)
         }
       })
     })
@@ -250,8 +274,11 @@ export default function NetworkPage() {
               style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}
             >
               <button
+                onClick={() => setOpenInfo(!openInfo)}  
                 onMouseEnter={() => setOpenInfo(true)}
                 onMouseLeave={() => setOpenInfo(false)}
+                aria-label="Repository limit information"       
+                aria-expanded={openInfo} 
                 style={{
                   background: 'none',
                   border: 'none',
@@ -285,23 +312,23 @@ export default function NetworkPage() {
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 12, color: 'var(--text2)' }}>{Math.min(5, model.allRepos.length)}</span>
+            <span style={{ fontSize: 12, color: 'var(--text2)' }}>{Math.min(5, eligibleReposCount)}</span>
             <input
               type="range"
-              min={Math.min(5, model.allRepos.length)}
-              max={model.allRepos.length}
+              min={Math.min(5, eligibleReposCount)}
+              max={eligibleReposCount}
               step="1"
-              value={Math.min(repoLimit, model.allRepos.length)}
+              value={Math.min(repoLimit, eligibleReposCount)} 
               onChange={(e) => setRepoLimit(Number(e.target.value))}
               style={{ flex: 1, maxWidth: 300, cursor: 'pointer', accentColor: 'var(--accent)' }}
               aria-label="Adjust number of repositories included in the network graph"
             />
-            <span style={{ fontSize: 12, color: 'var(--text2)' }}>{model.allRepos.length}</span>
+            <span style={{ fontSize: 12, color: 'var(--text2)' }}>{eligibleReposCount}</span>
             <span style={{
               fontSize: 12, fontWeight: 700, color: '#000', background: 'var(--accent)',
               borderRadius: 9, padding: '9px 15px', whiteSpace: 'nowrap',
             }}>
-              {Math.min(repoLimit, model.allRepos.length)} repos
+              {Math.min(repoLimit, eligibleReposCount)} repos
             </span>
           </div>
         </div>
