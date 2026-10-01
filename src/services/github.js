@@ -12,11 +12,23 @@ function openDB() {
   })
 }
 
+export function normalizeCacheKey(url) {
+  try {
+    const u = new URL(url)
+    u.pathname = u.pathname.toLowerCase().replace(/\/+$/, '')
+    u.searchParams.sort()
+    return u.toString()
+  } catch {
+    return String(url).toLowerCase()
+  }
+}
+
 export async function cacheGet(key) {
   try {
+    const normalizedKey = normalizeCacheKey(key)
     const db = await openDB()
     return new Promise(res => {
-      const req = db.transaction(STORE, 'readonly').objectStore(STORE).get(key)
+      const req = db.transaction(STORE, 'readonly').objectStore(STORE).get(normalizedKey)
       req.onsuccess = () => {
         const r = req.result
         if (!r || Date.now() - r.ts > TTL_MS) return res(null)
@@ -29,10 +41,11 @@ export async function cacheGet(key) {
 
 export async function cacheSet(key, value) {
   try {
+    const normalizedKey = normalizeCacheKey(key)
     const db = await openDB()
     return new Promise(res => {
       const tx = db.transaction(STORE, 'readwrite')
-      tx.objectStore(STORE).put({ k: key, v: value, ts: Date.now() })
+      tx.objectStore(STORE).put({ k: normalizedKey, v: value, ts: Date.now() })
       tx.oncomplete = () => res(true)
       tx.onerror = () => res(false)
     })
@@ -53,8 +66,9 @@ export async function cacheClear() {
 
 // Core fetchWithCache 
 async function fetchWithCache(url, pat) {
+  const cacheKey = normalizeCacheKey(url)
   // L2 check
-  const cached = await cacheGet(url)
+  const cached = await cacheGet(cacheKey)
   if (cached) return cached
 
   const headers = { Accept: 'application/vnd.github.v3+json' }
@@ -75,10 +89,15 @@ async function fetchWithCache(url, pat) {
 
   if (res.status === 403) throw new Error('RATE_LIMIT')
   if (res.status === 404) throw new Error('NOT_FOUND')
+  if (res.status === 204) {
+    // 204 No Content (e.g. empty repository contributors) has no body; cache empty array
+    cacheSet(cacheKey, [])
+    return []
+  }
   if (!res.ok) throw new Error(`HTTP_${res.status}`)
 
   const data = await res.json()
-  cacheSet(url, data) // write-back, non-blocking
+  cacheSet(cacheKey, data) // write-back, non-blocking
   return data
 }
 
@@ -103,9 +122,17 @@ export async function fetchContributors(org, repo, pat) {
   const maxPages = pat ? 10 : 1
   for(let page = 1; page<=maxPages ; page++) {
     const url = `https://api.github.com/repos/${org}/${repo}/contributors?per_page=100&page=${page}`
-    const data = await fetchWithCache(url, pat)
-    all.push(...data)
-    if(data.length < 100) break
+    try {
+      const data = await fetchWithCache(url, pat)
+      all.push(...data)
+      if(data.length < 100) break
+    } catch (err) {
+      if (err.message === 'NOT_FOUND') {
+        cacheSet(url, [])
+        break
+      }
+      throw err
+    }
   }
   return all
 }

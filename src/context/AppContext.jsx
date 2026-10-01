@@ -183,10 +183,14 @@ export function AppProvider({ children }) {
 
       setIsComplete(!!pat)
 
-      // Save to recent searches
+      // Save to recent searches (canonicalize case from valid organizations and deduplicate case-insensitively)
+      const canonicalEntry = validOrgs.map(o => o.login).join(', ') || orgNames.join(', ')
       const prev = JSON.parse(localStorage.getItem('oe_recent') || '[]')
-      const entry = orgNames.join(', ')
-      localStorage.setItem('oe_recent', JSON.stringify([...new Set([entry, ...prev])].slice(0, 6)))
+      const deduped = [
+        canonicalEntry,
+        ...prev.filter(item => item.toLowerCase() !== canonicalEntry.toLowerCase())
+      ].slice(0, 6)
+      localStorage.setItem('oe_recent', JSON.stringify(deduped))
       return builtModel
     } catch (err) {
       setError(err.message === 'RATE_LIMIT'
