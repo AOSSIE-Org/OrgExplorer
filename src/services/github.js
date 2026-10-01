@@ -234,12 +234,13 @@ export function selectPRsToEnrich(pullsData, perRepo = MAINTAINER_PR_PER_REPO, t
 // org/repo (for filtering) and activity_at (for recency-based "Active").
 // totalCap bounds the work; it's clamped to MAINTAINER_PR_HARD_MAX so even a high
 // per-repo slider setting can't blow up load time / the user's rate limit.
-export async function enrichMaintainerPRs(pullsData, pat, perRepo = MAINTAINER_PR_PER_REPO, totalCap = MAINTAINER_PR_TOTAL_CAP) {
+export async function enrichMaintainerPRs(pullsData, pat, perRepo = MAINTAINER_PR_PER_REPO, totalCap = MAINTAINER_PR_TOTAL_CAP, signal) {
   if (!pat) return []
   const cap = Math.min(totalCap, MAINTAINER_PR_HARD_MAX)
   const selected = selectPRsToEnrich(pullsData, perRepo, cap)
   const enriched = []
   for (const { org, repo, number, merged_at, updated_at } of selected) {
+    if (signal?.aborted) break          // stop the loop if this run was superseded
     if (number == null) continue
     const details = await fetchPullDetails(org, repo, number, pat)
     enriched.push({ ...details, org, repo, updated_at })

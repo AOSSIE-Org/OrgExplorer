@@ -35,18 +35,18 @@ export default function MaintainersPage() {
   // Enrich recent PRs. Re-runs when the per-repo depth slider changes; the
   // IndexedDB cache means increasing it only fetches the additional PRs.
   useEffect(() => {
-    let cancelled = false
+    const controller = new AbortController()
     async function run() {
       if (!pat || !hasPulls) { setEnrichedPRs([]); return }
       setEnriching(true)
       const totalCap = perRepo * Object.keys(pullsData).length
-      const enriched = await enrichMaintainerPRs(pullsData, pat, perRepo, totalCap)
-      if (cancelled) return
+      const enriched = await enrichMaintainerPRs(pullsData, pat, perRepo, totalCap, controller.signal)
+      if (controller.signal.aborted) return
       setEnrichedPRs(enriched)
       setEnriching(false)
     }
     run()
-    return () => { cancelled = true }
+    return () => { controller.abort() }
   }, [pat, pullsData, hasPulls, perRepo])
 
   // Attribute per-maintainer, scoped to the selected org.
