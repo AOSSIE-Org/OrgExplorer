@@ -16,6 +16,7 @@ export default function AnalysisBanner({ page, description, onRun, loading = fal
   return (
     <>
       <div
+        className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6"
         style={{
           marginBottom: 24,
 
@@ -25,11 +26,6 @@ export default function AnalysisBanner({ page, description, onRun, loading = fal
           boxShadow: 'var(--shadow-sm)',
 
           padding: '20px 22px',
-
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          gap: 24,
 
           transition: 'var(--transition)',
         }}
@@ -102,12 +98,7 @@ export default function AnalysisBanner({ page, description, onRun, loading = fal
         {/* Right */}
 
         <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            flexShrink: 0,
-          }}
+          className="flex flex-col sm:flex-row items-stretch sm:items-center w-full md:w-auto gap-3 shrink-0"
         >
           <button
             type="button"
