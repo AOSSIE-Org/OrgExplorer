@@ -1,6 +1,6 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import { FiHeart, FiSettings, FiZap } from 'react-icons/fi'
+import { FiHeart, FiSettings, FiZap, FiMenu, FiX } from 'react-icons/fi'
 import { useApp } from '../context/AppContext'
 import ThemeToggle from './ThemeToggle'
 import Logo from "../assets/og-logo.svg?react";
@@ -19,8 +19,11 @@ export default function Navbar() {
   const { orgs, rateLimit } = useApp()
   const { theme } = useTheme();
   const navigate = useNavigate()
+  const [menuOpen, setMenuOpen] = useState(false)
   const hasData = orgs.length > 0
   const lowLimit = rateLimit && rateLimit.remaining < 15
+
+  const closeMenu = () => setMenuOpen(false)
 
   return (
     <nav style={{
@@ -34,13 +37,14 @@ export default function Navbar() {
     }}>
       {/* Wordmark */}
       <span
-        onClick={() => navigate('/')}
+        onClick={() => { closeMenu(); navigate('/'); }}
+        style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}
       >
         <Logo className="h-15 w-auto" />
       </span>
 
       {/* Nav links — only visible when data is loaded */}
-      <div style={{ display: 'flex', gap: 2, flex: 1, overflowX: 'auto' }}>
+      <div className="navbar-links" style={{ display: 'flex', gap: 2, flex: 1, overflowX: 'auto' }}>
         {hasData && LINKS.map(({ to, label }) => (
           <NavLink
             key={to} to={to}
@@ -63,7 +67,7 @@ export default function Navbar() {
       </div>
 
       {/* Right side */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0 }}>
+      <div className="navbar-controls" style={{ display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0 }}>
         {rateLimit && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: lowLimit ? 'var(--red)' : 'var(--text2)' }}>
             <FiZap size={12} />
@@ -86,6 +90,106 @@ export default function Navbar() {
           Support Us
         </button>
       </div>
+
+      {/* Hamburger button (Mobile) */}
+      <button
+        className="navbar-hamburger"
+        onClick={() => setMenuOpen(prev => !prev)}
+        aria-label="Toggle navigation menu"
+        aria-expanded={menuOpen}
+        aria-controls="mobile-nav-menu"
+        style={{
+          background: 'none',
+          border: '1px solid var(--border)',
+          color: 'var(--text)',
+          borderRadius: 6,
+          padding: '6px 8px',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: 'pointer',
+        }}
+      >
+        {menuOpen ? <FiX size={20} /> : <FiMenu size={20} />}
+      </button>
+
+      {/* Mobile dropdown menu */}
+      {menuOpen && (
+        <div id="mobile-nav-menu" className="navbar-mobile-menu">
+          {hasData && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {LINKS.map(({ to, label }) => (
+                <NavLink
+                  key={to}
+                  to={to}
+                  onClick={closeMenu}
+                  className="navbar-link"
+                  style={({ isActive }) => ({
+                    display: 'block',
+                    padding: '8px 12px',
+                    fontSize: 14,
+                    textDecoration: 'none',
+                    borderRadius: 6,
+                    fontWeight: isActive ? 600 : 400,
+                    color: isActive ? 'var(--accent)' : 'var(--text2)',
+                    background: isActive ? 'var(--surface2)' : 'transparent',
+                    transition: 'all 0.2s ease',
+                  })}
+                >
+                  {label}
+                </NavLink>
+              ))}
+            </div>
+          )}
+
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 12,
+            paddingTop: hasData ? 12 : 0,
+            borderTop: hasData ? '1px solid var(--border)' : 'none',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 13, color: 'var(--text2)' }}>Theme</span>
+              <ThemeToggle />
+            </div>
+
+            {rateLimit && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: lowLimit ? 'var(--red)' : 'var(--text2)' }}>
+                <FiZap size={13} />
+                {rateLimit.remaining.toLocaleString()} / {rateLimit.limit.toLocaleString()} API calls remaining
+              </div>
+            )}
+
+            <button
+              onClick={() => { closeMenu(); navigate('/settings'); }}
+              style={{
+                background: 'var(--surface2)',
+                border: '1px solid var(--border)',
+                color: 'var(--text2)',
+                borderRadius: 6,
+                padding: '8px 12px',
+                fontSize: 13,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+                width: '100%',
+              }}
+            >
+              <FiSettings size={14} /> Settings
+            </button>
+
+            <button
+              onClick={() => { closeMenu(); navigate('/support-us'); }}
+              className="flex items-center justify-center gap-2 rounded-md bg-emerald-500 px-4 py-2 text-sm font-medium text-white shadow transition-all duration-200 hover:bg-emerald-600 hover:shadow-lg active:scale-95 w-full"
+            >
+              <FiHeart size={14} fill='white' />
+              Support Us
+            </button>
+          </div>
+        </div>
+      )}
     </nav>
   )
 }
+
