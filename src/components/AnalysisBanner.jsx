@@ -30,7 +30,7 @@ export default function AnalysisBanner({ page, description, onRun, loading = fal
           justifyContent: 'space-between',
           alignItems: 'center',
           gap: 24,
-
+          flexWrap: 'wrap',
           transition: 'var(--transition)',
         }}
       >
@@ -65,7 +65,7 @@ export default function AnalysisBanner({ page, description, onRun, loading = fal
 
           </div>
 
-          <div>
+          <div style={{ minWidth: 0 }}>
             <div
               style={{
                 display: 'flex',
