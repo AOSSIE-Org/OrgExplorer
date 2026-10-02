@@ -7,6 +7,10 @@ import Logo from "../assets/og-logo.svg?react";
 import { useTheme } from '../context/ThemeContext'
 
 const THEME_LABEL = 'Theme'
+const API_CALLS_REMAINING_LABEL = 'API calls remaining'
+const SETTINGS_LABEL = 'Settings'
+const SUPPORT_US_LABEL = 'Support Us'
+const HAMBURGER_LABEL = 'Toggle navigation menu'
 
 const LINKS = [
   { to: '/overview', label: 'Overview' },
@@ -108,14 +112,14 @@ export default function Navbar() {
           style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: 6, padding: '5px 10px', fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}
           className='h-[-webkit-fill-available]'
         >
-          <FiSettings size={13} /> Settings
+          <FiSettings size={13} /> {SETTINGS_LABEL}
         </button>
         <button
           onClick={() => navigate('/support-us')}
           className="flex items-center gap-2 rounded-md bg-emerald-500 px-4 py-2 text-sm font-medium text-white shadow transition-all duration-200 hover:bg-emerald-600 hover:shadow-lg active:scale-95"
         >
           <FiHeart size={13} fill='white' />
-          Support Us
+          {SUPPORT_US_LABEL}
         </button>
       </div>
 
@@ -124,7 +128,7 @@ export default function Navbar() {
         ref={hamburgerRef}
         className="navbar-hamburger"
         onClick={() => setMenuOpen(prev => !prev)}
-        aria-label="Toggle navigation menu"
+        aria-label={HAMBURGER_LABEL}
         aria-expanded={menuOpen}
         aria-controls="mobile-nav-menu"
         style={{
@@ -185,7 +189,7 @@ export default function Navbar() {
             {rateLimit && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: lowLimit ? 'var(--red)' : 'var(--text2)' }}>
                 <FiZap size={13} />
-                {rateLimit.remaining.toLocaleString()} / {rateLimit.limit.toLocaleString()} API calls remaining
+                {rateLimit.remaining.toLocaleString()} / {rateLimit.limit.toLocaleString()} {API_CALLS_REMAINING_LABEL}
               </div>
             )}
 
@@ -205,7 +209,7 @@ export default function Navbar() {
                 width: '100%',
               }}
             >
-              <FiSettings size={14} /> Settings
+              <FiSettings size={14} /> {SETTINGS_LABEL}
             </button>
 
             <button
@@ -213,7 +217,7 @@ export default function Navbar() {
               className="flex items-center justify-center gap-2 rounded-md bg-emerald-500 px-4 py-2 text-sm font-medium text-white shadow transition-all duration-200 hover:bg-emerald-600 hover:shadow-lg active:scale-95 w-full"
             >
               <FiHeart size={14} fill='white' />
-              Support Us
+              {SUPPORT_US_LABEL}
             </button>
           </div>
         </div>
