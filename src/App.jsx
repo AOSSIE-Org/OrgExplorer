@@ -19,7 +19,7 @@ import RequireAnalysis from './components/RequireAnalysis'
 
 function Layout({ children }) {
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', overflowX: 'hidden' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <Navbar />
       <RateLimitBanner />
       <main style={{ flex: 1 }}>{children}</main>

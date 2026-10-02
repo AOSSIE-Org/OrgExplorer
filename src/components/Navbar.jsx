@@ -74,9 +74,10 @@ export default function Navbar() {
           <ThemeToggle />
           <button
             type="button"
-            onClick={() => navigate('/settings')}
+            onClick={() => { navigate('/settings'); setMenuOpen(false) }}
             style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: 6, padding: '5px 10px', fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}
             className='h-[-webkit-fill-available]'
+            aria-label="Settings"
           >
             <FiSettings size={13} />
             <span className="hidden md:inline">Settings</span>
@@ -84,8 +85,9 @@ export default function Navbar() {
           {/* Support Us — always visible, between Settings and hamburger */}
           <button
             type="button"
-            onClick={() => navigate('/support-us')}
+            onClick={() => { navigate('/support-us'); setMenuOpen(false) }}
             className="flex items-center gap-2 rounded-md bg-emerald-500 px-4 py-2 text-sm font-medium text-white shadow transition-all duration-200 hover:bg-emerald-600 hover:shadow-lg active:scale-95"
+            aria-label="Support Us"
           >
             <FiHeart size={13} fill='white' />
             <span className="hidden md:inline">Support Us</span>
@@ -103,43 +105,63 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* Mobile dropdown menu — only on mobile */}
+      {/* Mobile dropdown menu & backdrop — only on mobile */}
       {menuOpen && (
-        <div style={{
-          background: 'var(--bg)',
-          borderTop: '1px solid var(--border)',
-          padding: '12px 24px 16px',
-          gap: 4,
-        }} className="flex flex-col md:hidden">
-          {hasData ? LINKS.map(({ to, label }) => (
-            <NavLink
-              key={to} to={to}
-              className="navbar-link"
-              style={({ isActive }) => ({
-                padding: '10px 4px',
-                fontSize: 14,
-                textDecoration: 'none',
-                fontWeight: isActive ? 600 : 400,
-                color: isActive ? 'var(--accent)' : 'var(--text)',
-                borderBottom: '1px solid var(--border)',
-              })}
-              onClick={() => setMenuOpen(false)}
-            >
-              {label}
-            </NavLink>
-          )) : (
-            <div style={{ fontSize: 13, color: 'var(--text2)', padding: '8px 4px' }}>
-              Load an organisation to explore pages.
-            </div>
-          )}
-          {/* Rate limit in mobile menu */}
-          {rateLimit && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: lowLimit ? 'var(--red)' : 'var(--text2)', paddingTop: 10 }}>
-              <FiZap size={12} />
-              API: {rateLimit.remaining.toLocaleString()} / {rateLimit.limit.toLocaleString()} remaining
-            </div>
-          )}
-        </div>
+        <>
+          <div
+            style={{
+              position: 'fixed',
+              top: 56,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(0, 0, 0, 0.5)',
+              zIndex: 40,
+            }}
+            className="md:hidden"
+            onClick={() => setMenuOpen(false)}
+          />
+          <div
+            style={{
+              position: 'relative',
+              zIndex: 50,
+              background: 'var(--bg)',
+              borderTop: '1px solid var(--border)',
+              padding: '12px 24px 16px',
+              gap: 4,
+            }}
+            className="flex flex-col md:hidden"
+          >
+            {hasData ? LINKS.map(({ to, label }) => (
+              <NavLink
+                key={to} to={to}
+                className="navbar-link"
+                style={({ isActive }) => ({
+                  padding: '10px 4px',
+                  fontSize: 14,
+                  textDecoration: 'none',
+                  fontWeight: isActive ? 600 : 400,
+                  color: isActive ? 'var(--accent)' : 'var(--text)',
+                  borderBottom: '1px solid var(--border)',
+                })}
+                onClick={() => setMenuOpen(false)}
+              >
+                {label}
+              </NavLink>
+            )) : (
+              <div style={{ fontSize: 13, color: 'var(--text2)', padding: '8px 4px' }}>
+                Load an organisation to explore pages.
+              </div>
+            )}
+            {/* Rate limit in mobile menu */}
+            {rateLimit && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: lowLimit ? 'var(--red)' : 'var(--text2)', paddingTop: 10 }}>
+                <FiZap size={12} />
+                API: {rateLimit.remaining.toLocaleString()} / {rateLimit.limit.toLocaleString()} remaining
+              </div>
+            )}
+          </div>
+        </>
       )}
     </nav>
   )
