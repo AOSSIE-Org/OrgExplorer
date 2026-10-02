@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { FiHeart, FiSettings, FiZap, FiMenu, FiX } from 'react-icons/fi'
 import { useApp } from '../context/AppContext'
@@ -23,6 +23,19 @@ export default function Navbar() {
   const lowLimit = rateLimit && rateLimit.remaining < 15
   const [menuOpen, setMenuOpen] = useState(false)
 
+  // Keyboard Escape key dismissal for mobile navigation
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setMenuOpen(false);
+      }
+    };
+    if (menuOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [menuOpen]);
+
   const navLinkStyle = ({ isActive }) => ({
     display: 'block',
     padding: '6px 10px',
@@ -39,22 +52,20 @@ export default function Navbar() {
     <nav style={{
       position: 'sticky', top: 0, zIndex: 100,
       background: 'var(--bg)',
-      backdropFilter: 'blur(10px)',
       borderBottom: '1px solid var(--border)',
     }}>
-      {/* Main bar */}
-      <div style={{
-        padding: '0 24px',
-        display: 'flex', alignItems: 'center', gap: 24, height: 56,
-        justifyContent: 'space-between',
-      }}>
+      {/* Main bar — responsive padding/gap for narrow viewports (320px+) */}
+      <div
+        className="px-3 md:px-6 gap-2 md:gap-6 flex items-center justify-between h-14"
+        style={{ backdropFilter: 'blur(10px)' }}
+      >
         {/* Logo */}
         <span onClick={() => { navigate('/'); setMenuOpen(false) }} style={{ cursor: 'pointer', flexShrink: 0 }}>
           <Logo className="h-15 w-auto" />
         </span>
 
         {/* Desktop nav links */}
-        <div className="hidden md:flex" style={{ gap: 2, flex: 1, overflowX: 'auto' }}>
+        <div className="hidden md:flex gap-0.5 flex-1 overflow-x-auto">
           {hasData && LINKS.map(({ to, label }) => (
             <NavLink key={to} to={to} className="navbar-link" style={navLinkStyle}>
               {label}
@@ -63,7 +74,7 @@ export default function Navbar() {
         </div>
 
         {/* Right side */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0 }}>
+        <div className="flex items-center gap-2 md:gap-3.5 shrink-0">
           {/* Rate limit — hidden on mobile */}
           {rateLimit && (
             <div className="hidden md:flex" style={{ alignItems: 'center', gap: 5, fontSize: 11, color: lowLimit ? 'var(--red)' : 'var(--text2)' }}>
@@ -86,7 +97,7 @@ export default function Navbar() {
           <button
             type="button"
             onClick={() => { navigate('/support-us'); setMenuOpen(false) }}
-            className="flex items-center gap-2 rounded-md bg-emerald-500 px-4 py-2 text-sm font-medium text-white shadow transition-all duration-200 hover:bg-emerald-600 hover:shadow-lg active:scale-95"
+            className="flex items-center gap-2 rounded-md bg-emerald-500 px-3 md:px-4 py-2 text-sm font-medium text-white shadow transition-all duration-200 hover:bg-emerald-600 hover:shadow-lg active:scale-95"
             aria-label="Support Us"
           >
             <FiHeart size={13} fill='white' />
@@ -99,6 +110,8 @@ export default function Navbar() {
             onClick={() => setMenuOpen(prev => !prev)}
             style={{ color: 'var(--text)' }}
             aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={menuOpen}
+            aria-controls="mobile-navigation"
           >
             {menuOpen ? <FiX size={22} /> : <FiMenu size={22} />}
           </button>
@@ -122,6 +135,7 @@ export default function Navbar() {
             onClick={() => setMenuOpen(false)}
           />
           <div
+            id="mobile-navigation"
             style={{
               position: 'relative',
               zIndex: 50,
@@ -130,7 +144,7 @@ export default function Navbar() {
               padding: '12px 24px 16px',
               gap: 4,
             }}
-            className="flex flex-col md:hidden"
+            className="flex flex-col md:hidden fade-up"
           >
             {hasData ? LINKS.map(({ to, label }) => (
               <NavLink
