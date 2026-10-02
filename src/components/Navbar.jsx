@@ -90,12 +90,12 @@ export default function Navbar() {
             <FiHeart size={13} fill='white' />
             <span className="hidden md:inline">Support Us</span>
           </button>
-          {/* Hamburger — only on mobile */}
+          {/* Hamburger / Menu toggle — only on mobile */}
           <button
             type="button"
-            className="md:hidden"
+            className="flex md:hidden items-center p-1 bg-transparent border-0 cursor-pointer"
             onClick={() => setMenuOpen(prev => !prev)}
-            style={{ background: 'none', border: 'none', color: 'var(--text)', padding: 4, display: 'flex', alignItems: 'center' }}
+            style={{ color: 'var(--text)' }}
             aria-label={menuOpen ? 'Close menu' : 'Open menu'}
           >
             {menuOpen ? <FiX size={22} /> : <FiMenu size={22} />}
@@ -109,10 +109,8 @@ export default function Navbar() {
           background: 'var(--bg)',
           borderTop: '1px solid var(--border)',
           padding: '12px 24px 16px',
-          display: 'flex',
-          flexDirection: 'column',
           gap: 4,
-        }} className="md:hidden">
+        }} className="flex flex-col md:hidden">
           {hasData ? LINKS.map(({ to, label }) => (
             <NavLink
               key={to} to={to}
