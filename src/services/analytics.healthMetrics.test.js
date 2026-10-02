@@ -121,6 +121,11 @@ describe('computeBusFactor', () => {
     // cum after 1: 10/100=.1; cum after 2: 100/100=1.0>0.5 -> factor 2
     expect(computeBusFactor(contributors)).toEqual({ factor: 2, risk: 'high' })
   })
+
+  it('supports model contributor objects using totalContribs', () => {
+    const contributors = [{ totalContribs: 60 }, { totalContribs: 40 }]
+    expect(computeBusFactor(contributors)).toEqual({ factor: 1, risk: 'critical' })
+  })
 })
 
 describe('computeHealthBreakdown', () => {
@@ -203,4 +208,3 @@ describe('getHealthRecommendations', () => {
     expect(recs.some(r => r.category === 'Community')).toBe(false)
   })
 })
-
