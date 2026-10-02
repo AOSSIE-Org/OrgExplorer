@@ -62,16 +62,12 @@ async function fetchWithCache(url, pat) {
 
   const res = await fetch(url, { headers })
 
-  window.dispatchEvent(
-    new CustomEvent('rate-limit-update', {
-      detail: {
-        limit: Number(res.headers.get('x-ratelimit-limit')),
-        remaining: Number(res.headers.get('x-ratelimit-remaining')),
-        used: Number(res.headers.get('x-ratelimit-used')),
-        reset: Number(res.headers.get('x-ratelimit-reset'))
-      }
-    })
-  )
+  const live = readRateLimitHeaders(res.headers)
+  if (live) {
+    window.dispatchEvent(
+      new CustomEvent('rate-limit-update', { detail: live })
+    )
+  }
 
   if (res.status === 403) throw new Error('RATE_LIMIT')
   if (res.status === 404) throw new Error('NOT_FOUND')
@@ -134,12 +130,55 @@ export async function fetchPulls(org, repo, pat) {
   return all
 }
 
+/** Read live counters from response headers (authoritative per GitHub docs).
+ *  Returns null when the headers are absent so callers can fall back. */
+function readRateLimitHeaders(h) {
+  if (!h || typeof h.get !== 'function') return null
+  const limit = Number(h.get('x-ratelimit-limit'))
+  const remaining = Number(h.get('x-ratelimit-remaining'))
+  if (!Number.isFinite(limit) || !Number.isFinite(remaining)) return null
+  if (limit < 0 || remaining < 0) return null
+  const rawUsed = Number(h.get('x-ratelimit-used'))
+  const rawReset = Number(h.get('x-ratelimit-reset'))
+  // `x-ratelimit-used` is not in Access-Control-Expose-Headers, so browsers
+  // always read it as null -> 0. Derive it instead of showing a false 0.
+  const used = Number.isFinite(rawUsed) && rawUsed > 0 ? rawUsed : limit - remaining
+  return {
+    limit,
+    remaining,
+    used,
+    reset: Number.isFinite(rawReset) ? rawReset : 0,
+  }
+}
+
+/** Validate a rate-limit object from the `/rate_limit` body. */
+function asValidRateLimit(obj) {
+  if (!obj) return null
+  const limit = Number(obj.limit)
+  const remaining = Number(obj.remaining)
+  if (!Number.isFinite(limit) || !Number.isFinite(remaining)) return null
+  if (limit < 0 || remaining < 0) return null
+  const used = Number(obj.used)
+  const reset = Number(obj.reset)
+  return {
+    limit,
+    remaining,
+    used: Number.isFinite(used) ? used : limit - remaining,
+    reset: Number.isFinite(reset) ? reset : 0,
+  }
+}
+
 export async function fetchRateLimit(pat) {
   try {
     const headers = { Accept: 'application/vnd.github.v3+json' }
     if (pat) headers.Authorization = `token ${pat}`
     const res = await fetch('https://api.github.com/rate_limit', { headers })
-    const data = await res.json()
-    return data.rate
+    const data = await res.json().catch(() => null)
+    // Headers are the authoritative source; the body (`rate` is closing
+    // down, and the body can disagree with the live counters) is fallback.
+    return readRateLimitHeaders(res.headers)
+      ?? asValidRateLimit(data?.resources?.core)
+      ?? asValidRateLimit(data?.rate)
+      ?? null
   } catch { return null }
 }

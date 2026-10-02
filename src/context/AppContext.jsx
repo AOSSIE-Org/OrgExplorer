@@ -100,8 +100,10 @@ export function AppProvider({ children }) {
 
   useEffect(() => {
     const handler = e => {
-      setRateLimit(e.detail)
-      localStorage.setItem('oe_rate_limit', JSON.stringify(e.detail))
+      const next = e.detail
+      if (!Number.isFinite(Number(next?.limit)) || !Number.isFinite(Number(next?.remaining))) return
+      setRateLimit(next)
+      localStorage.setItem('oe_rate_limit', JSON.stringify(next))
     }
 
     window.addEventListener('rate-limit-update', handler)
@@ -124,12 +126,25 @@ export function AppProvider({ children }) {
 
   const refreshRateLimit = useCallback(async () => {
     const rl = await fetchRateLimit(pat)
-    if (rl) {
-      setRateLimit(rl)
-      return true
+    if (!rl) return false
+    // `GET /rate_limit` does not consume quota and its `resources.core`
+    // body can lag behind the live `x-ratelimit-*` counters (reads full
+    // while search headers show consumed quota, with a different `reset`
+    // epoch). Never let a stale read inflate the remaining count while
+    // the current window is still active — only a new window expiry or a
+    // new limit (e.g. PAT added/removed) may legitimately raise it.
+    if (
+      rateLimit &&
+      rl.limit === rateLimit.limit &&
+      rl.remaining > rateLimit.remaining
+    ) {
+      const windowActive = !rateLimit.reset || Date.now() < rateLimit.reset * 1000
+      if (windowActive) return true
     }
-    return false
-  }, [pat])
+    setRateLimit(rl)
+    localStorage.setItem('oe_rate_limit', JSON.stringify(rl))
+    return true
+  }, [pat, rateLimit])
   const savePat = useCallback(token => {
     setPat(token)
     token ? localStorage.setItem('oe_pat', token) : localStorage.removeItem('oe_pat')
