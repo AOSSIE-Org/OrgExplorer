@@ -60,14 +60,16 @@ describe('computeHealthScore', () => {
     expect(missing).toBe(zero)
   })
 
-  it('returns a finite score when open_issues_count is non-numeric', () => {
-    const score = computeHealthScore({ pushed_at: new Date().toISOString(), open_issues_count: 'invalid' }, 2)
-    expect(Number.isFinite(score)).toBe(true)
+  it('treats a non-numeric open_issues_count as 0 and matches zero-issue score', () => {
+    const pushed = daysAgoISO(10)
+    const invalid = computeHealthScore({ pushed_at: pushed, open_issues_count: 'invalid' }, 2)
+    const zero    = computeHealthScore({ pushed_at: pushed, open_issues_count: 0 }, 2)
+    expect(invalid).toBe(zero)
   })
 
-  it('returns a finite score when pushed_at is null or unparseable', () => {
-    expect(Number.isFinite(computeHealthScore({ pushed_at: null, open_issues_count: 0 }, 2))).toBe(true)
-    expect(Number.isFinite(computeHealthScore({ pushed_at: 'invalid-date', open_issues_count: 0 }, 2))).toBe(true)
+  it('falls back to zero activity and expected baseline score (36) when pushed_at is null or unparseable', () => {
+    expect(computeHealthScore({ pushed_at: null, open_issues_count: 0 }, 2)).toBe(36)
+    expect(computeHealthScore({ pushed_at: 'invalid-date', open_issues_count: 0 }, 2)).toBe(36)
   })
 })
 
