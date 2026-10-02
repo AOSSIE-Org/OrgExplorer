@@ -127,6 +127,13 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   }
 }
 
+@media (min-width: 769px) {
+  .navbar-mobile-menu,
+  [data-testid="navbar-backdrop"] {
+    display: none !important;
+  }
+}
+
 .navbar-mobile-menu {
   position: absolute;
   top: 56px;

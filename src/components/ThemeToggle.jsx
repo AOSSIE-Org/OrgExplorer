@@ -1,12 +1,17 @@
 import { FiSun, FiMoon } from "react-icons/fi";
 import { useTheme } from "../context/ThemeContext";
 
-export default function ThemeToggle() {
+export default function ThemeToggle({ onToggle }) {
   const { theme, toggleTheme } = useTheme();
+
+  const handleClick = (e) => {
+    toggleTheme(e);
+    onToggle?.(e);
+  };
 
   return (
     <button
-      onClick={toggleTheme}
+      onClick={handleClick}
       style={{
         background: "none",
         border: "1px solid var(--border)",

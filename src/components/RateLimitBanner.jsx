@@ -23,7 +23,7 @@ export default function RateLimitBanner() {
       flexWrap: 'wrap',
       gap: '8px 16px',
     }}>
-      <span style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+      <span style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <Icon size={13} color={crit ? 'var(--red)' : 'var(--accent)'} />
         API RATE LIMIT: <strong style={{ marginLeft: 2 }}>{rateLimit.remaining} / {rateLimit.limit}</strong> REQUESTS REMAINING
         {!pat && (

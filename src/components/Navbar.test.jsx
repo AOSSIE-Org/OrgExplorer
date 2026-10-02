@@ -1,6 +1,6 @@
 import React from 'react'
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import Navbar from './Navbar'
@@ -35,6 +35,7 @@ describe('Navbar Mobile Navigation', () => {
   beforeEach(() => {
     mockAppState.orgs = [{ login: 'AOSSIE-Org' }]
     mockAppState.rateLimit = { remaining: 50, limit: 60 }
+    mockThemeState.toggleTheme.mockClear()
   })
 
   it('renders hamburger button with initial aria-expanded="false"', () => {
@@ -67,14 +68,17 @@ describe('Navbar Mobile Navigation', () => {
     const mobileMenu = document.getElementById('mobile-nav-menu')
     expect(mobileMenu).toBeInTheDocument()
 
-    // Check links within mobile menu
-    expect(screen.getAllByText('Overview').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('Repositories').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('Contributors').length).toBeGreaterThan(0)
+    const menu = within(mobileMenu)
 
-    // Check action buttons within mobile menu
-    expect(screen.getAllByRole('button', { name: /settings/i }).length).toBeGreaterThan(0)
-    expect(screen.getAllByRole('button', { name: /support us/i }).length).toBeGreaterThan(0)
+    // Check links scoped to mobile menu
+    expect(menu.getByRole('link', { name: /overview/i })).toBeInTheDocument()
+    expect(menu.getByRole('link', { name: /repositories/i })).toBeInTheDocument()
+    expect(menu.getByRole('link', { name: /contributors/i })).toBeInTheDocument()
+
+    // Check action controls scoped to mobile menu
+    expect(menu.getByText('Theme')).toBeInTheDocument()
+    expect(menu.getByRole('button', { name: /settings/i })).toBeInTheDocument()
+    expect(menu.getByRole('button', { name: /support us/i })).toBeInTheDocument()
   })
 
   it('closes mobile menu when Escape key is pressed', async () => {
@@ -111,31 +115,58 @@ describe('Navbar Mobile Navigation', () => {
     const hamburger = screen.getByRole('button', { name: /toggle navigation menu/i })
 
     await userEvent.click(hamburger)
-    expect(document.getElementById('mobile-nav-menu')).toBeInTheDocument()
+    const mobileMenu = document.getElementById('mobile-nav-menu')
+    expect(mobileMenu).toBeInTheDocument()
 
-    const mobileOverviewLink = screen.getAllByRole('link', { name: /overview/i }).find(
-      link => document.getElementById('mobile-nav-menu')?.contains(link)
-    )
-    expect(mobileOverviewLink).toBeDefined()
-
+    const mobileOverviewLink = within(mobileMenu).getByRole('link', { name: /overview/i })
     await userEvent.click(mobileOverviewLink)
 
     expect(hamburger).toHaveAttribute('aria-expanded', 'false')
     expect(document.getElementById('mobile-nav-menu')).not.toBeInTheDocument()
   })
 
-  it('closes mobile menu when clicking settings or support button', async () => {
+  it('closes mobile menu when clicking settings button', async () => {
     renderNavbar()
     const hamburger = screen.getByRole('button', { name: /toggle navigation menu/i })
 
     await userEvent.click(hamburger)
-    const mobileSettingsBtn = screen.getAllByRole('button', { name: /settings/i }).find(
-      btn => document.getElementById('mobile-nav-menu')?.contains(btn)
-    )
-    expect(mobileSettingsBtn).toBeDefined()
+    const mobileMenu = document.getElementById('mobile-nav-menu')
+    expect(mobileMenu).toBeInTheDocument()
 
+    const mobileSettingsBtn = within(mobileMenu).getByRole('button', { name: /settings/i })
     await userEvent.click(mobileSettingsBtn)
 
+    expect(hamburger).toHaveAttribute('aria-expanded', 'false')
+    expect(document.getElementById('mobile-nav-menu')).not.toBeInTheDocument()
+  })
+
+  it('closes mobile menu when clicking support us button', async () => {
+    renderNavbar()
+    const hamburger = screen.getByRole('button', { name: /toggle navigation menu/i })
+
+    await userEvent.click(hamburger)
+    const mobileMenu = document.getElementById('mobile-nav-menu')
+    expect(mobileMenu).toBeInTheDocument()
+
+    const mobileSupportBtn = within(mobileMenu).getByRole('button', { name: /support us/i })
+    await userEvent.click(mobileSupportBtn)
+
+    expect(hamburger).toHaveAttribute('aria-expanded', 'false')
+    expect(document.getElementById('mobile-nav-menu')).not.toBeInTheDocument()
+  })
+
+  it('closes mobile menu when clicking theme toggle button and calls toggleTheme', async () => {
+    renderNavbar()
+    const hamburger = screen.getByRole('button', { name: /toggle navigation menu/i })
+
+    await userEvent.click(hamburger)
+    const mobileMenu = document.getElementById('mobile-nav-menu')
+    expect(mobileMenu).toBeInTheDocument()
+
+    const themeToggleBtn = within(mobileMenu).getByRole('button', { name: /switch to/i })
+    await userEvent.click(themeToggleBtn)
+
+    expect(mockThemeState.toggleTheme).toHaveBeenCalled()
     expect(hamburger).toHaveAttribute('aria-expanded', 'false')
     expect(document.getElementById('mobile-nav-menu')).not.toBeInTheDocument()
   })

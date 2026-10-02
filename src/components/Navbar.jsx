@@ -6,6 +6,8 @@ import ThemeToggle from './ThemeToggle'
 import Logo from "../assets/og-logo.svg?react";
 import { useTheme } from '../context/ThemeContext'
 
+const THEME_LABEL = 'Theme'
+
 const LINKS = [
   { to: '/overview', label: 'Overview' },
   { to: '/repositories', label: 'Repositories' },
@@ -165,8 +167,8 @@ export default function Navbar() {
             borderTop: hasData ? '1px solid var(--border)' : 'none',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: 13, color: 'var(--text2)' }}>Theme</span>
-              <ThemeToggle />
+              <span style={{ fontSize: 13, color: 'var(--text2)' }}>{THEME_LABEL}</span>
+              <ThemeToggle onToggle={closeMenu} />
             </div>
 
             {rateLimit && (
