@@ -81,3 +81,35 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .navbar-link:hover {
   color: var(--accent) !important;
 }
+
+/* Responsive navbar styles */
+.navbar-hamburger {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .navbar-links {
+    display: none !important;
+  }
+  .navbar-controls {
+    display: none !important;
+  }
+  .navbar-hamburger {
+    display: flex !important;
+  }
+}
+
+.navbar-mobile-menu {
+  position: absolute;
+  top: 56px;
+  left: 0;
+  right: 0;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  padding: 16px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+  z-index: 99;
+}
