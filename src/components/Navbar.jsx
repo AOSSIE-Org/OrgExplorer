@@ -5,21 +5,14 @@ import { useApp } from '../context/AppContext'
 import ThemeToggle from './ThemeToggle'
 import Logo from "../assets/og-logo.svg?react";
 import { useTheme } from '../context/ThemeContext'
-
-const THEME_LABEL = 'Theme'
-const API_CALLS_REMAINING_LABEL = 'API calls remaining'
-const SETTINGS_LABEL = 'Settings'
-const SUPPORT_US_LABEL = 'Support Us'
-const HAMBURGER_LABEL = 'Toggle navigation menu'
-
-const LINKS = [
-  { to: '/overview', label: 'Overview' },
-  { to: '/repositories', label: 'Repositories' },
-  { to: '/contributors', label: 'Contributors' },
-  { to: '/network', label: 'Network' },
-  { to: '/analytics', label: 'Analytics' },
-  { to: '/governance', label: 'Governance' },
-]
+import {
+  THEME_LABEL,
+  API_CALLS_REMAINING_LABEL,
+  SETTINGS_LABEL,
+  SUPPORT_US_LABEL,
+  HAMBURGER_LABEL,
+  NAV_LINKS as LINKS,
+} from '../constants/navbar'
 
 export default function Navbar() {
   const { orgs, rateLimit } = useApp()
