@@ -20,6 +20,8 @@ export default function RateLimitBanner() {
       background: crit ? 'rgba(239,68,68,.07)' : 'rgba(245,197,24,.06)',
       padding: '9px 24px',
       display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+      flexWrap: 'wrap',
+      gap: '8px 16px',
     }}>
       <span style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
         <Icon size={13} color={crit ? 'var(--red)' : 'var(--accent)'} />

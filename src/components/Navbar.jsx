@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { NavLink, useNavigate } from 'react-router-dom'
+import React, { useState, useEffect } from 'react'
+import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { FiHeart, FiSettings, FiZap, FiMenu, FiX } from 'react-icons/fi'
 import { useApp } from '../context/AppContext'
 import ThemeToggle from './ThemeToggle'
@@ -19,11 +19,27 @@ export default function Navbar() {
   const { orgs, rateLimit } = useApp()
   const { theme } = useTheme();
   const navigate = useNavigate()
+  const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
   const hasData = orgs.length > 0
   const lowLimit = rateLimit && rateLimit.remaining < 15
 
   const closeMenu = () => setMenuOpen(false)
+
+  // Close mobile menu on route change
+  useEffect(() => {
+    setMenuOpen(false)
+  }, [location.pathname])
+
+  // Close mobile menu on Escape key press
+  useEffect(() => {
+    if (!menuOpen) return
+    const handleKeyDown = e => {
+      if (e.key === 'Escape') setMenuOpen(false)
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [menuOpen])
 
   return (
     <nav style={{
@@ -189,7 +205,25 @@ export default function Navbar() {
           </div>
         </div>
       )}
+
+      {/* Backdrop overlay */}
+      {menuOpen && (
+        <div
+          data-testid="navbar-backdrop"
+          onClick={closeMenu}
+          style={{
+            position: 'fixed',
+            top: 56,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.4)',
+            zIndex: 98,
+          }}
+        />
+      )}
     </nav>
   )
 }
+
 
