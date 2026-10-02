@@ -169,5 +169,24 @@ describe('Navbar Mobile Navigation', () => {
     expect(mockThemeState.toggleTheme).toHaveBeenCalled()
     expect(hamburger).toHaveAttribute('aria-expanded', 'false')
     expect(document.getElementById('mobile-nav-menu')).not.toBeInTheDocument()
+    expect(document.activeElement).toBe(hamburger)
+  })
+
+  it('restores focus to hamburger button when closing mobile menu via theme toggle', async () => {
+    renderNavbar()
+    const hamburger = screen.getByRole('button', { name: /toggle navigation menu/i })
+
+    // Open mobile menu
+    await userEvent.click(hamburger)
+    const mobileMenu = document.getElementById('mobile-nav-menu')
+    expect(mobileMenu).toBeInTheDocument()
+
+    // Find ThemeToggle inside #mobile-nav-menu and activate it
+    const themeToggleBtn = within(mobileMenu).getByRole('button', { name: /switch to/i })
+    await userEvent.click(themeToggleBtn)
+
+    // Verify mobile menu is closed and focus returned to hamburger
+    expect(document.getElementById('mobile-nav-menu')).not.toBeInTheDocument()
+    expect(document.activeElement).toBe(hamburger)
   })
 })

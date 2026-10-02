@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { FiHeart, FiSettings, FiZap, FiMenu, FiX } from 'react-icons/fi'
 import { useApp } from '../context/AppContext'
@@ -23,10 +23,20 @@ export default function Navbar() {
   const navigate = useNavigate()
   const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
+  const hamburgerRef = useRef(null)
+  const wasOpenRef = useRef(false)
   const hasData = orgs.length > 0
   const lowLimit = rateLimit && rateLimit.remaining < 15
 
   const closeMenu = () => setMenuOpen(false)
+
+  // Restore focus to hamburger button when mobile menu closes
+  useEffect(() => {
+    if (wasOpenRef.current && !menuOpen) {
+      hamburgerRef.current?.focus()
+    }
+    wasOpenRef.current = menuOpen
+  }, [menuOpen])
 
   // Close mobile menu on route change
   useEffect(() => {
@@ -111,6 +121,7 @@ export default function Navbar() {
 
       {/* Hamburger button (Mobile) */}
       <button
+        ref={hamburgerRef}
         className="navbar-hamburger"
         onClick={() => setMenuOpen(prev => !prev)}
         aria-label="Toggle navigation menu"
