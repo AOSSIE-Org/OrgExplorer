@@ -22,6 +22,7 @@ describe('SettingsPage', () => {
   beforeEach(() => {
     cacheClear.mockReset()
     clearAnalysis.mockReset()
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
   })
 
   it('clears both the raw-response cache and the persisted analysis cache on Clear All', async () => {
@@ -64,5 +65,16 @@ describe('SettingsPage', () => {
 
     expect(screen.queryByRole('button', { name: /cleared/i })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: /clear all/i })).toBeInTheDocument()
+  })
+
+  it('does not clear either cache when Clear All is cancelled', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(false)
+
+    render(<SettingsPage />)
+
+    await userEvent.click(screen.getByRole('button', { name: /clear all/i }))
+
+    expect(cacheClear).not.toHaveBeenCalled()
+    expect(clearAnalysis).not.toHaveBeenCalled()
   })
 })
