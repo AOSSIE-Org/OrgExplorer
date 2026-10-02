@@ -66,4 +66,15 @@ describe('SettingsPage', () => {
     expect(screen.queryByRole('button', { name: /cleared/i })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: /clear all/i })).toBeInTheDocument()
   })
+
+  it('does not clear either cache when Clear All is cancelled', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(false)
+
+    render(<SettingsPage />)
+
+    await userEvent.click(screen.getByRole('button', { name: /clear all/i }))
+
+    expect(cacheClear).not.toHaveBeenCalled()
+    expect(clearAnalysis).not.toHaveBeenCalled()
+  })
 })
