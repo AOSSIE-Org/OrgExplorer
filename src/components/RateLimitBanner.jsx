@@ -1,11 +1,10 @@
 import React from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { FiZap, FiAlertTriangle } from 'react-icons/fi'
 import { useApp } from '../context/AppContext'
 
 export default function RateLimitBanner() {
   const { rateLimit, pat } = useApp()
-  const navigate = useNavigate()
   if (!rateLimit) return null
 
   const pct = rateLimit.remaining / rateLimit.limit
@@ -27,12 +26,12 @@ export default function RateLimitBanner() {
         <Icon size={13} color={crit ? 'var(--red)' : 'var(--accent)'} style={{ flexShrink: 0 }} />
         API RATE LIMIT: <strong style={{ marginLeft: 2 }}>{rateLimit.remaining} / {rateLimit.limit}</strong> REQUESTS REMAINING
         {!pat && (
-          <span
-            onClick={() => navigate('/settings')}
-            style={{ color: 'var(--accent)', cursor: 'pointer', fontWeight: 600 }}
+          <Link
+            to="/settings"
+            style={{ color: 'var(--accent)', fontWeight: 600, textDecoration: 'none' }}
           >
             Add PAT for 5,000 req/hr
-          </span>
+          </Link>
         )}
       </span>
       <span style={{ fontSize: 11, color: 'var(--text2)' }}>
