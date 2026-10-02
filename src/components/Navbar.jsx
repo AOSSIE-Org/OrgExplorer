@@ -1,6 +1,6 @@
-import React from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import { FiHeart, FiSettings, FiZap } from 'react-icons/fi'
+import { FiHeart, FiSettings, FiZap, FiMenu, FiX } from 'react-icons/fi'
 import { useApp } from '../context/AppContext'
 import ThemeToggle from './ThemeToggle'
 import Logo from "../assets/og-logo.svg?react";
@@ -21,71 +21,167 @@ export default function Navbar() {
   const navigate = useNavigate()
   const hasData = orgs.length > 0
   const lowLimit = rateLimit && rateLimit.remaining < 15
+  const [menuOpen, setMenuOpen] = useState(false)
+  const toggleRef = useRef(null)
+
+  // Keyboard Escape key dismissal & focus restoration for mobile navigation
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setMenuOpen(false);
+        toggleRef.current?.focus();
+      }
+    };
+    if (menuOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [menuOpen]);
+
+  const navLinkStyle = ({ isActive }) => ({
+    display: 'block',
+    padding: '6px 10px',
+    fontSize: 13,
+    whiteSpace: 'nowrap',
+    textDecoration: 'none',
+    fontWeight: isActive ? 600 : 400,
+    color: isActive ? 'var(--accent)' : 'var(--text2)',
+    borderBottom: isActive ? '2px solid var(--accent)' : '2px solid transparent',
+    transition: 'color 0.2s ease',
+  })
 
   return (
     <nav style={{
       position: 'sticky', top: 0, zIndex: 100,
       background: 'var(--bg)',
-      backdropFilter: 'blur(10px)',
       borderBottom: '1px solid var(--border)',
-      padding: '0 24px',
-      display: 'flex', alignItems: 'center', gap: 24, height: 56,
-      justifyContent: 'space-between',
     }}>
-      {/* Wordmark */}
-      <span
-        onClick={() => navigate('/')}
+      {/* Main bar — responsive padding/gap for narrow viewports (320px+) */}
+      <div
+        className="px-3 md:px-6 gap-2 md:gap-6 flex items-center justify-between h-14"
+        style={{ backdropFilter: 'blur(10px)' }}
       >
-        <Logo className="h-15 w-auto" />
-      </span>
+        {/* Logo */}
+        <span onClick={() => { navigate('/'); setMenuOpen(false) }} style={{ cursor: 'pointer', flexShrink: 0 }}>
+          <Logo className="h-15 w-auto" />
+        </span>
 
-      {/* Nav links — only visible when data is loaded */}
-      <div style={{ display: 'flex', gap: 2, flex: 1, overflowX: 'auto' }}>
-        {hasData && LINKS.map(({ to, label }) => (
-          <NavLink
-            key={to} to={to}
-            className="navbar-link"
-            style={({ isActive }) => ({
-              display: 'block',
-              padding: '6px 10px',
-              fontSize: 13,
-              whiteSpace: 'nowrap',
-              textDecoration: 'none',
-              fontWeight: isActive ? 600 : 400,
-              color: isActive ? 'var(--accent)' : 'var(--text2)',
-              borderBottom: isActive ? '2px solid var(--accent)' : '2px solid transparent',
-              transition: 'color 0.2s ease',
-            })}
+        {/* Desktop nav links */}
+        <div className="hidden md:flex gap-0.5 flex-1 overflow-x-auto">
+          {hasData && LINKS.map(({ to, label }) => (
+            <NavLink key={to} to={to} className="navbar-link" style={navLinkStyle}>
+              {label}
+            </NavLink>
+          ))}
+        </div>
+
+        {/* Right side */}
+        <div className="flex items-center gap-2 md:gap-3.5 shrink-0">
+          {/* Rate limit — hidden on mobile */}
+          {rateLimit && (
+            <div className="hidden md:flex" style={{ alignItems: 'center', gap: 5, fontSize: 11, color: lowLimit ? 'var(--red)' : 'var(--text2)' }}>
+              <FiZap size={12} />
+              {rateLimit.remaining.toLocaleString()} / {rateLimit.limit.toLocaleString()}
+            </div>
+          )}
+          <ThemeToggle />
+          <button
+            type="button"
+            onClick={() => { navigate('/settings'); setMenuOpen(false) }}
+            style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: 6, padding: '5px 10px', fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}
+            className='h-[-webkit-fill-available]'
+            aria-label="Settings"
           >
-            {label}
-          </NavLink>
-        ))}
+            <FiSettings size={13} />
+            <span className="hidden md:inline">Settings</span>
+          </button>
+          {/* Support Us — always visible, between Settings and hamburger */}
+          <button
+            type="button"
+            onClick={() => { navigate('/support-us'); setMenuOpen(false) }}
+            className="flex items-center gap-2 rounded-md bg-emerald-500 px-3 md:px-4 py-2 text-sm font-medium text-white shadow transition-all duration-200 hover:bg-emerald-600 hover:shadow-lg active:scale-95"
+            aria-label="Support Us"
+          >
+            <FiHeart size={13} fill='white' />
+            <span className="hidden md:inline">Support Us</span>
+          </button>
+          {/* Hamburger / Menu toggle — only on mobile */}
+          <button
+            ref={toggleRef}
+            type="button"
+            className="flex md:hidden items-center p-1 bg-transparent border-0 cursor-pointer"
+            onClick={() => setMenuOpen(prev => !prev)}
+            style={{ color: 'var(--text)' }}
+            aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={menuOpen}
+            aria-controls="mobile-navigation"
+          >
+            {menuOpen ? <FiX size={22} /> : <FiMenu size={22} />}
+          </button>
+        </div>
       </div>
 
-      {/* Right side */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0 }}>
-        {rateLimit && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: lowLimit ? 'var(--red)' : 'var(--text2)' }}>
-            <FiZap size={12} />
-            {rateLimit.remaining.toLocaleString()} / {rateLimit.limit.toLocaleString()}
+      {/* Mobile dropdown menu & backdrop — only on mobile */}
+      {menuOpen && (
+        <>
+          <div
+            style={{
+              position: 'fixed',
+              top: 56,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(0, 0, 0, 0.5)',
+              zIndex: 40,
+            }}
+            className="md:hidden"
+            onClick={() => setMenuOpen(false)}
+          />
+          <div
+            id="mobile-navigation"
+            style={{
+              position: 'relative',
+              zIndex: 50,
+              background: 'var(--bg)',
+              borderTop: '1px solid var(--border)',
+              padding: '12px 24px 16px',
+              gap: 4,
+              maxHeight: 'calc(100dvh - 56px)',
+              overflowY: 'auto',
+            }}
+            className="flex flex-col md:hidden fade-up"
+          >
+            {hasData ? LINKS.map(({ to, label }) => (
+              <NavLink
+                key={to} to={to}
+                className="navbar-link"
+                style={({ isActive }) => ({
+                  padding: '10px 4px',
+                  fontSize: 14,
+                  textDecoration: 'none',
+                  fontWeight: isActive ? 600 : 400,
+                  color: isActive ? 'var(--accent)' : 'var(--text)',
+                  borderBottom: '1px solid var(--border)',
+                })}
+                onClick={() => setMenuOpen(false)}
+              >
+                {label}
+              </NavLink>
+            )) : (
+              <div style={{ fontSize: 13, color: 'var(--text2)', padding: '8px 4px' }}>
+                Load an organisation to explore pages.
+              </div>
+            )}
+            {/* Rate limit in mobile menu */}
+            {rateLimit && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: lowLimit ? 'var(--red)' : 'var(--text2)', paddingTop: 10 }}>
+                <FiZap size={12} />
+                API: {rateLimit.remaining.toLocaleString()} / {rateLimit.limit.toLocaleString()} remaining
+              </div>
+            )}
           </div>
-        )}
-        <ThemeToggle />
-        <button
-          onClick={() => navigate('/settings')}
-          style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: 6, padding: '5px 10px', fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}
-          className='h-[-webkit-fill-available]'
-        >
-          <FiSettings size={13} /> Settings
-        </button>
-        <button
-          onClick={() => navigate('/support-us')}
-          className="flex items-center gap-2 rounded-md bg-emerald-500 px-4 py-2 text-sm font-medium text-white shadow transition-all duration-200 hover:bg-emerald-600 hover:shadow-lg active:scale-95"
-        >
-          <FiHeart size={13} fill='white' />
-          Support Us
-        </button>
-      </div>
+        </>
+      )}
     </nav>
   )
 }
