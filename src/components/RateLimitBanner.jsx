@@ -23,13 +23,13 @@ export default function RateLimitBanner() {
       flexWrap: 'wrap',
       gap: '8px 16px',
     }}>
-      <span style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <Icon size={13} color={crit ? 'var(--red)' : 'var(--accent)'} />
+      <span style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', minWidth: 0 }}>
+        <Icon size={13} color={crit ? 'var(--red)' : 'var(--accent)'} style={{ flexShrink: 0 }} />
         API RATE LIMIT: <strong style={{ marginLeft: 2 }}>{rateLimit.remaining} / {rateLimit.limit}</strong> REQUESTS REMAINING
         {!pat && (
           <span
             onClick={() => navigate('/settings')}
-            style={{ color: 'var(--accent)', marginLeft: 10, cursor: 'pointer', fontWeight: 600 }}
+            style={{ color: 'var(--accent)', cursor: 'pointer', fontWeight: 600 }}
           >
             Add PAT for 5,000 req/hr
           </span>
