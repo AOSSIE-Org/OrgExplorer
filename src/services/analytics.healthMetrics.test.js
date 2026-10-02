@@ -53,6 +53,22 @@ describe('computeHealthScore', () => {
 
     expect(computeHealthScore(repo, 0)).toBeGreaterThanOrEqual(0)
   })
+
+  it('treats missing open_issues_count as 0 and identical to 0 issues', () => {
+    const missing = computeHealthScore({ pushed_at: daysAgoISO(10) }, 2)
+    const zero    = computeHealthScore({ pushed_at: daysAgoISO(10), open_issues_count: 0 }, 2)
+    expect(missing).toBe(zero)
+  })
+
+  it('returns a finite score when open_issues_count is non-numeric', () => {
+    const score = computeHealthScore({ pushed_at: new Date().toISOString(), open_issues_count: 'invalid' }, 2)
+    expect(Number.isFinite(score)).toBe(true)
+  })
+
+  it('returns a finite score when pushed_at is null or unparseable', () => {
+    expect(Number.isFinite(computeHealthScore({ pushed_at: null, open_issues_count: 0 }, 2))).toBe(true)
+    expect(Number.isFinite(computeHealthScore({ pushed_at: 'invalid-date', open_issues_count: 0 }, 2))).toBe(true)
+  })
 })
 
 describe('computeActivityClassification', () => {
@@ -74,6 +90,12 @@ describe('computeActivityClassification', () => {
 
   it('treats the exact 30-day boundary as Thriving (inclusive)', () => {
     expect(computeActivityClassification({ pushed_at: daysAgoISO(30) })).toBe('Thriving')
+  })
+
+  it('classifies null, missing, or unparseable pushed_at as Hibernating', () => {
+    expect(computeActivityClassification({ pushed_at: null })).toBe('Hibernating')
+    expect(computeActivityClassification({})).toBe('Hibernating')
+    expect(computeActivityClassification({ pushed_at: 'not-a-date' })).toBe('Hibernating')
   })
 })
 
