@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { FiHeart, FiSettings, FiZap, FiMenu, FiX } from 'react-icons/fi'
 import { useApp } from '../context/AppContext'
@@ -22,12 +22,14 @@ export default function Navbar() {
   const hasData = orgs.length > 0
   const lowLimit = rateLimit && rateLimit.remaining < 15
   const [menuOpen, setMenuOpen] = useState(false)
+  const toggleRef = useRef(null)
 
-  // Keyboard Escape key dismissal for mobile navigation
+  // Keyboard Escape key dismissal & focus restoration for mobile navigation
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
         setMenuOpen(false);
+        toggleRef.current?.focus();
       }
     };
     if (menuOpen) {
@@ -105,6 +107,7 @@ export default function Navbar() {
           </button>
           {/* Hamburger / Menu toggle — only on mobile */}
           <button
+            ref={toggleRef}
             type="button"
             className="flex md:hidden items-center p-1 bg-transparent border-0 cursor-pointer"
             onClick={() => setMenuOpen(prev => !prev)}
@@ -143,6 +146,8 @@ export default function Navbar() {
               borderTop: '1px solid var(--border)',
               padding: '12px 24px 16px',
               gap: 4,
+              maxHeight: 'calc(100dvh - 56px)',
+              overflowY: 'auto',
             }}
             className="flex flex-col md:hidden fade-up"
           >
