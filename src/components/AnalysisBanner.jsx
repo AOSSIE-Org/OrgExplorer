@@ -107,6 +107,7 @@ export default function AnalysisBanner({ page, description, onRun, loading = fal
             alignItems: 'center',
             gap: 10,
             flexShrink: 0,
+            flexWrap: 'wrap',
           }}
         >
           <button
@@ -114,6 +115,8 @@ export default function AnalysisBanner({ page, description, onRun, loading = fal
             onClick={() => setOpen(true)}
             style={{
               padding: '10px 18px',
+
+              minWidth: 0,
 
               borderRadius: 'var(--radius-sm)',
 
@@ -158,6 +161,8 @@ export default function AnalysisBanner({ page, description, onRun, loading = fal
             }}
             style={{
               padding: '10px 18px',
+
+              minWidth: 0,
 
               borderRadius: 'var(--radius-sm)',
 
