@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import {
   FiAlertCircle,
   FiCheckCircle,
@@ -19,8 +19,14 @@ import AnalysisBanner from '../components/AnalysisBanner'
 import { useNavigate } from 'react-router-dom'
 
 export default function IssuesPage() {
-  const { model, issuesData, loading } = useApp()
+  const { model, issuesData, loading, govLoading, runAudit, runGovernanceAnalysis } = useApp()
   const navigate = useNavigate()
+
+  useEffect(() => {
+    if (model && (!issuesData || Object.keys(issuesData).length === 0) && !govLoading) {
+      runAudit()
+    }
+  }, [model, issuesData, govLoading, runAudit])
 
   const [search, setSearch] = useState('')
   const [orgFilter, setOrgFilter] = useState('All Organizations')
@@ -140,12 +146,13 @@ export default function IssuesPage() {
     return filteredIssues.slice(start, start + pageSize)
   }, [filteredIssues, page, pageSize, groupBy])
 
-  if (loading) {
+  if (loading || govLoading) {
     return (
       <div style={{ padding: '32px 24px', maxWidth: 1100, margin: '0 auto' }}>
+        <AnalysisBanner page="issues" />
         <PageTitle title="Issues" subtitle="Loading issues analysis..." />
         <div style={{ ...C.card, textAlign: 'center', padding: 40, color: 'var(--text2)' }}>
-          Loading issue data across repositories...
+          Fetching issue data across repositories...
         </div>
       </div>
     )
@@ -160,9 +167,9 @@ export default function IssuesPage() {
           <EmptyStateCard
             SvgIcon={<FiDatabase size={36} color="var(--accent)" />}
             title="No Issues Data Available"
-            description="Run an analysis from the home page to inspect issues across your repositories."
-            buttonText="Go to Home"
-            onButtonClick={() => navigate('/')}
+            description={model ? "No issues data is currently loaded for the analyzed repositories. Click below to run a complete analysis or return home." : "Run an analysis from the home page to inspect issues across your repositories."}
+            buttonText={model ? "Run Complete Analysis" : "Go to Home"}
+            onButtonClick={() => model ? runGovernanceAnalysis() : navigate('/')}
           />
         </div>
       </div>
