@@ -1,57 +1,88 @@
 <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2048 768" width="100%" height="100%">
   <defs>
-    <!-- Brand Accent Gradients -->
-    <linearGradient id="org-accent-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+    <!-- AOSSIE Signature Gold & Amber Facet Gradients -->
+    <linearGradient id="gold-grad-light" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFE066" />
+      <stop offset="100%" stop-color="#FCCC02" />
+    </linearGradient>
+
+    <linearGradient id="gold-grad-main" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#FCCC02" />
       <stop offset="100%" stop-color="#FF9900" />
     </linearGradient>
-    <linearGradient id="node-green-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#00C853" />
-      <stop offset="100%" stop-color="#008340" />
+
+    <linearGradient id="gold-grad-dark" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF9900" />
+      <stop offset="100%" stop-color="#D67D00" />
     </linearGradient>
-    <linearGradient id="node-blue-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#3B82F6" />
-      <stop offset="100%" stop-color="#1D4ED8" />
+
+    <linearGradient id="gold-grad-deep" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#D67D00" />
+      <stop offset="100%" stop-color="#995600" />
     </linearGradient>
-    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="8" result="blur" />
-      <feComposite in="SourceGraphic" in2="blur" operator="over" />
-    </filter>
   </defs>
 
-  <!-- Logo Mark (Left Icon - Org Nodes Mesh) -->
-  <g transform="translate(120, 134)">
-    <path d="M 250 250 L 140 130" stroke="#FCCC02" stroke-width="12" stroke-linecap="round" opacity="0.85"/>
-    <path d="M 250 250 L 360 130" stroke="#00C853" stroke-width="12" stroke-linecap="round" opacity="0.85"/>
-    <path d="M 250 250 L 140 370" stroke="#3B82F6" stroke-width="12" stroke-linecap="round" opacity="0.85"/>
-    <path d="M 250 250 L 360 370" stroke="#FCCC02" stroke-width="12" stroke-linecap="round" opacity="0.85"/>
-    <path d="M 140 130 L 360 130" stroke="currentColor" stroke-width="8" stroke-dasharray="16 12" opacity="0.35"/>
-    <path d="M 140 370 L 360 370" stroke="currentColor" stroke-width="8" stroke-dasharray="16 12" opacity="0.35"/>
-    <path d="M 140 130 L 140 370" stroke="currentColor" stroke-width="8" opacity="0.25"/>
-    <path d="M 360 130 L 360 370" stroke="currentColor" stroke-width="8" opacity="0.25"/>
+  <!-- Left Icon Mark: Geometric AOSSIE Lion Crest -->
+  <g transform="translate(70, 40)">
 
-    <!-- Outer Nodes -->
-    <circle cx="250" cy="70" r="28" fill="url(#org-accent-grad)" />
-    <circle cx="410" cy="160" r="24" fill="url(#node-green-grad)" />
-    <circle cx="410" cy="340" r="24" fill="url(#node-blue-grad)" />
-    <circle cx="250" cy="430" r="28" fill="url(#org-accent-grad)" />
-    <circle cx="90" cy="340" r="24" fill="url(#node-green-grad)" />
-    <circle cx="90" cy="160" r="24" fill="url(#node-blue-grad)" />
+    <!-- Top Crown / Mane Crest -->
+    <path d="M 320 110 L 375 190 L 265 190 Z" fill="url(#gold-grad-light)"/>
+    <path d="M 320 110 L 430 150 L 375 220 L 320 190 Z" fill="url(#gold-grad-main)"/>
+    <path d="M 320 110 L 210 150 L 265 220 L 320 190 Z" fill="url(#gold-grad-dark)"/>
 
-    <!-- Center Root Node -->
-    <circle cx="250" cy="250" r="54" fill="url(#org-accent-grad)" filter="url(#glow)"/>
-    <circle cx="250" cy="250" r="24" fill="#121316"/>
-    <circle cx="250" cy="250" r="12" fill="#FCCC02"/>
+    <!-- Upper Side Mane Facets -->
+    <path d="M 430 150 L 505 230 L 420 290 L 375 220 Z" fill="url(#gold-grad-light)"/>
+    <path d="M 210 150 L 135 230 L 220 290 L 265 220 Z" fill="url(#gold-grad-main)"/>
+
+    <!-- Outer Mid Mane Facets -->
+    <path d="M 505 230 L 525 345 L 430 370 L 420 290 Z" fill="url(#gold-grad-main)"/>
+    <path d="M 135 230 L 115 345 L 210 370 L 220 290 Z" fill="url(#gold-grad-deep)"/>
+
+    <!-- Lower Mane & Jaw Structure -->
+    <path d="M 525 345 L 465 460 L 380 430 L 430 370 Z" fill="url(#gold-grad-dark)"/>
+    <path d="M 115 345 L 175 460 L 260 430 L 210 370 Z" fill="url(#gold-grad-light)"/>
+
+    <!-- Mane Base Chin Locks (Pointed Crest Base) -->
+    <path d="M 465 460 L 320 575 L 380 430 Z" fill="url(#gold-grad-main)"/>
+    <path d="M 175 460 L 320 575 L 260 430 Z" fill="url(#gold-grad-deep)"/>
+
+    <!-- Central Face Geometry -->
+    <!-- Forehead -->
+    <polygon points="320,190 375,220 350,290 290,290 265,220" fill="url(#gold-grad-main)"/>
+
+    <!-- Nose Bridge -->
+    <polygon points="290,290 350,290 340,390 300,390" fill="url(#gold-grad-light)"/>
+
+    <!-- Cheek Planes Left & Right -->
+    <polygon points="265,220 350,290 220,290" fill="url(#gold-grad-deep)"/>
+    <polygon points="375,220 420,290 350,290" fill="url(#gold-grad-main)"/>
+    
+    <polygon points="220,290 290,290 210,370" fill="url(#gold-grad-light)"/>
+    <polygon points="420,290 350,290 430,370" fill="url(#gold-grad-dark)"/>
+
+    <!-- Snout & Mouth Structure -->
+    <polygon points="300,390 340,390 355,445 320,470 285,445" fill="url(#gold-grad-main)"/>
+
+    <!-- Dark Snout Tip / Nose Mark -->
+    <polygon points="298,390 342,390 320,422" fill="#18191C"/>
+
+    <!-- Chin Point -->
+    <polygon points="320,470 345,520 295,520" fill="url(#gold-grad-light)"/>
+
+    <!-- Noble Angled Eyes -->
+    <polygon points="268,305 306,322 276,327" fill="#18191C"/>
+    <polygon points="372,305 334,322 364,327" fill="#18191C"/>
+    <polygon points="273,308 301,320 279,323" fill="url(#gold-grad-light)"/>
+    <polygon points="367,308 339,320 361,323" fill="url(#gold-grad-light)"/>
   </g>
 
-  <!-- Typography / Text: OrgExplorer -->
+  <!-- Typography: OrgExplorer -->
   <g fill="currentColor">
-    <text x="640" y="450" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-weight="900" font-size="210" letter-spacing="-2">
-      <tspan fill="url(#org-accent-grad)">Org</tspan><tspan fill="currentColor" font-weight="400">Explorer</tspan>
+    <text x="660" y="430" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-weight="900" font-size="195" letter-spacing="-3">
+      <tspan fill="url(#gold-grad-main)">Org</tspan><tspan fill="currentColor" font-weight="400">Explorer</tspan>
     </text>
-    <text x="648" y="525" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-weight="600" font-size="44" letter-spacing="8" fill="currentColor" opacity="0.6">
+    <text x="668" y="510" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-weight="700" font-size="42" letter-spacing="9" fill="currentColor" opacity="0.65">
       OPEN SOURCE ANALYTICS &amp; INSIGHTS
     </text>
   </g>
 </svg>
-
