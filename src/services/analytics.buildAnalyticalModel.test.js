@@ -162,4 +162,24 @@ describe('buildAnalyticalModel', () => {
     expect(result.totalRepos).toEqual([])
     expect(result.contributors).toEqual([])
   })
+
+  it('filters out anonymous contributors or entries without a login', () => {
+    const orgs = [{ login: 'org-a' }]
+    const repoA = makeRepo('repo-a')
+    const reposPerOrg = { 'org-a': [repoA] }
+    const totalReposPerOrg = { 'org-a': [repoA] }
+    const contribsPerRepo = {
+      'org-a/repo-a': [
+        { login: 'valid-user', avatar_url: '', contributions: 10 },
+        { name: 'Anonymous', contributions: 5 },
+        null,
+      ],
+    }
+
+    const result = buildAnalyticalModel(orgs, reposPerOrg, contribsPerRepo, totalReposPerOrg)
+
+    expect(result.contributors).toHaveLength(1)
+    expect(result.contributors[0].login).toBe('valid-user')
+    expect(result.contributors.some(c => c.login === undefined)).toBe(false)
+  })
 })
