@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import IssuesPage from './IssuesPage'
 
@@ -33,6 +33,17 @@ vi.mock('../context/AppContext', () => ({
           html_url: 'https://github.com/AOSSIE/OrgExplorer/pull/2',
           pull_request: { url: 'https://api.github.com/repos/AOSSIE/OrgExplorer/pulls/2' },
           user: { login: 'tester2' }
+        },
+        {
+          id: 103,
+          number: 3,
+          title: 'Closed issue for testing',
+          state: 'closed',
+          created_at: '2026-09-03T10:00:00Z',
+          html_url: 'https://github.com/AOSSIE/OrgExplorer/issues/3',
+          user: { login: 'tester3', avatar_url: '' },
+          labels: [{ id: 2, name: 'feature', color: '00ff00' }],
+          comments: 1
         }
       ]
     },
@@ -60,8 +71,19 @@ describe('IssuesPage', () => {
       </MemoryRouter>
     )
 
+    // Open tab (default)
     expect(screen.getByText('#1')).toBeInTheDocument()
-    expect(screen.getByText('tester1')).toBeInTheDocument()
-    expect(screen.getByText('bug')).toBeInTheDocument()
+    expect(screen.getByText('First issue for testing')).toBeInTheDocument()
+    expect(screen.queryByText('Closed issue for testing')).not.toBeInTheDocument()
+
+    // Switch to Closed tab
+    fireEvent.click(screen.getByRole('button', { name: /^closed$/i }))
+    expect(screen.queryByText('First issue for testing')).not.toBeInTheDocument()
+    expect(screen.getByText('Closed issue for testing')).toBeInTheDocument()
+
+    // Switch to All tab
+    fireEvent.click(screen.getByRole('button', { name: /^all$/i }))
+    expect(screen.getByText('First issue for testing')).toBeInTheDocument()
+    expect(screen.getByText('Closed issue for testing')).toBeInTheDocument()
   })
 })

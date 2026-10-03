@@ -217,6 +217,7 @@ export default function IssuesPage() {
             <FiSearch size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text3)' }} />
             <input
               type="text"
+              aria-label="Search issues"
               placeholder="Search issues, #number, author, label..."
               value={search}
               onChange={e => setSearch(e.target.value)}
@@ -227,6 +228,7 @@ export default function IssuesPage() {
           {/* Org Filter */}
           {orgList.length > 2 && (
             <select
+              aria-label="Filter by organization"
               value={orgFilter}
               onChange={e => { setOrgFilter(e.target.value); setRepoFilter('All Repositories') }}
               style={C.select}
@@ -237,6 +239,7 @@ export default function IssuesPage() {
 
           {/* Repo Filter */}
           <select
+            aria-label="Filter by repository"
             value={repoFilter}
             onChange={e => setRepoFilter(e.target.value)}
             style={C.select}
@@ -249,6 +252,8 @@ export default function IssuesPage() {
             {['open', 'closed', 'all'].map(s => (
               <button
                 key={s}
+                type="button"
+                aria-pressed={stateFilter === s}
                 onClick={() => setStateFilter(s)}
                 style={{
                   padding: '5px 12px',
@@ -271,7 +276,7 @@ export default function IssuesPage() {
           {/* Group By Selector */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text2)' }}>
             <FiFilter size={13} /> Group by:
-            <select value={groupBy} onChange={e => setGroupBy(e.target.value)} style={C.select}>
+            <select aria-label="Group issues by" value={groupBy} onChange={e => setGroupBy(e.target.value)} style={C.select}>
               <option value="none">Flat List</option>
               <option value="repo">By Repository</option>
               <option value="author">By Author</option>
