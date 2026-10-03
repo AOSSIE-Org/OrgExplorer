@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react'
+import React, { useState, useMemo, useEffect, useRef } from 'react'
 import {
   FiAlertCircle,
   FiCheckCircle,
@@ -19,11 +19,13 @@ import AnalysisBanner from '../components/AnalysisBanner'
 import { useNavigate } from 'react-router-dom'
 
 export default function IssuesPage() {
-  const { model, issuesData, loading, govLoading, runAudit, runGovernanceAnalysis } = useApp()
+  const { model, issuesData, loading, govLoading, runAudit } = useApp()
   const navigate = useNavigate()
+  const auditAttemptedRef = useRef(false)
 
   useEffect(() => {
-    if (model && (!issuesData || Object.keys(issuesData).length === 0) && !govLoading) {
+    if (model && (!issuesData || Object.keys(issuesData).length === 0) && !govLoading && !auditAttemptedRef.current) {
+      auditAttemptedRef.current = true
       runAudit()
     }
   }, [model, issuesData, govLoading, runAudit])
@@ -167,9 +169,9 @@ export default function IssuesPage() {
           <EmptyStateCard
             SvgIcon={<FiDatabase size={36} color="var(--accent)" />}
             title="No Issues Data Available"
-            description={model ? "No issues data is currently loaded for the analyzed repositories. Click below to run a complete analysis or return home." : "Run an analysis from the home page to inspect issues across your repositories."}
-            buttonText={model ? "Run Complete Analysis" : "Go to Home"}
-            onButtonClick={() => model ? runGovernanceAnalysis() : navigate('/')}
+            description="Run an analysis from the home page to inspect issues across your repositories."
+            buttonText="Go to Home"
+            onButtonClick={() => navigate('/')}
           />
         </div>
       </div>
