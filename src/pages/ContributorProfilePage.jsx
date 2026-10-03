@@ -68,7 +68,16 @@ async function fetchAllPages(initialUrl, headers, signal) {
       throw new Error('RATE_LIMIT')
     }
     if (!res.ok) {
-      throw new Error(`HTTP_${res.status}`)
+      let message = `HTTP_${res.status}`
+      try {
+        const errJson = await res.json()
+        if (errJson?.errors?.[0]?.message) {
+          message = errJson.errors[0].message
+        } else if (errJson?.message) {
+          message = errJson.message
+        }
+      } catch {}
+      throw new Error(message)
     }
     const data = await res.json()
     items = items.concat(data.items || [])
@@ -152,8 +161,19 @@ export default function ContributorProfilePage() {
         console.error('Failed to parse oe_recent from localStorage:', e)
       }
     }
+    // Also include contributor's known orgs from the analytical model if available
+    if (contributor?.orgs?.length) {
+      for (const org of contributor.orgs) {
+        if (typeof org === 'string' && org.trim() && !list.includes(org.trim())) {
+          list.push(org.trim())
+        }
+      }
+    }
     return list
-  }, [orgs])
+      .map(o => (typeof o === 'string' ? o.trim() : ''))
+      .filter(Boolean)
+      .filter(o => o !== 'undefined' && o !== 'null')
+  }, [orgs, contributor])
 
   // Fetch contributor issues & PRs from GitHub Search API (Supports pagination & cleanup)
   useEffect(() => {
@@ -162,7 +182,9 @@ export default function ContributorProfilePage() {
     setMergedPRKeys(new Set())
     setSelectedOrg('all')
 
-    if (!username) {
+    const cleanUser = typeof username === 'string' ? username.trim() : ''
+    if (!cleanUser || cleanUser === 'undefined' || cleanUser === 'null') {
+      setError('Invalid contributor username.')
       setLoading(false)
       return
     }
@@ -180,32 +202,71 @@ export default function ContributorProfilePage() {
       setLoading(true)
       setError('')
       try {
-        const encodedUser = encodeURIComponent(username)
-        const orgQuery = searchOrgs.map(org => `org:${encodeURIComponent(org)}`).join('+')
-        const url = `https://api.github.com/search/issues?q=author:${encodedUser}+${orgQuery}&per_page=100`
-        const mergedUrl = `https://api.github.com/search/issues?q=author:${encodedUser}+is:pr+is:merged+${orgQuery}&per_page=100`
-
+        const encodedUser = encodeURIComponent(cleanUser)
         const headers = { Accept: 'application/vnd.github.v3+json' }
         if (pat) {
           headers.Authorization = `token ${pat}`
         }
 
-        const [items, mergedItems] = await Promise.all([
-          fetchAllPages(url, headers, controller.signal),
-          fetchAllPages(mergedUrl, headers, controller.signal)
-        ])
+        // Query each organization individually to avoid invalid multi-org queries
+        // (in GitHub search syntax, multiple org: qualifiers are treated as AND,
+        // which returns 0 results or 422 Unprocessable Content if an org is inaccessible)
+        const orgQueries = searchOrgs.map(async (org) => {
+          const encodedOrg = encodeURIComponent(org)
+          const url = `https://api.github.com/search/issues?q=author:${encodedUser}+org:${encodedOrg}&per_page=100`
+          const mergedUrl = `https://api.github.com/search/issues?q=author:${encodedUser}+is:pr+is:merged+org:${encodedOrg}&per_page=100`
 
+          const [items, mergedItems] = await Promise.all([
+            fetchAllPages(url, headers, controller.signal),
+            fetchAllPages(mergedUrl, headers, controller.signal),
+          ])
+
+          return { org, items, mergedItems }
+        })
+
+        const settled = await Promise.allSettled(orgQueries)
         if (!active) return
 
-        const mergedKeys = new Set(
-          mergedItems.map(item => {
-            const repo = getFullRepoFromUrl(item.repository_url)
-            return `${repo}/${item.number}`
-          })
-        )
+        const allItems = []
+        const mergedKeys = new Set()
+        let anySuccess = false
+        const failureReasons = []
+
+        settled.forEach((res, idx) => {
+          if (res.status === 'fulfilled') {
+            anySuccess = true
+            const { items, mergedItems } = res.value
+            allItems.push(...items)
+            mergedItems.forEach(item => {
+              const repo = getFullRepoFromUrl(item.repository_url)
+              mergedKeys.add(`${repo}/${item.number}`)
+            })
+          } else {
+            const err = res.reason
+            if (err?.name !== 'AbortError') {
+              failureReasons.push(`${searchOrgs[idx]}: ${err.message}`)
+            }
+          }
+        })
+
+        if (!anySuccess && failureReasons.length) {
+          const firstRateLimit = failureReasons.some(msg => msg.includes('RATE_LIMIT'))
+          if (firstRateLimit) {
+            throw new Error('RATE_LIMIT')
+          }
+          throw new Error(failureReasons.join(', '))
+        }
+
+        // Deduplicate items across org queries
+        const seenIds = new Set()
+        const dedupedItems = allItems.filter(item => {
+          if (!item?.id || seenIds.has(item.id)) return false
+          seenIds.add(item.id)
+          return true
+        })
 
         setMergedPRKeys(mergedKeys)
-        setRawContributions(items)
+        setRawContributions(dedupedItems)
       } catch (err) {
         if (!active) return
         if (err.name === 'AbortError') return
