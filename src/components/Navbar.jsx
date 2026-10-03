@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { NavLink, useNavigate } from 'react-router-dom'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { FiBarChart2, FiBook, FiChevronRight, FiExternalLink, FiHeart, FiHome, FiMenu, FiSettings, FiShare2, FiShield, FiSun, FiUsers, FiZap, FiX } from 'react-icons/fi'
 import { useApp } from '../context/AppContext'
 import ThemeToggle from './ThemeToggle'
@@ -16,6 +16,7 @@ const LINKS = [
 
 export default function Navbar() {
   const { rateLimit } = useApp()
+  const { pathname } = useLocation()
   const navigate = useNavigate()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [isOverflowing, setIsOverflowing] = useState(false)
@@ -23,6 +24,7 @@ export default function Navbar() {
   const linksRef = useRef(null)
   const menuToggleRef = useRef(null)
   const lowLimit = rateLimit && rateLimit.remaining < 15
+  const showOrgLinks = pathname !== '/'
 
   useEffect(() => {
     const navbar = navbarRef.current
@@ -34,7 +36,8 @@ export default function Navbar() {
       const wasOverflowing = links.classList.contains('navbar-links-overflowing')
       links.classList.remove('navbar-links-overflowing')
       menuToggle.classList.remove('navbar-menu-toggle-visible')
-      const nextOverflowing = links.scrollWidth > links.clientWidth
+      const nextOverflowing = (!showOrgLinks && navbar.clientWidth <= 600)
+        || links.scrollWidth > links.clientWidth
       if (wasOverflowing) {
         links.classList.add('navbar-links-overflowing')
         menuToggle.classList.add('navbar-menu-toggle-visible')
@@ -47,11 +50,28 @@ export default function Navbar() {
     observer.observe(links)
     measureOverflow()
     return () => observer.disconnect()
-  }, [])
+  }, [showOrgLinks])
 
   useEffect(() => {
     if (!isOverflowing) setMobileMenuOpen(false)
   }, [isOverflowing])
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return
+
+    const documentElement = document.documentElement
+    const body = document.body
+    const originalDocumentOverflow = documentElement.style.overflow
+    const originalBodyOverflow = body.style.overflow
+
+    documentElement.style.overflow = 'hidden'
+    body.style.overflow = 'hidden'
+
+    return () => {
+      documentElement.style.overflow = originalDocumentOverflow
+      body.style.overflow = originalBodyOverflow
+    }
+  }, [mobileMenuOpen])
 
   return (
     <nav ref={navbarRef} className={`app-navbar${mobileMenuOpen ? ' app-navbar-menu-open' : ''}`} style={{
@@ -72,7 +92,7 @@ export default function Navbar() {
 
       {/* Nav links — only visible when data is loaded */}
       <div ref={linksRef} className={`navbar-links${isOverflowing ? ' navbar-links-overflowing' : ''}`} style={{ display: 'flex', gap: 2, flex: 1, overflowX: 'auto' }}>
-        {LINKS.map(({ to, label }) => (
+        {showOrgLinks && LINKS.map(({ to, label }) => (
           <NavLink
             key={to} to={to}
             className="navbar-link"
@@ -132,7 +152,10 @@ export default function Navbar() {
       </button>
 
       {mobileMenuOpen && (
-        <div id="mobile-navigation" className="mobile-nav-menu mobile-nav-menu-visible">
+        <div
+          id="mobile-navigation"
+          className={`mobile-nav-menu mobile-nav-menu-visible${showOrgLinks ? '' : ' mobile-nav-menu-landing'}`}
+        >
           <div className="mobile-nav-header">
             <button
               type="button"
@@ -142,8 +165,8 @@ export default function Navbar() {
               <FiX size={19} />
             </button>
           </div>
-          <div className="mobile-nav-heading">Main navigation</div>
-          {LINKS.map(({ to, label, icon: Icon }) => (
+          {showOrgLinks && <div className="mobile-nav-heading">Main navigation</div>}
+          {showOrgLinks && LINKS.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}
@@ -161,8 +184,8 @@ export default function Navbar() {
             </NavLink>
           ))}
           <div className="tablet-hidden-other-controls">
-            <div className="mobile-nav-divider" />
-            <div className="mobile-nav-heading">Other controls</div>
+            {showOrgLinks && <div className="mobile-nav-divider" />}
+            {showOrgLinks && <div className="mobile-nav-heading">Other controls</div>}
             <button className="mobile-nav-row" onClick={() => { navigate('/settings'); setMobileMenuOpen(false) }}>
               <FiSettings size={16} />
               <span>Settings</span>
