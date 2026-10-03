@@ -32,6 +32,7 @@ export function AppProvider({ children }) {
   const [issuesData, setIssuesData] = useState({})
   const [pullsData, setPullsData] = useState({})
   const [rateLimit, setRateLimit] = useState(getStoredRateLimit)
+  const rateLimitRef = useRef(rateLimit)
   const [loading, setLoading] = useState(false)
   const [loadMsg, setLoadMsg] = useState('')
   const [govLoading, setGovLoading] = useState(false)
@@ -102,6 +103,7 @@ export function AppProvider({ children }) {
     const handler = e => {
       const next = e.detail
       if (!Number.isFinite(Number(next?.limit)) || !Number.isFinite(Number(next?.remaining))) return
+      rateLimitRef.current = next
       setRateLimit(next)
       localStorage.setItem('oe_rate_limit', JSON.stringify(next))
     }
@@ -117,6 +119,7 @@ export function AppProvider({ children }) {
     if (!rateLimit?.reset) return
 
     const timeout = setTimeout(() => {
+      rateLimitRef.current = null
       localStorage.removeItem('oe_rate_limit')
       setRateLimit(null)
     }, Math.max(0, rateLimit.reset * 1000 - Date.now()))
@@ -133,21 +136,28 @@ export function AppProvider({ children }) {
     // epoch). Never let a stale read inflate the remaining count while
     // the current window is still active — only a new window expiry or a
     // new limit (e.g. PAT added/removed) may legitimately raise it.
+    const currentRateLimit = rateLimitRef.current
     if (
-      rateLimit &&
-      rl.limit === rateLimit.limit &&
-      rl.remaining > rateLimit.remaining
+      currentRateLimit &&
+      rl.limit === currentRateLimit.limit &&
+      rl.remaining > currentRateLimit.remaining
     ) {
-      const windowActive = !rateLimit.reset || Date.now() < rateLimit.reset * 1000
+      const windowActive = currentRateLimit.reset > 0 && Date.now() < currentRateLimit.reset * 1000
       if (windowActive) return true
     }
+    rateLimitRef.current = rl
     setRateLimit(rl)
     localStorage.setItem('oe_rate_limit', JSON.stringify(rl))
     return true
-  }, [pat, rateLimit])
+  }, [pat])
   const savePat = useCallback(token => {
     setPat(token)
     token ? localStorage.setItem('oe_pat', token) : localStorage.removeItem('oe_pat')
+    // Old quota belongs to the old PAT. Clear it so the new PAT's higher
+    // remaining count is accepted instead of being blocked as stale.
+    rateLimitRef.current = null
+    localStorage.removeItem('oe_rate_limit')
+    setRateLimit(null)
   }, [])
 
   // Multi-org explore

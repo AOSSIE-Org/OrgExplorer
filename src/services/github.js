@@ -134,8 +134,11 @@ export async function fetchPulls(org, repo, pat) {
  *  Returns null when the headers are absent so callers can fall back. */
 function readRateLimitHeaders(h) {
   if (!h || typeof h.get !== 'function') return null
-  const limit = Number(h.get('x-ratelimit-limit'))
-  const remaining = Number(h.get('x-ratelimit-remaining'))
+  const rawLimit = h.get('x-ratelimit-limit')
+  const rawRemaining = h.get('x-ratelimit-remaining')
+  if (rawLimit == null || rawRemaining == null) return null
+  const limit = Number(rawLimit)
+  const remaining = Number(rawRemaining)
   if (!Number.isFinite(limit) || !Number.isFinite(remaining)) return null
   if (limit < 0 || remaining < 0) return null
   const rawUsed = Number(h.get('x-ratelimit-used'))
@@ -154,6 +157,7 @@ function readRateLimitHeaders(h) {
 /** Validate a rate-limit object from the `/rate_limit` body. */
 function asValidRateLimit(obj) {
   if (!obj) return null
+  if (obj.limit == null || obj.remaining == null) return null
   const limit = Number(obj.limit)
   const remaining = Number(obj.remaining)
   if (!Number.isFinite(limit) || !Number.isFinite(remaining)) return null
