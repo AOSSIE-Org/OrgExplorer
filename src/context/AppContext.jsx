@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef } from 'react'
-import { fetchOrg, fetchRepos, fetchContributors, fetchIssues, fetchRateLimit, fetchPulls } from '../services/github'
+import { fetchOrg, fetchRepos, fetchContributors, fetchIssues, fetchRateLimit, fetchPulls, bumpPatGeneration, asValidRateLimit } from '../services/github'
 import { buildAnalyticalModel, getTopRepositories } from '../services/analytics'
 import { saveAnalysis, loadAnalysis } from '../services/cache'
 
@@ -32,6 +32,8 @@ export function AppProvider({ children }) {
   const [issuesData, setIssuesData] = useState({})
   const [pullsData, setPullsData] = useState({})
   const [rateLimit, setRateLimit] = useState(getStoredRateLimit)
+  const rateLimitRef = useRef(rateLimit)
+  const patGenerationRef = useRef(0)
   const [loading, setLoading] = useState(false)
   const [loadMsg, setLoadMsg] = useState('')
   const [govLoading, setGovLoading] = useState(false)
@@ -100,8 +102,11 @@ export function AppProvider({ children }) {
 
   useEffect(() => {
     const handler = e => {
-      setRateLimit(e.detail)
-      localStorage.setItem('oe_rate_limit', JSON.stringify(e.detail))
+      const normalized = asValidRateLimit(e.detail)
+      if (!normalized) return
+      rateLimitRef.current = normalized
+      setRateLimit(normalized)
+      localStorage.setItem('oe_rate_limit', JSON.stringify(normalized))
     }
 
     window.addEventListener('rate-limit-update', handler)
@@ -115,6 +120,7 @@ export function AppProvider({ children }) {
     if (!rateLimit?.reset) return
 
     const timeout = setTimeout(() => {
+      rateLimitRef.current = null
       localStorage.removeItem('oe_rate_limit')
       setRateLimit(null)
     }, Math.max(0, rateLimit.reset * 1000 - Date.now()))
@@ -123,16 +129,40 @@ export function AppProvider({ children }) {
   }, [rateLimit])
 
   const refreshRateLimit = useCallback(async () => {
+    const generation = patGenerationRef.current
     const rl = await fetchRateLimit(pat)
-    if (rl) {
-      setRateLimit(rl)
-      return true
+    if (!rl) return false
+    if (generation !== patGenerationRef.current) return 'superseded'
+    // `GET /rate_limit` does not consume quota and its `resources.core`
+    // body can lag behind the live `x-ratelimit-*` counters (reads full
+    // while search headers show consumed quota, with a different `reset`
+    // epoch). Never let a stale read inflate the remaining count while
+    // the current window is still active — only a new window expiry or a
+    // new limit (e.g. PAT added/removed) may legitimately raise it.
+    const currentRateLimit = rateLimitRef.current
+    if (
+      currentRateLimit &&
+      rl.limit === currentRateLimit.limit &&
+      rl.remaining > currentRateLimit.remaining
+    ) {
+      const windowActive = currentRateLimit.reset > 0 && Date.now() < currentRateLimit.reset * 1000
+      if (windowActive) return true
     }
-    return false
+    rateLimitRef.current = rl
+    setRateLimit(rl)
+    localStorage.setItem('oe_rate_limit', JSON.stringify(rl))
+    return true
   }, [pat])
   const savePat = useCallback(token => {
+    patGenerationRef.current += 1
+    bumpPatGeneration()
     setPat(token)
     token ? localStorage.setItem('oe_pat', token) : localStorage.removeItem('oe_pat')
+    // Old quota belongs to the old PAT. Clear it so the new PAT's higher
+    // remaining count is accepted instead of being blocked as stale.
+    rateLimitRef.current = null
+    localStorage.removeItem('oe_rate_limit')
+    setRateLimit(null)
   }, [])
 
   // Multi-org explore
