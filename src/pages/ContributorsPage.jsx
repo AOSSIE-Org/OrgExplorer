@@ -16,7 +16,7 @@ export default function ContributorsPage() {
   const [shown, setShown] = useState(20)
   const [openInfo, setOpenInfo] = useState(null)
   const [selectedOrg, setSelectedOrg] = useState('all')
- const busFactorRef = useRef(null)
+  const busFactorRef = useRef(null)
   const freshnessRef = useRef(null)
   const signalRef = useRef(null)
 
@@ -54,7 +54,7 @@ export default function ContributorsPage() {
   }, [orgs])
 
 
-  
+
 
   const scopedContributors = useMemo(() => {
     if (selectedOrg === 'all') {
@@ -65,7 +65,7 @@ export default function ContributorsPage() {
       contributor.orgs.includes(selectedOrg)
     )
   }, [contributors, selectedOrg])
-  
+
   const busFactor = useMemo(
     () => computeBusFactor(scopedContributors),
     [scopedContributors]
@@ -85,7 +85,7 @@ export default function ContributorsPage() {
   const { sorted, sortConfig, onSort } = useSortedData(filtered, 'totalContribs', 'desc')
   const visible = sorted.slice(0, shown)
 
-  if(loading) return <ContributorSkeleton />
+  if (loading) return <ContributorSkeleton />
   if (!model) return null
 
   const topActive = scopedContributors
@@ -130,7 +130,7 @@ export default function ContributorsPage() {
       />
 
       {/* Signal panels */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
+      <div className="contributors-signal-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
 
         {/* Bus Factor */}
         <div style={{
@@ -152,7 +152,7 @@ export default function ContributorsPage() {
             </button>
 
             {openInfo === 'busfactor' && (
-              <div style={{ ...C.card, position: 'absolute', top: '120%', right: 0, width: '320px', zIndex: 100 }}>
+              <div className="info-popover" style={{ ...C.card, position: 'absolute', top: '120%', right: 0, width: '320px', zIndex: 100 }}>
                 <div className='text-xs text-(--text)'>
                   <h4 style={{ marginBottom: 8 }} className='text-(--accent)'>Bus Factor</h4>
 
@@ -222,7 +222,7 @@ export default function ContributorsPage() {
                   width: '320px',
                   zIndex: 100,
                 }}
-                className='text-xs'
+                className='text-xs info-popover'
               >
                 <div className="text-(--text) text-xs">
                   <h4 className='text-(--accent)'>Freshness Index</h4>
@@ -350,6 +350,7 @@ export default function ContributorsPage() {
                             width: '320px',
                             zIndex: 100,
                           }}
+                          className="info-popover"
                         >
                           <h4 className='mb-2 text-(--accent)'>Contributor Signals</h4>
 

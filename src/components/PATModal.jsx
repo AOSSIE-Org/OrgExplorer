@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import {FiEye, FiEyeOff, FiSave, FiTrash2, FiX} from "react-icons/fi";
+import { FiEye, FiEyeOff, FiSave, FiTrash2, FiX } from "react-icons/fi";
 import { useApp } from "../context/AppContext";
 
 export default function PATModal({ open, onClose }) {
@@ -15,6 +15,31 @@ export default function PATModal({ open, onClose }) {
       setSaved(false);
     }
   }, [open, pat]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+
+    const scrollY = window.scrollY;
+    const previousBodyStyles = {
+      overflow: document.body.style.overflow,
+      position: document.body.style.position,
+      top: document.body.style.top,
+      width: document.body.style.width,
+    };
+
+    document.body.style.overflow = "hidden";
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = "100%";
+
+    return () => {
+      document.body.style.overflow = previousBodyStyles.overflow;
+      document.body.style.position = previousBodyStyles.position;
+      document.body.style.top = previousBodyStyles.top;
+      document.body.style.width = previousBodyStyles.width;
+      window.scrollTo(0, scrollY);
+    };
+  }, [open]);
 
   if (!open) return null;
 
@@ -46,6 +71,7 @@ export default function PATModal({ open, onClose }) {
 
       {/* Modal */}
       <div
+        className="pat-modal"
         style={{
           position: "fixed",
           left: "50%",
@@ -58,7 +84,9 @@ export default function PATModal({ open, onClose }) {
           borderRadius: 12,
           zIndex: 1000,
           boxShadow: "0 20px 60px rgba(0,0,0,.45)",
-          overflow: "hidden",
+          maxHeight: "calc(100vh - 32px)",
+          overflowY: "auto",
+          overflowX: "hidden",
         }}
       >
         {/* Header */}
@@ -96,11 +124,19 @@ export default function PATModal({ open, onClose }) {
           <button
             type="button"
             onClick={onClose}
+            aria-label="Close"
+            title="Close"
             style={{
               background: "transparent",
               border: "none",
               color: "var(--text2)",
               cursor: "pointer",
+              width: 36,
+              height: 36,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
             }}
           >
             <FiX size={20} />
@@ -222,6 +258,7 @@ export default function PATModal({ open, onClose }) {
           </div>
 
           <div
+            className="pat-modal-instructions"
             style={{
               display: "grid",
               gridTemplateColumns: "1fr 1fr",
