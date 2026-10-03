@@ -114,6 +114,8 @@ const getOrgFromRepoUrl = (url) => {
   return match ? match[1] : ''
 }
 
+const GITHUB_LOGIN_REGEX = /^[a-z\d](?:[a-z\d]|-(?=[a-z\d])){0,38}$/i
+
 export default function ContributorProfilePage() {
   const { username } = useParams()
   const navigate = useNavigate()
@@ -121,6 +123,7 @@ export default function ContributorProfilePage() {
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [warning, setWarning] = useState('')
   const [rawContributions, setRawContributions] = useState([])
   const [mergedPRKeys, setMergedPRKeys] = useState(new Set())
   const [tab, setTab] = useState('prs')
@@ -164,15 +167,16 @@ export default function ContributorProfilePage() {
     // Also include contributor's known orgs from the analytical model if available
     if (contributor?.orgs?.length) {
       for (const org of contributor.orgs) {
-        if (typeof org === 'string' && org.trim() && !list.includes(org.trim())) {
+        if (typeof org === 'string' && org.trim()) {
           list.push(org.trim())
         }
       }
     }
-    return list
+    const normalized = list
       .map(o => (typeof o === 'string' ? o.trim() : ''))
       .filter(Boolean)
       .filter(o => o !== 'undefined' && o !== 'null')
+    return Array.from(new Set(normalized))
   }, [orgs, contributor])
 
   // Fetch contributor issues & PRs from GitHub Search API (Supports pagination & cleanup)
@@ -183,7 +187,7 @@ export default function ContributorProfilePage() {
     setSelectedOrg('all')
 
     const cleanUser = typeof username === 'string' ? username.trim() : ''
-    if (!cleanUser || cleanUser === 'undefined' || cleanUser === 'null') {
+    if (!cleanUser || cleanUser === 'undefined' || cleanUser === 'null' || !GITHUB_LOGIN_REGEX.test(cleanUser)) {
       setError('Invalid contributor username.')
       setLoading(false)
       return
@@ -195,12 +199,20 @@ export default function ContributorProfilePage() {
       return
     }
 
+    const validOrgs = searchOrgs.filter(org => GITHUB_LOGIN_REGEX.test(org))
+    if (!validOrgs.length) {
+      setError('No valid organizations found to query.')
+      setLoading(false)
+      return
+    }
+
     let active = true
     const controller = new AbortController()
 
     async function fetchData() {
       setLoading(true)
       setError('')
+      setWarning('')
       try {
         const encodedUser = encodeURIComponent(cleanUser)
         const headers = { Accept: 'application/vnd.github.v3+json' }
@@ -211,40 +223,61 @@ export default function ContributorProfilePage() {
         // Query each organization individually to avoid invalid multi-org queries
         // (in GitHub search syntax, multiple org: qualifiers are treated as AND,
         // which returns 0 results or 422 Unprocessable Content if an org is inaccessible)
-        const orgQueries = searchOrgs.map(async (org) => {
+        const executeOrgQuery = async (org) => {
           const encodedOrg = encodeURIComponent(org)
           const url = `https://api.github.com/search/issues?q=author:${encodedUser}+org:${encodedOrg}&per_page=100`
           const mergedUrl = `https://api.github.com/search/issues?q=author:${encodedUser}+is:pr+is:merged+org:${encodedOrg}&per_page=100`
 
-          const [items, mergedItems] = await Promise.all([
+          const [itemsRes, mergedRes] = await Promise.allSettled([
             fetchAllPages(url, headers, controller.signal),
             fetchAllPages(mergedUrl, headers, controller.signal),
           ])
 
-          return { org, items, mergedItems }
-        })
+          if (itemsRes.status === 'rejected') {
+            throw itemsRes.reason
+          }
 
-        const settled = await Promise.allSettled(orgQueries)
+          const items = itemsRes.value || []
+          const mergedItems = mergedRes.status === 'fulfilled' ? (mergedRes.value || []) : []
+          const mergedFailed = mergedRes.status === 'rejected'
+
+          return { org, items, mergedItems, mergedFailed }
+        }
+
+        // Limit concurrent search requests to 2 to respect GitHub rate limits
+        const settled = []
+        for (let i = 0; i < validOrgs.length; i += 2) {
+          const batch = validOrgs.slice(i, i + 2)
+          const batchResults = await Promise.allSettled(batch.map(org => executeOrgQuery(org)))
+          settled.push(...batchResults)
+        }
+
         if (!active) return
 
         const allItems = []
         const mergedKeys = new Set()
         let anySuccess = false
         const failureReasons = []
+        const partialFailures = []
 
         settled.forEach((res, idx) => {
           if (res.status === 'fulfilled') {
             anySuccess = true
-            const { items, mergedItems } = res.value
+            const { org, items, mergedItems, mergedFailed } = res.value
             allItems.push(...items)
             mergedItems.forEach(item => {
               const repo = getFullRepoFromUrl(item.repository_url)
               mergedKeys.add(`${repo}/${item.number}`)
             })
+            if (mergedFailed) {
+              partialFailures.push(`${org} (merged PR status incomplete)`)
+            }
           } else {
             const err = res.reason
             if (err?.name !== 'AbortError') {
-              failureReasons.push(`${searchOrgs[idx]}: ${err.message}`)
+              const orgName = validOrgs[idx]
+              failureReasons.push(`${orgName}: ${err.message}`)
+              partialFailures.push(orgName)
             }
           }
         })
@@ -255,6 +288,12 @@ export default function ContributorProfilePage() {
             throw new Error('RATE_LIMIT')
           }
           throw new Error(failureReasons.join(', '))
+        }
+
+        if (anySuccess && partialFailures.length) {
+          setWarning(`Partial results loaded. Some organization queries could not be completed: ${partialFailures.join(', ')}`)
+        } else {
+          setWarning('')
         }
 
         // Deduplicate items across org queries
@@ -555,6 +594,13 @@ export default function ContributorProfilePage() {
         <div style={{ ...C.card, display: 'flex', alignItems: 'center', gap: 12, borderColor: 'var(--red)', background: 'rgba(239,68,68,.05)', marginBottom: 20 }}>
           <FiAlertTriangle color="var(--red)" size={18} />
           <span style={{ fontSize: 13, color: 'var(--red)', fontWeight: 500 }}>{error}</span>
+        </div>
+      )}
+
+      {warning && (
+        <div style={{ ...C.card, display: 'flex', alignItems: 'center', gap: 12, borderColor: '#f59e0b', background: 'rgba(245,158,11,.05)', marginBottom: 20 }}>
+          <FiAlertTriangle color="#f59e0b" size={18} />
+          <span style={{ fontSize: 13, color: '#f59e0b', fontWeight: 500 }}>{warning}</span>
         </div>
       )}
 

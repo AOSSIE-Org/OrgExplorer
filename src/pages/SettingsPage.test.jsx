@@ -38,6 +38,17 @@ describe('SettingsPage', () => {
     expect(await screen.findByRole('button', { name: /cleared/i })).toBeInTheDocument()
   })
 
+  it('does not clear cache or analysis when confirmation is declined', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(false)
+
+    render(<SettingsPage />)
+
+    await userEvent.click(screen.getByRole('button', { name: /clear all/i }))
+
+    expect(cacheClear).not.toHaveBeenCalled()
+    expect(clearAnalysis).not.toHaveBeenCalled()
+  })
+
   it('does not report success when the analysis cache fails to clear', async () => {
     cacheClear.mockResolvedValue(true)
     clearAnalysis.mockResolvedValue(false)
