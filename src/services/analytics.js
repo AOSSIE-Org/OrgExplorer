@@ -20,19 +20,20 @@ export function computeActivityClassification(repo) {
 
 //  Bus Factor
 export function computeBusFactor(contributors = []) {
-  if (!contributors.length) return { factor: 0, risk: 'unknown' }
-  const getCount = c => c.contributions ?? c.totalContribs ?? 0
-  const total = contributors.reduce((s, c) => s + getCount(c), 0)
+  const valid = (contributors || []).filter(c => c && typeof c === 'object')
+  if (!valid.length) return { factor: 0, risk: 'unknown' }
+  const getCount = c => c?.contributions ?? c?.totalContribs ?? 0
+  const total = valid.reduce((s, c) => s + getCount(c), 0)
   if (!total) return { factor: 0, risk: 'unknown' }
   let cum = 0
-  for (let i = 0; i < contributors.length; i++) {
-    cum += getCount(contributors[i])
+  for (let i = 0; i < valid.length; i++) {
+    cum += getCount(valid[i])
     if (cum / total > 0.5) {
       const f = i + 1
       return { factor: f, risk: f <= 1 ? 'critical' : f <= 2 ? 'high' : 'healthy' }
     }
   }
-  return { factor: contributors.length, risk: 'healthy' }
+  return { factor: valid.length, risk: 'healthy' }
 }
 
 // Unified Analytical Data Model
@@ -63,6 +64,7 @@ export function buildAnalyticalModel(orgs, reposPerOrg, contribsPerRepo, totalRe
 
       // Build contributor map — deduplicated by login across orgs
       contribs.forEach(c => {
+        if (!c || !c.login) return
         if (!contributorMap[c.login]) {
           contributorMap[c.login] = {
             login: c.login,

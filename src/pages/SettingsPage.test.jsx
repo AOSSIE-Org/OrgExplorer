@@ -22,6 +22,7 @@ describe('SettingsPage', () => {
   beforeEach(() => {
     cacheClear.mockReset()
     clearAnalysis.mockReset()
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
   })
 
   it('clears both the raw-response cache and the persisted analysis cache on Clear All', async () => {
