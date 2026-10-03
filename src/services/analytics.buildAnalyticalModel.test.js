@@ -181,5 +181,8 @@ describe('buildAnalyticalModel', () => {
     expect(result.contributors).toHaveLength(1)
     expect(result.contributors[0].login).toBe('valid-user')
     expect(result.contributors.some(c => c.login === undefined)).toBe(false)
+    expect(result.totalRepos[0].contributors).toHaveLength(1)
+    expect(result.totalRepos[0].contributors[0].login).toBe('valid-user')
+    expect(result.totalRepos[0].busFactor.factor).toBe(1)
   })
 })

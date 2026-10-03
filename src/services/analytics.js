@@ -50,7 +50,8 @@ export function buildAnalyticalModel(orgs, reposPerOrg, contribsPerRepo, totalRe
 
     total.forEach(repo => {
       const key = `${org.login}/${repo.name}`
-      const contribs = contribsPerRepo[key] || []
+      const rawContribs = contribsPerRepo[key] || []
+      const contribs = rawContribs.filter(c => c && typeof c === 'object' && c.login)
       const health = computeHealthScore(repo, contribs.length)
       const activityClassification = computeActivityClassification(repo)
       const bf = computeBusFactor(contribs)
