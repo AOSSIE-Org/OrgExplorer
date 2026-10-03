@@ -68,7 +68,16 @@ async function fetchAllPages(initialUrl, headers, signal) {
       throw new Error('RATE_LIMIT')
     }
     if (!res.ok) {
-      throw new Error(`HTTP_${res.status}`)
+      let message = `HTTP_${res.status}`
+      try {
+        const errJson = await res.json()
+        if (errJson?.errors?.[0]?.message) {
+          message = errJson.errors[0].message
+        } else if (errJson?.message) {
+          message = errJson.message
+        }
+      } catch {}
+      throw new Error(message)
     }
     const data = await res.json()
     items = items.concat(data.items || [])
@@ -105,6 +114,8 @@ const getOrgFromRepoUrl = (url) => {
   return match ? match[1] : ''
 }
 
+const GITHUB_LOGIN_REGEX = /^[a-z\d](?:[a-z\d]|-(?=[a-z\d])){0,38}$/i
+
 export default function ContributorProfilePage() {
   const { username } = useParams()
   const navigate = useNavigate()
@@ -112,6 +123,7 @@ export default function ContributorProfilePage() {
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [warning, setWarning] = useState('')
   const [rawContributions, setRawContributions] = useState([])
   const [mergedPRKeys, setMergedPRKeys] = useState(new Set())
   const [tab, setTab] = useState('prs')
@@ -152,8 +164,20 @@ export default function ContributorProfilePage() {
         console.error('Failed to parse oe_recent from localStorage:', e)
       }
     }
-    return list
-  }, [orgs])
+    // Also include contributor's known orgs from the analytical model if available
+    if (contributor?.orgs?.length) {
+      for (const org of contributor.orgs) {
+        if (typeof org === 'string' && org.trim()) {
+          list.push(org.trim())
+        }
+      }
+    }
+    const normalized = list
+      .map(o => (typeof o === 'string' ? o.trim() : ''))
+      .filter(Boolean)
+      .filter(o => o !== 'undefined' && o !== 'null')
+    return Array.from(new Set(normalized))
+  }, [orgs, contributor])
 
   // Fetch contributor issues & PRs from GitHub Search API (Supports pagination & cleanup)
   useEffect(() => {
@@ -162,7 +186,9 @@ export default function ContributorProfilePage() {
     setMergedPRKeys(new Set())
     setSelectedOrg('all')
 
-    if (!username) {
+    const cleanUser = typeof username === 'string' ? username.trim() : ''
+    if (!cleanUser || cleanUser === 'undefined' || cleanUser === 'null' || !GITHUB_LOGIN_REGEX.test(cleanUser)) {
+      setError('Invalid contributor username.')
       setLoading(false)
       return
     }
@@ -173,39 +199,113 @@ export default function ContributorProfilePage() {
       return
     }
 
+    const validOrgs = searchOrgs.filter(org => GITHUB_LOGIN_REGEX.test(org))
+    if (!validOrgs.length) {
+      setError('No valid organizations found to query.')
+      setLoading(false)
+      return
+    }
+
     let active = true
     const controller = new AbortController()
 
     async function fetchData() {
       setLoading(true)
       setError('')
+      setWarning('')
       try {
-        const encodedUser = encodeURIComponent(username)
-        const orgQuery = searchOrgs.map(org => `org:${encodeURIComponent(org)}`).join('+')
-        const url = `https://api.github.com/search/issues?q=author:${encodedUser}+${orgQuery}&per_page=100`
-        const mergedUrl = `https://api.github.com/search/issues?q=author:${encodedUser}+is:pr+is:merged+${orgQuery}&per_page=100`
-
+        const encodedUser = encodeURIComponent(cleanUser)
         const headers = { Accept: 'application/vnd.github.v3+json' }
         if (pat) {
           headers.Authorization = `token ${pat}`
         }
 
-        const [items, mergedItems] = await Promise.all([
-          fetchAllPages(url, headers, controller.signal),
-          fetchAllPages(mergedUrl, headers, controller.signal)
-        ])
+        // Query each organization individually to avoid invalid multi-org queries
+        // (in GitHub search syntax, multiple org: qualifiers are treated as AND,
+        // which returns 0 results or 422 Unprocessable Content if an org is inaccessible)
+        const executeOrgQuery = async (org) => {
+          const encodedOrg = encodeURIComponent(org)
+          const url = `https://api.github.com/search/issues?q=author:${encodedUser}+org:${encodedOrg}&per_page=100`
+          const mergedUrl = `https://api.github.com/search/issues?q=author:${encodedUser}+is:pr+is:merged+org:${encodedOrg}&per_page=100`
+
+          const [itemsRes, mergedRes] = await Promise.allSettled([
+            fetchAllPages(url, headers, controller.signal),
+            fetchAllPages(mergedUrl, headers, controller.signal),
+          ])
+
+          if (itemsRes.status === 'rejected') {
+            throw itemsRes.reason
+          }
+
+          const items = itemsRes.value || []
+          const mergedItems = mergedRes.status === 'fulfilled' ? (mergedRes.value || []) : []
+          const mergedFailed = mergedRes.status === 'rejected'
+
+          return { org, items, mergedItems, mergedFailed }
+        }
+
+        // Limit concurrent search requests to 2 to respect GitHub rate limits
+        const settled = []
+        for (let i = 0; i < validOrgs.length; i += 2) {
+          const batch = validOrgs.slice(i, i + 2)
+          const batchResults = await Promise.allSettled(batch.map(org => executeOrgQuery(org)))
+          settled.push(...batchResults)
+        }
 
         if (!active) return
 
-        const mergedKeys = new Set(
-          mergedItems.map(item => {
-            const repo = getFullRepoFromUrl(item.repository_url)
-            return `${repo}/${item.number}`
-          })
-        )
+        const allItems = []
+        const mergedKeys = new Set()
+        let anySuccess = false
+        const failureReasons = []
+        const partialFailures = []
+
+        settled.forEach((res, idx) => {
+          if (res.status === 'fulfilled') {
+            anySuccess = true
+            const { org, items, mergedItems, mergedFailed } = res.value
+            allItems.push(...items)
+            mergedItems.forEach(item => {
+              const repo = getFullRepoFromUrl(item.repository_url)
+              mergedKeys.add(`${repo}/${item.number}`)
+            })
+            if (mergedFailed) {
+              partialFailures.push(`${org} (merged PR status incomplete)`)
+            }
+          } else {
+            const err = res.reason
+            if (err?.name !== 'AbortError') {
+              const orgName = validOrgs[idx]
+              failureReasons.push(`${orgName}: ${err.message}`)
+              partialFailures.push(orgName)
+            }
+          }
+        })
+
+        if (!anySuccess && failureReasons.length) {
+          const firstRateLimit = failureReasons.some(msg => msg.includes('RATE_LIMIT'))
+          if (firstRateLimit) {
+            throw new Error('RATE_LIMIT')
+          }
+          throw new Error(failureReasons.join(', '))
+        }
+
+        if (anySuccess && partialFailures.length) {
+          setWarning(`Partial results loaded. Some organization queries could not be completed: ${partialFailures.join(', ')}`)
+        } else {
+          setWarning('')
+        }
+
+        // Deduplicate items across org queries
+        const seenIds = new Set()
+        const dedupedItems = allItems.filter(item => {
+          if (!item?.id || seenIds.has(item.id)) return false
+          seenIds.add(item.id)
+          return true
+        })
 
         setMergedPRKeys(mergedKeys)
-        setRawContributions(items)
+        setRawContributions(dedupedItems)
       } catch (err) {
         if (!active) return
         if (err.name === 'AbortError') return
@@ -494,6 +594,13 @@ export default function ContributorProfilePage() {
         <div style={{ ...C.card, display: 'flex', alignItems: 'center', gap: 12, borderColor: 'var(--red)', background: 'rgba(239,68,68,.05)', marginBottom: 20 }}>
           <FiAlertTriangle color="var(--red)" size={18} />
           <span style={{ fontSize: 13, color: 'var(--red)', fontWeight: 500 }}>{error}</span>
+        </div>
+      )}
+
+      {warning && (
+        <div style={{ ...C.card, display: 'flex', alignItems: 'center', gap: 12, borderColor: '#f59e0b', background: 'rgba(245,158,11,.05)', marginBottom: 20 }}>
+          <FiAlertTriangle color="#f59e0b" size={18} />
+          <span style={{ fontSize: 13, color: '#f59e0b', fontWeight: 500 }}>{warning}</span>
         </div>
       )}
 

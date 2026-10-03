@@ -22,6 +22,7 @@ describe('SettingsPage', () => {
   beforeEach(() => {
     cacheClear.mockReset()
     clearAnalysis.mockReset()
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
   })
 
   it('clears both the raw-response cache and the persisted analysis cache on Clear All', async () => {
@@ -35,6 +36,17 @@ describe('SettingsPage', () => {
     expect(cacheClear).toHaveBeenCalledTimes(1)
     expect(clearAnalysis).toHaveBeenCalledTimes(1)
     expect(await screen.findByRole('button', { name: /cleared/i })).toBeInTheDocument()
+  })
+
+  it('does not clear cache or analysis when confirmation is declined', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(false)
+
+    render(<SettingsPage />)
+
+    await userEvent.click(screen.getByRole('button', { name: /clear all/i }))
+
+    expect(cacheClear).not.toHaveBeenCalled()
+    expect(clearAnalysis).not.toHaveBeenCalled()
   })
 
   it('does not report success when the analysis cache fails to clear', async () => {
