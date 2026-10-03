@@ -12,6 +12,7 @@ import ContributorProfilePage from './pages/ContributorProfilePage'
 import NetworkPage     from './pages/NetworkPage'
 import AnalyticsPage   from './pages/AnalyticsPage'
 import GovernancePage  from './pages/GovernancePage'
+import IssuesPage      from './pages/IssuesPage'
 import SettingsPage    from './pages/SettingsPage'
 import Footer from './components/layout/Footer'
 import Support from './pages/Support'
@@ -37,6 +38,7 @@ function AppContent() {
         <Route path="/repositories" element={<RequireAnalysis><RepositoriesPage /></RequireAnalysis>} />
         <Route path="/contributors" element={<RequireAnalysis><ContributorsPage /></RequireAnalysis>} />
         <Route path="/contributors/:username" element={<RequireAnalysis><ContributorProfilePage /></RequireAnalysis>} />
+        <Route path="/issues"       element={<RequireAnalysis><IssuesPage /></RequireAnalysis>} />
         <Route path="/network"      element={<RequireAnalysis><NetworkPage /></RequireAnalysis>} />
         <Route path="/analytics"    element={<RequireAnalysis><AnalyticsPage /></RequireAnalysis>} />
         <Route path="/governance"   element={<RequireAnalysis><GovernancePage /></RequireAnalysis>} />
