@@ -3,6 +3,13 @@ const DB_NAME = 'orgexplorer_cache'
 const STORE = 'cache'
 const TTL_MS = 3_600_000 // 1 hour
 
+// PAT generation: bumped every time the saved PAT changes (even A -> B -> A).
+// Requests capture it at start and drop their quota event if it changed,
+// so a late response from an old identity never overwrites current state.
+let patGeneration = 0
+export function bumpPatGeneration() { patGeneration += 1 }
+export function getPatGeneration() { return patGeneration }
+
 function openDB() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, 1)
@@ -53,6 +60,7 @@ export async function cacheClear() {
 
 // Core fetchWithCache 
 async function fetchWithCache(url, pat) {
+  const generationAtStart = patGeneration
   // L2 check
   const cached = await cacheGet(url)
   if (cached) return cached
@@ -64,9 +72,22 @@ async function fetchWithCache(url, pat) {
 
   const live = readRateLimitHeaders(res.headers)
   if (live) {
-    window.dispatchEvent(
-      new CustomEvent('rate-limit-update', { detail: live })
-    )
+    // Drop quota events from a superseded PAT: if the user saved a new
+    // token while this request was in flight, its counters belong to the
+    // old identity and must not overwrite the cleared/current state.
+    // Generation catches even A -> B -> A (same value, new save).
+    let superseded = generationAtStart !== patGeneration
+    if (!superseded) {
+      try {
+        const currentPat = typeof localStorage !== 'undefined' ? localStorage.getItem('oe_pat') || '' : null
+        if (currentPat !== null) superseded = (pat || '') !== currentPat
+      } catch { /* keep generation-check result on storage failure */ }
+    }
+    if (!superseded) {
+      window.dispatchEvent(
+        new CustomEvent('rate-limit-update', { detail: live })
+      )
+    }
   }
 
   if (res.status === 403) throw new Error('RATE_LIMIT')
@@ -130,6 +151,23 @@ export async function fetchPulls(org, repo, pat) {
   return all
 }
 
+/** Shared numeric validation, nonnegative checks and reset fallback. */
+export function normalizeRateLimit(limitRaw, remainingRaw, usedRaw, resetRaw) {
+  if (limitRaw == null || remainingRaw == null) return null
+  const limit = Number(limitRaw)
+  const remaining = Number(remainingRaw)
+  if (!Number.isFinite(limit) || !Number.isFinite(remaining)) return null
+  if (limit < 0 || remaining < 0) return null
+  const used = Number(usedRaw)
+  const reset = Number(resetRaw)
+  return {
+    limit,
+    remaining,
+    used: Number.isFinite(used) ? used : limit - remaining,
+    reset: Number.isFinite(reset) ? reset : 0,
+  }
+}
+
 /** Read live counters from response headers (authoritative per GitHub docs).
  *  Returns null when the headers are absent so callers can fall back. */
 function readRateLimitHeaders(h) {
@@ -137,39 +175,18 @@ function readRateLimitHeaders(h) {
   const rawLimit = h.get('x-ratelimit-limit')
   const rawRemaining = h.get('x-ratelimit-remaining')
   if (rawLimit == null || rawRemaining == null) return null
-  const limit = Number(rawLimit)
-  const remaining = Number(rawRemaining)
-  if (!Number.isFinite(limit) || !Number.isFinite(remaining)) return null
-  if (limit < 0 || remaining < 0) return null
   const rawUsed = Number(h.get('x-ratelimit-used'))
-  const rawReset = Number(h.get('x-ratelimit-reset'))
+  const rawReset = h.get('x-ratelimit-reset')
   // `x-ratelimit-used` is not in Access-Control-Expose-Headers, so browsers
   // always read it as null -> 0. Derive it instead of showing a false 0.
-  const used = Number.isFinite(rawUsed) && rawUsed > 0 ? rawUsed : limit - remaining
-  return {
-    limit,
-    remaining,
-    used,
-    reset: Number.isFinite(rawReset) ? rawReset : 0,
-  }
+  const usedRaw = Number.isFinite(rawUsed) && rawUsed > 0 ? rawUsed : undefined
+  return normalizeRateLimit(rawLimit, rawRemaining, usedRaw, rawReset)
 }
 
 /** Validate a rate-limit object from the `/rate_limit` body. */
-function asValidRateLimit(obj) {
+export function asValidRateLimit(obj) {
   if (!obj) return null
-  if (obj.limit == null || obj.remaining == null) return null
-  const limit = Number(obj.limit)
-  const remaining = Number(obj.remaining)
-  if (!Number.isFinite(limit) || !Number.isFinite(remaining)) return null
-  if (limit < 0 || remaining < 0) return null
-  const used = Number(obj.used)
-  const reset = Number(obj.reset)
-  return {
-    limit,
-    remaining,
-    used: Number.isFinite(used) ? used : limit - remaining,
-    reset: Number.isFinite(reset) ? reset : 0,
-  }
+  return normalizeRateLimit(obj.limit, obj.remaining, obj.used, obj.reset)
 }
 
 export async function fetchRateLimit(pat) {

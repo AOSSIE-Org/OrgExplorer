@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef } from 'react'
-import { fetchOrg, fetchRepos, fetchContributors, fetchIssues, fetchRateLimit, fetchPulls } from '../services/github'
+import { fetchOrg, fetchRepos, fetchContributors, fetchIssues, fetchRateLimit, fetchPulls, bumpPatGeneration, asValidRateLimit } from '../services/github'
 import { buildAnalyticalModel, getTopRepositories } from '../services/analytics'
 import { saveAnalysis, loadAnalysis } from '../services/cache'
 
@@ -33,6 +33,7 @@ export function AppProvider({ children }) {
   const [pullsData, setPullsData] = useState({})
   const [rateLimit, setRateLimit] = useState(getStoredRateLimit)
   const rateLimitRef = useRef(rateLimit)
+  const patGenerationRef = useRef(0)
   const [loading, setLoading] = useState(false)
   const [loadMsg, setLoadMsg] = useState('')
   const [govLoading, setGovLoading] = useState(false)
@@ -101,11 +102,11 @@ export function AppProvider({ children }) {
 
   useEffect(() => {
     const handler = e => {
-      const next = e.detail
-      if (!Number.isFinite(Number(next?.limit)) || !Number.isFinite(Number(next?.remaining))) return
-      rateLimitRef.current = next
-      setRateLimit(next)
-      localStorage.setItem('oe_rate_limit', JSON.stringify(next))
+      const normalized = asValidRateLimit(e.detail)
+      if (!normalized) return
+      rateLimitRef.current = normalized
+      setRateLimit(normalized)
+      localStorage.setItem('oe_rate_limit', JSON.stringify(normalized))
     }
 
     window.addEventListener('rate-limit-update', handler)
@@ -128,8 +129,10 @@ export function AppProvider({ children }) {
   }, [rateLimit])
 
   const refreshRateLimit = useCallback(async () => {
+    const generation = patGenerationRef.current
     const rl = await fetchRateLimit(pat)
     if (!rl) return false
+    if (generation !== patGenerationRef.current) return 'superseded'
     // `GET /rate_limit` does not consume quota and its `resources.core`
     // body can lag behind the live `x-ratelimit-*` counters (reads full
     // while search headers show consumed quota, with a different `reset`
@@ -151,6 +154,8 @@ export function AppProvider({ children }) {
     return true
   }, [pat])
   const savePat = useCallback(token => {
+    patGenerationRef.current += 1
+    bumpPatGeneration()
     setPat(token)
     token ? localStorage.setItem('oe_pat', token) : localStorage.removeItem('oe_pat')
     // Old quota belongs to the old PAT. Clear it so the new PAT's higher
