@@ -82,6 +82,8 @@ describe('repository metrics across organizations', () => {
     expect(screen.getByText('Based on', { exact: false })).toHaveTextContent('0 merged pull requests')
     await user.selectOptions(selector, 'All Repositories')
     expect(screen.getByText('Based on', { exact: false })).toHaveTextContent('1 merged pull requests')
+    expect(screen.getByText((_, element) => element?.textContent === '1 merged · 1 rejected'))
+      .toBeInTheDocument()
   })
 
   it('keeps resolution rates and missing audit data scoped to their organization', () => {
