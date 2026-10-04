@@ -222,6 +222,7 @@ export function AppProvider({ children }) {
 
     const map = {}
     let hasFailures = false
+    const failedKeys = []
     for (let i = 0; i < repos.length; i += 5) {
       const batch = repos.slice(i, i + 5)
       const results = await Promise.allSettled(batch.map(async repo => {
@@ -230,9 +231,12 @@ export function AppProvider({ children }) {
       results.forEach((r, idx) => {
         if (r.status === 'rejected') {
           hasFailures = true
-          setAuditFailures(prev => [...new Set([...prev, `${batch[idx].orgLogin}/${batch[idx].name}`])])
+          failedKeys.push(`${batch[idx].orgLogin}/${batch[idx].name}`)
         }
       })
+    }
+    if (failedKeys.length) {
+      setAuditFailures(prev => [...new Set([...prev, ...failedKeys])])
     }
     return { map, hasFailures }
   }, [pat, selectAnalysisRepos])
@@ -331,7 +335,11 @@ export function AppProvider({ children }) {
     setAdvanceAnalyticsLoading(true)
 
     const [issuesMap, pullsMap] = await Promise.all([
-      auditRepos(currentModel.allRepos),
+      (async () => {
+        const { map, hasFailures } = await auditRepos(currentModel.allRepos)
+        if (hasFailures) setAuditFailures(prev => prev)
+        return map
+      })(),
       (async () => {
         const repos = selectAnalysisRepos(currentModel.totalRepos)
         const map = {}
@@ -393,7 +401,7 @@ export function AppProvider({ children }) {
       rateLimit, loading, loadMsg, govLoading, error, totalRepo,
       runAdvanceAnalytics, refreshRateLimit, advanceAnalyticsLoading, advanceAnalyticsComplete,
       runFullAnalytics,
-      isComplete, auditComplete, lastOrgNames, hydrating,
+      isComplete, auditComplete, auditFailures, lastOrgNames, hydrating,
       explore, runFullExplore, runAudit, runGovernanceAnalysis, setError, staleRepoStats
     }}>
       {children}
