@@ -37,8 +37,7 @@ export default function AnalyticsPage() {
 
   const filteredIssues = useMemo(() => {
     if (selectedRepo === 'All') return allIssues
-    const key = Object.keys(issuesData || {}).find(k => k.split('/')[1] === selectedRepo)
-    return key ? (issuesData[key] || []) : []
+    return issuesData?.[selectedRepo] || []
   }, [allIssues, selectedRepo, issuesData])
 
   const series = useMemo(() =>
@@ -48,8 +47,7 @@ export default function AnalyticsPage() {
 
   const filteredPulls = useMemo(() => {
     if (selectedRepoForAM === 'All Repositories') return Object.values(pullsData || {}).flat()
-    const key = Object.keys(pullsData || {}).find(k => k.split('/')[1] === selectedRepoForAM)
-    return key ? (pullsData[key] || []) : []
+    return pullsData?.[selectedRepoForAM] || []
   }, [pullsData, selectedRepoForAM])
 
   const advancedMetrics = useAdvancedMetrics(filteredPulls)
@@ -68,8 +66,8 @@ export default function AnalyticsPage() {
     }
   ]
   
-  const repoNames = ['All', ...Object.keys(issuesData || {}).map(k => k.split('/')[1])]
-  const allRepoNames = ['All Repositories', ...Object.keys(pullsData || {}).map(k => k.split('/')[1])]
+  const repoNames = ['All', ...Object.keys(issuesData || {})]
+  const allRepoNames = ['All Repositories', ...Object.keys(pullsData || {})]
   const hasData = Object.keys(issuesData || {}).length > 0
   const hasPullsData = Object.keys(pullsData || {}).length > 0
   const hasSeries = series.length > 0
