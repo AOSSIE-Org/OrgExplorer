@@ -41,6 +41,7 @@ export function AppProvider({ children }) {
   const [advanceAnalyticsComplete, setAdvanceAnalyticsComplete] = useState(false) 
   const [isComplete, setIsComplete] = useState(false)
   const [auditComplete, setAuditComplete] = useState(false)
+  const [auditFailures, setAuditFailures] = useState([])
   const [lastOrgNames, setLastOrgNames] = useState([])
   // True until the cached analysis has been read, so routes that need a model
   // wait for the restore instead of bouncing to the picker on first paint.
@@ -220,23 +221,31 @@ export function AppProvider({ children }) {
     const repos = selectAnalysisRepos(allRepos)
 
     const map = {}
+    let hasFailures = false
     for (let i = 0; i < repos.length; i += 5) {
       const batch = repos.slice(i, i + 5)
-      await Promise.allSettled(batch.map(async repo => {
+      const results = await Promise.allSettled(batch.map(async repo => {
         map[`${repo.orgLogin}/${repo.name}`] = await fetchIssues(repo.orgLogin, repo.name, pat)
       }))
+      results.forEach((r, idx) => {
+        if (r.status === 'rejected') {
+          hasFailures = true
+          setAuditFailures(prev => [...new Set([...prev, `${batch[idx].orgLogin}/${batch[idx].name}`])])
+        }
+      })
     }
-    return map
+    return { map, hasFailures }
   }, [pat, selectAnalysisRepos])
 
   // Governance audit : used directly when repos are already complete
   const runAudit = useCallback(async () => {
     if (!model || govLoading) return
     setGovLoading(true)
-    const map = await auditRepos(model.allRepos)
+    setAuditFailures([])
+    const { map, hasFailures } = await auditRepos(model.allRepos)
     setIssuesData(map)
     setGovLoading(false)
-    setAuditComplete(!!pat)
+    setAuditComplete(!hasFailures && !!pat)
   }, [model, pat, govLoading, auditRepos])
 
   // Entry point for Governance / Analytics "Run Complete Analysis"
@@ -259,10 +268,11 @@ export function AppProvider({ children }) {
     if (!currentModel) return
 
     setGovLoading(true)
-    const map = await auditRepos(currentModel.allRepos)
+    setAuditFailures([])
+    const { map, hasFailures } = await auditRepos(currentModel.allRepos)
     setIssuesData(map)
     setGovLoading(false)
-    setAuditComplete(!!pat)
+    setAuditComplete(!hasFailures && !!pat)
   }, [isComplete, model, runFullExplore, auditRepos, pat, govLoading])
 
   // Advanced analytics — parallel batches of 5 (Section 3.2.5)
