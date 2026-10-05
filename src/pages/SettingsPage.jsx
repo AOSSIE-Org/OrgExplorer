@@ -39,6 +39,7 @@ export default function SettingsPage() {
       }
 
       savePat(token);
+      refreshRateLimit(token);
     } catch (err) {
       setTokenError('Network error verifying token');
     } finally {
@@ -51,6 +52,7 @@ export default function SettingsPage() {
     savePat('')
     setDraft('')
     setTokenError('')
+    refreshRateLimit('')
   }
 
   const handleClear = async () => {
@@ -322,7 +324,7 @@ export default function SettingsPage() {
               </>
             ) : (
               <div style={{ fontSize: 13, color: 'var(--text2)' }}>
-                Explore an organization to see your live API quota status.
+                Explore an organization or click refresh to see your live API quota status.
               </div>
             )}
           </div>
