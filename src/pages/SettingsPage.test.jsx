@@ -3,16 +3,25 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import SettingsPage from './SettingsPage'
 
+const { cacheClear, mockSavePat, mockRefreshRateLimit, appState } = vi.hoisted(() => ({
+  cacheClear: vi.fn(),
+  mockSavePat: vi.fn(),
+  mockRefreshRateLimit: vi.fn(),
+  appState: {
+    pat: '',
+    rateLimit: null,
+  },
+}))
+
 vi.mock('../context/AppContext', () => ({
   useApp: () => ({
-    pat: '',
-    savePat: vi.fn(),
-    rateLimit: null,
-    refreshRateLimit: vi.fn(),
+    pat: appState.pat,
+    savePat: mockSavePat,
+    rateLimit: appState.rateLimit,
+    refreshRateLimit: mockRefreshRateLimit,
   }),
 }))
 
-const { cacheClear } = vi.hoisted(() => ({ cacheClear: vi.fn() }))
 vi.mock('../services/github', () => ({ cacheClear }))
 
 const { clearAnalysis } = vi.hoisted(() => ({ clearAnalysis: vi.fn() }))
@@ -22,6 +31,9 @@ describe('SettingsPage', () => {
   beforeEach(() => {
     cacheClear.mockReset()
     clearAnalysis.mockReset()
+    mockRefreshRateLimit.mockReset()
+    mockSavePat.mockReset()
+    appState.rateLimit = null
     // #267 added a window.confirm guard to handleClear; auto-confirm it in tests
     // so the clear flow proceeds. (jsdom's window.confirm returns false by default.)
     vi.spyOn(window, 'confirm').mockReturnValue(true)
@@ -80,5 +92,37 @@ describe('SettingsPage', () => {
 
     expect(cacheClear).not.toHaveBeenCalled()
     expect(clearAnalysis).not.toHaveBeenCalled()
+  })
+
+  it('calls refreshRateLimit when the API Quota refresh button is clicked', async () => {
+    mockRefreshRateLimit.mockResolvedValue(true)
+
+    render(<SettingsPage />)
+
+    const refreshBtn = screen.getByRole('button', { name: /refresh api quota/i })
+    await userEvent.click(refreshBtn)
+
+    expect(mockRefreshRateLimit).toHaveBeenCalledTimes(1)
+  })
+
+  it('displays rateLimit info when available and allows refreshing quota', async () => {
+    appState.rateLimit = {
+      limit: 5000,
+      remaining: 4850,
+      used: 150,
+      reset: Math.floor(Date.now() / 1000) + 3600,
+    }
+    mockRefreshRateLimit.mockResolvedValue(true)
+
+    render(<SettingsPage />)
+
+    expect(screen.getByText('4,850')).toBeInTheDocument()
+    expect(screen.getByText('/ 5,000')).toBeInTheDocument()
+
+    const refreshBtn = screen.getByRole('button', { name: /refresh api quota/i })
+    await userEvent.click(refreshBtn)
+
+    expect(mockRefreshRateLimit).toHaveBeenCalledTimes(1)
+    appState.rateLimit = null
   })
 })

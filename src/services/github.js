@@ -137,9 +137,38 @@ export async function fetchPulls(org, repo, pat) {
 export async function fetchRateLimit(pat) {
   try {
     const headers = { Accept: 'application/vnd.github.v3+json' }
-    if (pat) headers.Authorization = `token ${pat}`
-    const res = await fetch('https://api.github.com/rate_limit', { headers })
-    const data = await res.json()
-    return data.rate
-  } catch { return null }
+    if (pat) {
+      headers.Authorization = pat.startsWith('Bearer ') || pat.startsWith('token ')
+        ? pat
+        : `token ${pat}`
+    }
+
+    // Inspect live, authoritative core rate limit headers via lightweight HEAD request
+    const res = await fetch('https://api.github.com/octocat', { method: 'HEAD', headers })
+    if (res.ok || res.status === 403) {
+      const limit = Number(res.headers.get('x-ratelimit-limit'))
+      const remaining = Number(res.headers.get('x-ratelimit-remaining'))
+      const reset = Number(res.headers.get('x-ratelimit-reset'))
+      const usedHeader = res.headers.get('x-ratelimit-used')
+      const used = usedHeader !== null ? Number(usedHeader) : Math.max(0, limit - remaining)
+
+      if (!isNaN(limit) && !isNaN(remaining) && limit > 0) {
+        return { limit, remaining, used, reset }
+      }
+    }
+
+    // Fallback to /rate_limit endpoint if HEAD inspection didn't return headers
+    const fallbackRes = await fetch('https://api.github.com/rate_limit', { headers })
+    if (fallbackRes.ok) {
+      const data = await fallbackRes.json()
+      if (data?.resources?.core) {
+        return data.resources.core
+      }
+      return data?.rate || null
+    }
+    return null
+  } catch {
+    return null
+  }
 }
+

@@ -122,10 +122,13 @@ export function AppProvider({ children }) {
     return () => clearTimeout(timeout)
   }, [rateLimit])
 
-  const refreshRateLimit = useCallback(async () => {
-    const rl = await fetchRateLimit(pat)
+  const refreshRateLimit = useCallback(async (tokenOverride) => {
+    const tokenToUse = tokenOverride !== undefined ? tokenOverride : pat
+    const rl = await fetchRateLimit(tokenToUse)
     if (rl) {
       setRateLimit(rl)
+      localStorage.setItem('oe_rate_limit', JSON.stringify(rl))
+      window.dispatchEvent(new CustomEvent('rate-limit-update', { detail: rl }))
       return true
     }
     return false
