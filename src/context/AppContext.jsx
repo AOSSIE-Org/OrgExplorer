@@ -99,10 +99,14 @@ export function AppProvider({ children }) {
     issuesData, pullsData, auditComplete, advanceAnalyticsComplete
   ])
 
+  const refreshSeqRef = useRef(0)
+
   useEffect(() => {
     const handler = e => {
       setRateLimit(e.detail)
-      localStorage.setItem('oe_rate_limit', JSON.stringify(e.detail))
+      try {
+        localStorage.setItem('oe_rate_limit', JSON.stringify(e.detail))
+      } catch {}
     }
 
     window.addEventListener('rate-limit-update', handler)
@@ -116,7 +120,9 @@ export function AppProvider({ children }) {
     if (!rateLimit?.reset) return
 
     const timeout = setTimeout(() => {
-      localStorage.removeItem('oe_rate_limit')
+      try {
+        localStorage.removeItem('oe_rate_limit')
+      } catch {}
       setRateLimit(null)
     }, Math.max(0, rateLimit.reset * 1000 - Date.now()))
 
@@ -126,12 +132,25 @@ export function AppProvider({ children }) {
   const refreshRateLimit = useCallback(async (tokenOverride) => {
     const requestId = patRequestId.current
     const tokenToUse = tokenOverride !== undefined ? tokenOverride : pat
+    const seq = ++refreshSeqRef.current
+
+    // Invalidate previous identity's quota when switching or deleting token
+    if (tokenOverride !== undefined && tokenOverride !== pat) {
+      setRateLimit(null)
+      try {
+        localStorage.removeItem('oe_rate_limit')
+      } catch {}
+    }
+
     const rl = await fetchRateLimit(tokenToUse)
 
-    if (requestId !== patRequestId.current) return null
+    if (seq !== refreshSeqRef.current || requestId !== patRequestId.current) return false
+
     if (rl) {
       setRateLimit(rl)
-      localStorage.setItem('oe_rate_limit', JSON.stringify(rl))
+      try {
+        localStorage.setItem('oe_rate_limit', JSON.stringify(rl))
+      } catch {}
       window.dispatchEvent(new CustomEvent('rate-limit-update', { detail: rl }))
       return true
     }
@@ -142,23 +161,26 @@ export function AppProvider({ children }) {
 
     setPat(token)
 
-    if (token) {
-      localStorage.setItem('oe_pat', token)
+    try {
+      if (token) {
+        localStorage.setItem('oe_pat', token)
 
-      const rl = await fetchRateLimit(token)
+        const rl = await fetchRateLimit(token)
 
-      // A newer save or delete started while this request was in flight.
-      if (requestId !== patRequestId.current) return
+        // A newer save or delete started while this request was in flight.
+        if (requestId !== patRequestId.current) return
 
-      if (rl) {
-        setRateLimit(rl)
-        localStorage.setItem('oe_rate_limit', JSON.stringify(rl))
+        if (rl) {
+          setRateLimit(rl)
+          localStorage.setItem('oe_rate_limit', JSON.stringify(rl))
+          window.dispatchEvent(new CustomEvent('rate-limit-update', { detail: rl }))
+        }
+      } else {
+        localStorage.removeItem('oe_pat')
+        localStorage.removeItem('oe_rate_limit')
+        setRateLimit(null)
       }
-    } else {
-      localStorage.removeItem('oe_pat')
-      localStorage.removeItem('oe_rate_limit')
-      setRateLimit(null)
-    }
+    } catch {}
   }, [])
 
   // Multi-org explore

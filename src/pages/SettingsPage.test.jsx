@@ -125,4 +125,35 @@ describe('SettingsPage', () => {
     expect(mockRefreshRateLimit).toHaveBeenCalledTimes(1)
     appState.rateLimit = null
   })
+
+  it('triggers refreshRateLimit when a valid PAT is saved', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+    })
+
+    render(<SettingsPage />)
+
+    const input = screen.getByPlaceholderText(/ghp_/i)
+    await userEvent.type(input, 'ghp_newtoken123')
+
+    const saveBtn = screen.getByRole('button', { name: /save/i })
+    await userEvent.click(saveBtn)
+
+    expect(mockSavePat).toHaveBeenCalledWith('ghp_newtoken123')
+    expect(mockRefreshRateLimit).toHaveBeenCalledWith('ghp_newtoken123')
+  })
+
+  it('triggers refreshRateLimit("") when PAT is deleted', async () => {
+    appState.pat = 'ghp_existingtoken'
+
+    render(<SettingsPage />)
+
+    const deleteBtn = screen.getByRole('button', { name: /delete/i })
+    await userEvent.click(deleteBtn)
+
+    expect(mockSavePat).toHaveBeenCalledWith('')
+    expect(mockRefreshRateLimit).toHaveBeenCalledWith('')
+    appState.pat = ''
+  })
 })
