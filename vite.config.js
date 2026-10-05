@@ -37,6 +37,9 @@ function spaDeepLinkFallback() {
 export default defineConfig(({ mode }) => ({
   plugins: [react(), tailwindcss(), svgr(), spaDeepLinkFallback()],
   base: "/",
+  server: {
+    allowedHosts: ["port.3000.vm.wpsadi.dev"]
+  },
   test: {
     globals: true,
     environment: "jsdom",
