@@ -277,7 +277,10 @@ export default function ContributorProfilePage() {
             if (err?.name !== 'AbortError') {
               const orgName = validOrgs[idx]
               failureReasons.push(`${orgName}: ${err.message}`)
-              partialFailures.push(orgName)
+              const failureDetail = err?.message === 'RATE_LIMIT'
+                ? `${orgName}: rate limit reached (configure PAT in Settings or wait)`
+                : (err?.message ? `${orgName}: ${err.message}` : orgName)
+              partialFailures.push(failureDetail)
             }
           }
         })

@@ -192,4 +192,43 @@ describe('ContributorProfilePage', () => {
     expect(await screen.findByText(/OrgA PR/i)).toBeInTheDocument()
     expect(await screen.findByText(/Partial results loaded.*OrgB/i)).toBeInTheDocument()
   })
+
+  it('renders rate limit guidance in partial failure warning when one organization is rate limited', async () => {
+    app.state.orgs = [{ login: 'OrgA' }, { login: 'OrgB' }]
+    app.state.model.contributors = [{ login: 'testuser', orgs: ['OrgA', 'OrgB'] }]
+
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
+      const urlStr = url.toString()
+      if (urlStr.includes('org:OrgB')) {
+        return {
+          ok: false,
+          status: 403,
+          headers: new Headers({ 'x-ratelimit-remaining': '0' }),
+          json: async () => ({ message: 'API rate limit exceeded' }),
+        }
+      }
+      return {
+        ok: true,
+        status: 200,
+        headers: new Headers(),
+        json: async () => ({
+          items: [{
+            id: 202,
+            number: 2,
+            title: 'OrgA PR',
+            state: 'open',
+            pull_request: {},
+            created_at: new Date().toISOString(),
+            repository_url: 'https://api.github.com/repos/OrgA/repo1',
+            html_url: 'https://github.com/OrgA/repo1/pull/2',
+          }],
+        }),
+      }
+    })
+
+    renderPage('testuser')
+
+    expect(await screen.findByText(/OrgA PR/i)).toBeInTheDocument()
+    expect(await screen.findByText(/OrgB: rate limit reached/i)).toBeInTheDocument()
+  })
 })
