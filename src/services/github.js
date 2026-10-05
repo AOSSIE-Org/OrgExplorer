@@ -145,7 +145,7 @@ export async function fetchRateLimit(pat) {
 
     // Inspect live, authoritative core rate limit headers via lightweight HEAD request
     const res = await fetch('https://api.github.com/octocat', { method: 'HEAD', headers })
-    if (res.ok || res.status === 403) {
+    if (res.ok || res.status === 403 || res.status === 429) {
       const limit = Number(res.headers.get('x-ratelimit-limit'))
       const remaining = Number(res.headers.get('x-ratelimit-remaining'))
       const reset = Number(res.headers.get('x-ratelimit-reset'))

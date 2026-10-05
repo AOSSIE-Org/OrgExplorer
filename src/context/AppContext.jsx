@@ -98,10 +98,14 @@ export function AppProvider({ children }) {
     issuesData, pullsData, auditComplete, advanceAnalyticsComplete
   ])
 
+  const refreshSeqRef = useRef(0)
+
   useEffect(() => {
     const handler = e => {
       setRateLimit(e.detail)
-      localStorage.setItem('oe_rate_limit', JSON.stringify(e.detail))
+      try {
+        localStorage.setItem('oe_rate_limit', JSON.stringify(e.detail))
+      } catch {}
     }
 
     window.addEventListener('rate-limit-update', handler)
@@ -115,7 +119,9 @@ export function AppProvider({ children }) {
     if (!rateLimit?.reset) return
 
     const timeout = setTimeout(() => {
-      localStorage.removeItem('oe_rate_limit')
+      try {
+        localStorage.removeItem('oe_rate_limit')
+      } catch {}
       setRateLimit(null)
     }, Math.max(0, rateLimit.reset * 1000 - Date.now()))
 
@@ -124,10 +130,24 @@ export function AppProvider({ children }) {
 
   const refreshRateLimit = useCallback(async (tokenOverride) => {
     const tokenToUse = tokenOverride !== undefined ? tokenOverride : pat
+    const seq = ++refreshSeqRef.current
+
+    // Invalidate previous identity's quota when switching or deleting token
+    if (tokenOverride !== undefined && tokenOverride !== pat) {
+      setRateLimit(null)
+      try {
+        localStorage.removeItem('oe_rate_limit')
+      } catch {}
+    }
+
     const rl = await fetchRateLimit(tokenToUse)
+    if (seq !== refreshSeqRef.current) return false
+
     if (rl) {
       setRateLimit(rl)
-      localStorage.setItem('oe_rate_limit', JSON.stringify(rl))
+      try {
+        localStorage.setItem('oe_rate_limit', JSON.stringify(rl))
+      } catch {}
       window.dispatchEvent(new CustomEvent('rate-limit-update', { detail: rl }))
       return true
     }
@@ -135,7 +155,9 @@ export function AppProvider({ children }) {
   }, [pat])
   const savePat = useCallback(token => {
     setPat(token)
-    token ? localStorage.setItem('oe_pat', token) : localStorage.removeItem('oe_pat')
+    try {
+      token ? localStorage.setItem('oe_pat', token) : localStorage.removeItem('oe_pat')
+    } catch {}
   }, [])
 
   // Multi-org explore

@@ -94,6 +94,31 @@ describe('fetchRateLimit', () => {
     })
   })
 
+  it('parses headers on 429 too many requests response without querying /rate_limit', async () => {
+    const mockHeaders = new Headers({
+      'x-ratelimit-limit': '5000',
+      'x-ratelimit-remaining': '0',
+      'x-ratelimit-used': '5000',
+      'x-ratelimit-reset': '1791219999',
+    })
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 429,
+      headers: mockHeaders,
+    })
+
+    const result = await fetchRateLimit('test-pat')
+
+    expect(global.fetch).toHaveBeenCalledTimes(1)
+    expect(result).toEqual({
+      limit: 5000,
+      remaining: 0,
+      used: 5000,
+      reset: 1791219999,
+    })
+  })
+
   it('falls back to /rate_limit endpoint if HEAD inspection fails', async () => {
     global.fetch = vi.fn()
       // First call to /octocat fails with 500
