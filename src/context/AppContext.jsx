@@ -5,6 +5,11 @@ import { saveAnalysis, loadAnalysis } from '../services/cache'
 
 const Ctx = createContext(null)
 
+function isStaleRateLimitIncrease(current, next) {
+  if (!current || next.limit !== current.limit || next.remaining <= current.remaining) return false
+  return current.reset > 0 && Date.now() < current.reset * 1000
+}
+
 function getStoredRateLimit() {
   const stored = localStorage.getItem('oe_rate_limit')
 
@@ -104,6 +109,7 @@ export function AppProvider({ children }) {
     const handler = e => {
       const normalized = asValidRateLimit(e.detail)
       if (!normalized) return
+      if (isStaleRateLimitIncrease(rateLimitRef.current, normalized)) return
       rateLimitRef.current = normalized
       setRateLimit(normalized)
       localStorage.setItem('oe_rate_limit', JSON.stringify(normalized))
@@ -133,21 +139,10 @@ export function AppProvider({ children }) {
     const rl = await fetchRateLimit(pat)
     if (!rl) return false
     if (generation !== patGenerationRef.current) return 'superseded'
-    // `GET /rate_limit` does not consume quota and its `resources.core`
-    // body can lag behind the live `x-ratelimit-*` counters (reads full
-    // while search headers show consumed quota, with a different `reset`
-    // epoch). Never let a stale read inflate the remaining count while
-    // the current window is still active — only a new window expiry or a
-    // new limit (e.g. PAT added/removed) may legitimately raise it.
-    const currentRateLimit = rateLimitRef.current
-    if (
-      currentRateLimit &&
-      rl.limit === currentRateLimit.limit &&
-      rl.remaining > currentRateLimit.remaining
-    ) {
-      const windowActive = currentRateLimit.reset > 0 && Date.now() < currentRateLimit.reset * 1000
-      if (windowActive) return true
-    }
+    if ((pat || '') !== (localStorage.getItem('oe_pat') || '')) return 'superseded'
+    // `/rate_limit` can lag behind live response headers. Ignore stale
+    // increases while the current window is still active.
+    if (isStaleRateLimitIncrease(rateLimitRef.current, rl)) return true
     rateLimitRef.current = rl
     setRateLimit(rl)
     localStorage.setItem('oe_rate_limit', JSON.stringify(rl))
@@ -167,17 +162,30 @@ export function AppProvider({ children }) {
 
   // Multi-org explore
   const explore = useCallback(async orgNames => {
+    // Trim and dedupe case-insensitively: `AOSSIE-Org` and `aossie-org`
+    // are the same org on GitHub and must not trigger duplicate fetches.
+    const seen = new Set()
+    const names = []
+    for (const n of orgNames) {
+      const trimmed = String(n).trim()
+      const key = trimmed.toLowerCase()
+      if (trimmed && !seen.has(key)) {
+        seen.add(key)
+        names.push(trimmed)
+      }
+    }
+    if (!names.length) return false
     setLoading(true);
     setError('');
     setModel(null);
     setOrgs([]);
     setIssuesData({});
-    setLastOrgNames(orgNames);
+    setLastOrgNames(names);
     setAuditComplete(false);
     setAdvanceAnalyticsComplete(false);
     try {
       setLoadMsg('Fetching organization metadata...')
-      const orgRes = await Promise.allSettled(orgNames.map(n => fetchOrg(n, pat)))
+      const orgRes = await Promise.allSettled(names.map(n => fetchOrg(n, pat)))
       const validOrgs = orgRes.filter(r => r.status === 'fulfilled').map(r => r.value)
       if (!validOrgs.length) throw new Error('No valid organizations found. Check the names and try again.')
       setOrgs(validOrgs)
@@ -213,10 +221,14 @@ export function AppProvider({ children }) {
 
       setIsComplete(!!pat)
 
-      // Save to recent searches
+      // Save to recent searches, canonicalized to the official login
+      // casing returned by GitHub and deduplicated case-insensitively, so
+      // `AOSSIE-Org` and `aossie-org` share one entry (and one cache key).
       const prev = JSON.parse(localStorage.getItem('oe_recent') || '[]')
-      const entry = orgNames.join(', ')
-      localStorage.setItem('oe_recent', JSON.stringify([...new Set([entry, ...prev])].slice(0, 6)))
+      const entry = validOrgs.map(o => o.login).join(', ')
+      const entryKey = entry.toLowerCase()
+      const next = [entry, ...prev.filter(r => String(r).toLowerCase() !== entryKey)].slice(0, 6)
+      localStorage.setItem('oe_recent', JSON.stringify(next))
       return builtModel
     } catch (err) {
       setError(err.message === 'RATE_LIMIT'
