@@ -3,6 +3,30 @@ const DB_NAME = 'orgexplorer_cache'
 const STORE = 'cache'
 const TTL_MS = 3_600_000 // 1 hour
 
+/**
+ * Canonicalize an API URL into a deterministic cache key.
+ *
+ * GitHub treats org and repo names case-insensitively, but the raw URL
+ * string does not — `.../orgs/AOSSIE-Org` and `.../orgs/aossie-org` would
+ * otherwise become two separate entries, and a re-search in a different
+ * case would burn rate-limit quota on data we already hold.
+ *
+ * Only the pathname is lowercased; query values are left untouched (they
+ * can be case-sensitive, e.g. search qualifiers) while parameter order is
+ * normalized so equivalent URLs share one key. The request URL itself is
+ * never rewritten — this applies to the cache key only.
+ */
+export function normalizeCacheKey(url) {
+  try {
+    const u = new URL(url)
+    u.pathname = (u.pathname.replace(/\/+$/, '') || '/').toLowerCase()
+    u.searchParams.sort()
+    return u.toString()
+  } catch {
+    return url
+  }
+}
+
 function openDB() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, 1)
@@ -16,7 +40,7 @@ export async function cacheGet(key) {
   try {
     const db = await openDB()
     return new Promise(res => {
-      const req = db.transaction(STORE, 'readonly').objectStore(STORE).get(key)
+      const req = db.transaction(STORE, 'readonly').objectStore(STORE).get(normalizeCacheKey(key))
       req.onsuccess = () => {
         const r = req.result
         if (!r || Date.now() - r.ts > TTL_MS) return res(null)
@@ -32,7 +56,7 @@ export async function cacheSet(key, value) {
     const db = await openDB()
     return new Promise(res => {
       const tx = db.transaction(STORE, 'readwrite')
-      tx.objectStore(STORE).put({ k: key, v: value, ts: Date.now() })
+      tx.objectStore(STORE).put({ k: normalizeCacheKey(key), v: value, ts: Date.now() })
       tx.oncomplete = () => res(true)
       tx.onerror = () => res(false)
     })
@@ -75,6 +99,19 @@ async function fetchWithCache(url, pat) {
 
   if (res.status === 403) throw new Error('RATE_LIMIT')
   if (res.status === 404) throw new Error('NOT_FOUND')
+
+  if (res.status === 204 || res.status === 409) {
+    // Empty repository (e.g. contributors on a repo with no commits):
+    // GitHub answers with no JSON body, so res.json() below would throw
+    // and the failure would never be cached — every re-search would spend
+    // another token on the same URL. Cache the empty result instead.
+    // All list-endpoint callers treat [] as "no data", and analytics
+    // already defaults missing entries to [].
+    const empty = []
+    cacheSet(url, empty) // write-back, non-blocking
+    return empty
+  }
+
   if (!res.ok) throw new Error(`HTTP_${res.status}`)
 
   const data = await res.json()
