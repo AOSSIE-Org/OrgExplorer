@@ -74,6 +74,7 @@ export default function RepositoriesPage() {
     ['forks_count', 'Forks'],
     ['open_issues_count', 'Open Issues'],
     ['healthScore', 'Health'],
+    ['language', 'Language'],
     ['pushed_at', 'Repository Activity'],
   ]
 
@@ -243,6 +244,7 @@ export default function RepositoriesPage() {
                     <td style={{ padding: '10px 14px', fontSize: 13, color: 'var(--text2)' }}>{r.forks_count.toLocaleString()}</td>
                     <td style={{ padding: '10px 14px', fontSize: 13, color: r.open_issues_count > 30 ? 'var(--red)' : 'var(--text2)' }}>{r.open_issues_count}</td>
                     <td style={{ padding: '10px 14px', minWidth: 130 }}><HealthBar score={r.healthScore} /></td>
+                    <td style={{ padding: '10px 14px', fontSize: 13, color: 'var(--text2)' }}>{r.language}</td>
                     <td style={{ padding: '10px 14px' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}><Badge text={r.activityClassification} />
                         <span style={{ fontSize: 11, color: 'var(--text2)' }}>
