@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { FiExternalLink, FiShare2, FiArrowRight } from 'react-icons/fi'
 import { useApp } from '../context/AppContext'
 import { C, StatCard, HealthBar } from '../components/UI'
@@ -21,6 +21,10 @@ export default function OverviewPage() {
   const [orgFilter, setOrgFilter] = useState('All Organizations')
   const [showAllOrgs, setShowAllOrgs] = useState(false)
   const infoRef = useRef(null)
+  const location = useLocation();
+  const chips = location.state?.chips || [];
+  const verifiedOrgs = orgs.map(o=>o.login);
+  const notVerifiedOrgs = chips.filter(c=>!verifiedOrgs.some(org=>c.trim().includes(org)));
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -102,6 +106,8 @@ export default function OverviewPage() {
         onRun={runFullExplore}
       />
       {/* Org identity bar */}
+      {chips.length>orgs.length &&<div className="text-amber-400">{`Analysis completed with warnings: ${chips.length - orgs.length} of ${chips.length} organizations could not be loaded: ${notVerifiedOrgs}.`}</div>}
+      {/* <div className="text-amber-400">{orgs.map(o=>o.name)}  {chips}</div> */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 28 }}>
         {isMulti ? (
           <div

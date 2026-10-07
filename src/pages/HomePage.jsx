@@ -49,7 +49,9 @@ export default function HomePage() {
     const orgs = targets || (chips.length ? chips : input.trim() ? [input.trim()] : [])
     if (!orgs.length) return
     const success = await explore(orgs)
-    if(success) navigate('/overview')
+    if(success) navigate('/overview',{
+      state:{chips}
+    })
   }
 
   return (
