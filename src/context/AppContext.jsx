@@ -161,6 +161,28 @@ export function AppProvider({ children }) {
     try {
       setLoadMsg('Fetching organization metadata...')
       const orgRes = await Promise.allSettled(names.map(n => fetchOrg(n, pat)))
+
+      const failedOrgs = orgRes
+        .map((result, index) => ({ name: names[index], result }))
+        .filter(({ result }) => result.status === 'rejected')
+
+      if (failedOrgs.length > 0) {
+        const hasRateLimit = failedOrgs.some(
+          ({ result }) => result.reason?.message === 'RATE_LIMIT'
+        )
+
+        if (hasRateLimit) {
+          throw new Error('RATE_LIMIT')
+        }
+
+        const failedNames = failedOrgs
+          .map(({ name }) => name)
+          .join(', ')
+
+        throw new Error(
+          `Could not load organization${failedOrgs.length > 1 ? 's' : ''}: ${failedNames}. Check the organization name${failedOrgs.length > 1 ? 's' : ''} and try again.`
+        )
+      }
       const validOrgs = orgRes.filter(r => r.status === 'fulfilled').map(r => r.value)
       if (!validOrgs.length) throw new Error('No valid organizations found. Check the names and try again.')
       setOrgs(validOrgs)
