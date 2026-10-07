@@ -50,7 +50,7 @@ export default function HomePage() {
     if (!orgs.length) return
     const success = await explore(orgs)
     if(success) navigate('/overview',{
-      state:{chips}
+      state:{chips:orgs}
     })
   }
 

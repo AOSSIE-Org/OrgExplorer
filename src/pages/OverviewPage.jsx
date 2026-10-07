@@ -24,7 +24,7 @@ export default function OverviewPage() {
   const location = useLocation();
   const chips = location.state?.chips || [];
   const verifiedOrgs = orgs.map(o=>o.login);
-  const notVerifiedOrgs = chips.filter(c=>!verifiedOrgs.some(org=>c.trim().includes(org)));
+  const notVerifiedOrgs = chips.filter(c=>!verifiedOrgs.some(org=>c.trim()===org));
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -107,7 +107,6 @@ export default function OverviewPage() {
       />
       {/* Org identity bar */}
       {chips.length>orgs.length &&<div className="text-amber-400">{`Analysis completed with warnings: ${chips.length - orgs.length} of ${chips.length} organizations could not be loaded: ${notVerifiedOrgs}.`}</div>}
-      {/* <div className="text-amber-400">{orgs.map(o=>o.name)}  {chips}</div> */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 28 }}>
         {isMulti ? (
           <div
