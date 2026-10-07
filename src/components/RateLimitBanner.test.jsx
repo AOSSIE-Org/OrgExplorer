@@ -44,7 +44,7 @@ describe('RateLimitBanner', () => {
       pat: '',
     }
     const { container } = renderBanner()
-    expect(container.firstChild).toBeNull()
+    expect(container.firstChild).not.toBeNull()
     expect(screen.getByText('12 / 60')).toBeInTheDocument()
     const banner = container.firstChild
     expect(banner.style.borderLeft).toContain('var(--accent)')
