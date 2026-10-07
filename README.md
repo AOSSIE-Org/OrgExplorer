@@ -245,13 +245,22 @@ Dashboard renders visual intelligence
    npm install
    ```
 
-2. **Run Development Server**
+2. **Run Lint Script**
+   ```bash
+   #scan for errors
+   npm run lint
+
+   #To Automatically fix linting errors
+   npm run lint:fix
+   ```
+
+3. **Run Development Server**
    ```bash
    npm run dev
    ```
    Open http://localhost:5173 in your browser.
 
-3. **Build for Production**
+4. **Build for Production**
    ```bash
    npm run build
    ```
