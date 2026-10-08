@@ -27,7 +27,7 @@ const footerLinks = [
   },
   {
     label: "API Status",
-    href: "/settings#api-status",
+    href: "/settings",
   },
   {
     label: "Support Us",

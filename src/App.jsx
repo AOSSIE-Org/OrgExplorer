@@ -1,5 +1,6 @@
 import React from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { useEffect } from 'react'
 import { AppProvider } from './context/AppContext'
 import { ThemeProvider } from './context/ThemeContext'
 import Navbar          from './components/Navbar'
@@ -28,9 +29,20 @@ function Layout({ children }) {
   )
 }
 
+function ScrollToTop() {
+  const { pathname, search } = useLocation()
+
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [pathname, search])
+
+  return null
+}
+
 function AppContent() {
   return (
     <Layout>
+      <ScrollToTop />
       <Routes>
         <Route path="/"             element={<HomePage />} />
         <Route path="/overview"     element={<RequireAnalysis><OverviewPage /></RequireAnalysis>} />
