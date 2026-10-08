@@ -35,6 +35,10 @@
   --radius:   8px;
 }
 
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
 html, body, #root {
   min-height: 100%;
   background: var(--bg);
