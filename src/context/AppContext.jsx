@@ -124,7 +124,11 @@ export function AppProvider({ children }) {
   }, [rateLimit])
 
   const refreshRateLimit = useCallback(async () => {
+    const requestId = patRequestId.current
     const rl = await fetchRateLimit(pat)
+
+    if (requestId !== patRequestId.current) return false
+
     if (rl) {
       setRateLimit(rl)
       return true
