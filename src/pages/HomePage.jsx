@@ -39,7 +39,7 @@ export default function HomePage() {
       e.preventDefault()
       addChip(input)
     }
-    if (e.key === 'Enter' && !input && chips.length) {
+    if (e.key === 'Enter' && !input.trim() && chips.length) {
       go();
     }
     if (e.key === 'Backspace' && !input && chips.length) {

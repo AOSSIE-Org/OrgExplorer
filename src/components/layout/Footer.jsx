@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import {
   FaGithub,
   FaLinkedin,
@@ -70,7 +70,6 @@ const socialLinks = [
 
 export default function Footer() {
   const { theme } = useTheme();
-  const navigate = useNavigate();
   return (
     <footer role="contentinfo" style={{ borderTop: "1px solid var(--border)" }}>
       <div className="flex w-full flex-col gap-8 px-4 py-8 md:px-6 lg:flex-row lg:items-center lg:justify-around">
@@ -169,8 +168,8 @@ export default function Footer() {
                 text-xs tracking-[0.2em]"
             >
               © {new Date().getFullYear()}
-              <span onClick={() => navigate('/')}>
-                <Logo className="h-15 w-auto cursor-pointer"/>
+              <span>
+                <Link to={'/'}><Logo className="h-15 w-auto cursor-pointer"/></Link>
               </span>
             </p>
 
