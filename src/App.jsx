@@ -1,5 +1,5 @@
 import React from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route } from 'react-router-dom'
 import { AppProvider } from './context/AppContext'
 import { ThemeProvider } from './context/ThemeContext'
 import Navbar          from './components/Navbar'
@@ -16,6 +16,7 @@ import SettingsPage    from './pages/SettingsPage'
 import Footer from './components/layout/Footer'
 import Support from './pages/Support'
 import RequireAnalysis from './components/RequireAnalysis'
+import NotFoundPage from './pages/NotFoundPage'
 
 function Layout({ children }) {
   return (
@@ -42,7 +43,7 @@ function AppContent() {
         <Route path="/governance"   element={<RequireAnalysis><GovernancePage /></RequireAnalysis>} />
         <Route path="/settings"     element={<SettingsPage />} />
         <Route path="/support-us"      element={<Support />} />
-        <Route path="*"             element={<Navigate to="/" replace />} />
+        <Route path="*"             element={<NotFoundPage />} />
       </Routes>
     </Layout>
   )
