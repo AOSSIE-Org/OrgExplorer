@@ -267,7 +267,7 @@ export default function SettingsPage() {
                   setRefreshError(false);
                   try {
                     const success = await refreshRateLimit();
-                    if (!success) {
+                    if (success === false) {
                       setRefreshError(true);
                       setTimeout(() => setRefreshError(false), 2000);
                     }

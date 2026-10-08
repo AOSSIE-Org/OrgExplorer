@@ -127,7 +127,7 @@ export function AppProvider({ children }) {
     const requestId = patRequestId.current
     const rl = await fetchRateLimit(pat)
 
-    if (requestId !== patRequestId.current) return false
+    if (requestId !== patRequestId.current) return null
 
     if (rl) {
       setRateLimit(rl)
