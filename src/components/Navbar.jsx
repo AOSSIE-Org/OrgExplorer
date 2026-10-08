@@ -36,7 +36,7 @@ export default function Navbar() {
       <span
         onClick={() => navigate('/')}
       >
-        <Logo className="h-15 w-auto" />
+        <Logo className="h-15 w-auto cursor-pointer" />
       </span>
 
       {/* Nav links — only visible when data is loaded */}
