@@ -63,12 +63,35 @@ async function fetchAllPages(initialUrl, headers, signal) {
   let items = []
   let url = initialUrl
   for (let page = 1; page <= 10; page++) {
-    const res = await fetch(url, { headers, signal })
+    let res = await fetch(url, { headers, signal })
+
+    // If authenticated search failed with 422 (e.g. token lacks org/repo permissions or SSO boundary validation),
+    // retry unauthenticated to retrieve public contributions.
+    if (res.status === 422 && headers?.Authorization) {
+      const fallbackHeaders = { ...headers }
+      delete fallbackHeaders.Authorization
+      const retryRes = await fetch(url, { headers: fallbackHeaders, signal })
+      if (retryRes.ok) {
+        res = retryRes
+      }
+    }
+
     if (res.status === 403) {
       throw new Error('RATE_LIMIT')
     }
     if (!res.ok) {
-      throw new Error(`HTTP_${res.status}`)
+      let message = `HTTP_${res.status}`
+      try {
+        const body = await res.json()
+        if (body?.errors?.[0]?.message) {
+          message = body.errors[0].message
+        } else if (body?.message) {
+          message = body.message
+        }
+      } catch {
+        // ignore json parse error
+      }
+      throw new Error(message)
     }
     const data = await res.json()
     items = items.concat(data.items || [])
@@ -82,6 +105,59 @@ async function fetchAllPages(initialUrl, headers, signal) {
     url = match[1]
   }
   return items
+}
+
+// Helper to extract contributions from local AppContext data
+function getLocalContributions(username, pullsData, issuesData) {
+  if (!username) return []
+  const lowerUser = username.toLowerCase()
+  const results = []
+
+  if (pullsData && typeof pullsData === 'object') {
+    Object.entries(pullsData).forEach(([repoKey, pulls]) => {
+      if (Array.isArray(pulls)) {
+        pulls.forEach(p => {
+          if (p.user?.login?.toLowerCase() === lowerUser) {
+            results.push({
+              id: p.id || `pr-${repoKey}-${p.number}`,
+              number: p.number,
+              title: p.title || 'Untitled PR',
+              html_url: p.html_url || `https://github.com/${repoKey}/pull/${p.number}`,
+              created_at: p.created_at || new Date().toISOString(),
+              state: p.state || 'closed',
+              pull_request: {
+                merged_at: p.merged_at,
+                html_url: p.html_url
+              },
+              repository_url: p.repository_url || (repoKey ? `https://api.github.com/repos/${repoKey}` : '')
+            })
+          }
+        })
+      }
+    })
+  }
+
+  if (issuesData && typeof issuesData === 'object') {
+    Object.entries(issuesData).forEach(([repoKey, issues]) => {
+      if (Array.isArray(issues)) {
+        issues.forEach(i => {
+          if (!i.pull_request && i.user?.login?.toLowerCase() === lowerUser) {
+            results.push({
+              id: i.id || `issue-${repoKey}-${i.number}`,
+              number: i.number,
+              title: i.title || 'Untitled Issue',
+              html_url: i.html_url || `https://github.com/${repoKey}/issues/${i.number}`,
+              created_at: i.created_at || new Date().toISOString(),
+              state: i.state || 'closed',
+              repository_url: i.repository_url || (repoKey ? `https://api.github.com/repos/${repoKey}` : '')
+            })
+          }
+        })
+      }
+    })
+  }
+
+  return results
 }
 
 // Helper to escape table cell values for markdown
@@ -108,7 +184,7 @@ const getOrgFromRepoUrl = (url) => {
 export default function ContributorProfilePage() {
   const { username } = useParams()
   const navigate = useNavigate()
-  const { orgs, pat, pullsData, model } = useApp()
+  const { orgs, pat, pullsData, issuesData, model } = useApp()
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -181,31 +257,104 @@ export default function ContributorProfilePage() {
       setError('')
       try {
         const encodedUser = encodeURIComponent(username)
-        const orgQuery = searchOrgs.map(org => `org:${encodeURIComponent(org)}`).join('+')
-        const url = `https://api.github.com/search/issues?q=author:${encodedUser}+${orgQuery}&per_page=100`
-        const mergedUrl = `https://api.github.com/search/issues?q=author:${encodedUser}+is:pr+is:merged+${orgQuery}&per_page=100`
+        const validOrgs = searchOrgs
+          .map(org => (typeof org === 'string' ? org.trim() : ''))
+          .filter(Boolean)
 
         const headers = { Accept: 'application/vnd.github.v3+json' }
         if (pat) {
           headers.Authorization = `token ${pat}`
         }
 
-        const [items, mergedItems] = await Promise.all([
-          fetchAllPages(url, headers, controller.signal),
-          fetchAllPages(mergedUrl, headers, controller.signal)
-        ])
+        // Query each organization individually to isolate errors (e.g. 422 on restricted/private orgs)
+        const orgQueries = validOrgs.map(async (org) => {
+          const encodedOrg = encodeURIComponent(org)
+          const url = `https://api.github.com/search/issues?q=author:${encodedUser}+org:${encodedOrg}&per_page=100`
+          const mergedUrl = `https://api.github.com/search/issues?q=author:${encodedUser}+is:pr+is:merged+org:${encodedOrg}&per_page=100`
 
+          const [itemsRes, mergedRes] = await Promise.allSettled([
+            fetchAllPages(url, headers, controller.signal),
+            fetchAllPages(mergedUrl, headers, controller.signal)
+          ])
+
+          return {
+            items: itemsRes.status === 'fulfilled' ? itemsRes.value : [],
+            mergedItems: mergedRes.status === 'fulfilled' ? mergedRes.value : [],
+            error: itemsRes.status === 'rejected' ? itemsRes.reason : (mergedRes.status === 'rejected' ? mergedRes.reason : null)
+          }
+        })
+
+        const orgResults = await Promise.allSettled(orgQueries)
         if (!active) return
 
-        const mergedKeys = new Set(
-          mergedItems.map(item => {
-            const repo = getFullRepoFromUrl(item.repository_url)
-            return `${repo}/${item.number}`
-          })
-        )
+        const combinedItems = []
+        const combinedMerged = []
+        let lastError = null
 
-        setMergedPRKeys(mergedKeys)
-        setRawContributions(items)
+        orgResults.forEach(res => {
+          if (res.status === 'fulfilled') {
+            combinedItems.push(...res.value.items)
+            combinedMerged.push(...res.value.mergedItems)
+            if (res.value.error) {
+              lastError = res.value.error
+            }
+          } else if (res.reason) {
+            lastError = res.reason
+          }
+        })
+
+        if (combinedItems.length > 0) {
+          // Deduplicate items by repository_url + number
+          const seen = new Set()
+          const uniqueItems = []
+          combinedItems.forEach(item => {
+            const key = `${item.repository_url}#${item.number}`
+            if (!seen.has(key)) {
+              seen.add(key)
+              uniqueItems.push(item)
+            }
+          })
+
+          const mergedKeys = new Set(
+            combinedMerged.map(item => {
+              const repo = getFullRepoFromUrl(item.repository_url)
+              return `${repo}/${item.number}`
+            })
+          )
+
+          setMergedPRKeys(mergedKeys)
+          setRawContributions(uniqueItems)
+
+          if (lastError) {
+            console.warn('Some organization searches encountered an issue:', lastError)
+          }
+        } else if (lastError) {
+          // Fallback to locally explored repository data from AppContext
+          const localItems = getLocalContributions(username, pullsData, issuesData)
+          if (localItems.length > 0) {
+            const localMergedKeys = new Set(
+              localItems
+                .filter(item => item.pull_request?.merged_at)
+                .map(item => {
+                  const repo = getFullRepoFromUrl(item.repository_url)
+                  return `${repo}/${item.number}`
+                })
+            )
+            setMergedPRKeys(localMergedKeys)
+            setRawContributions(localItems)
+            setError(
+              lastError.message === 'RATE_LIMIT'
+                ? 'GitHub API rate limit reached. Displaying local analyzed repository data.'
+                : `GitHub Search API notice: ${lastError.message}. Displaying local analyzed repository data.`
+            )
+          } else if (lastError.message === 'RATE_LIMIT') {
+            setError('GitHub API search rate limit reached. Please wait a minute or configure a PAT in Settings.')
+          } else {
+            setError(`Failed to fetch contributor details: ${lastError.message}`)
+          }
+        } else {
+          setRawContributions([])
+        }
       } catch (err) {
         if (!active) return
         if (err.name === 'AbortError') return
@@ -227,7 +376,7 @@ export default function ContributorProfilePage() {
       active = false
       controller.abort()
     }
-  }, [username, searchOrgs, pat])
+  }, [username, searchOrgs, pat, pullsData, issuesData])
 
   // Presets using local date offsets
   const setPreset = (type) => {
@@ -491,9 +640,17 @@ export default function ContributorProfilePage() {
       />
 
       {error && (
-        <div style={{ ...C.card, display: 'flex', alignItems: 'center', gap: 12, borderColor: 'var(--red)', background: 'rgba(239,68,68,.05)', marginBottom: 20 }}>
-          <FiAlertTriangle color="var(--red)" size={18} />
-          <span style={{ fontSize: 13, color: 'var(--red)', fontWeight: 500 }}>{error}</span>
+        <div style={{
+          ...C.card,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          borderColor: rawContributions.length > 0 ? 'var(--amber)' : 'var(--red)',
+          background: rawContributions.length > 0 ? 'rgba(245,158,11,.05)' : 'rgba(239,68,68,.05)',
+          marginBottom: 20
+        }}>
+          <FiAlertTriangle color={rawContributions.length > 0 ? 'var(--amber)' : 'var(--red)'} size={18} />
+          <span style={{ fontSize: 13, color: rawContributions.length > 0 ? 'var(--text)' : 'var(--red)', fontWeight: 500 }}>{error}</span>
         </div>
       )}
 
