@@ -23,8 +23,12 @@
 
   <link rel="canonical" href="https://orgexplorer.aossie.org/" />
 
-  <link rel="icon" type="image/png" href="/org-explorer-logo.png" />
-  <link rel="apple-touch-icon" href="/org-explorer-logo.png" />
+<!-- Favicon: SVG first, PNG fallback for Safari < 18.8 -->
+<link rel="icon" type="image/svg+xml" href="/org-explorer-logo.svg" />
+<link rel="icon" type="image/png" href="/org-explorer-icon.png" sizes="64x64" />
+
+<!-- Apple touch icon: PNG only (Apple doesn't support SVG for this) -->
+<link rel="apple-touch-icon" href="/org-explorer-icon.png" />
 
   <meta property="og:type" content="website" />
 

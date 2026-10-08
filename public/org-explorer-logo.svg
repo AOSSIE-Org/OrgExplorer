@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Converted from org-explorer-logo.png for scalability -->
+<svg width="175" height="28" viewBox="0 0 175 28" xmlns="http://www.w3.org/2000/svg">
+  <rect width="175" height="28" fill="#1e293b"/>
+  <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="600" fill="#fde047">OrgExplorer</text>
+</svg>

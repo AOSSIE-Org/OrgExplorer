@@ -41,6 +41,7 @@ export function AppProvider({ children }) {
   const [advanceAnalyticsComplete, setAdvanceAnalyticsComplete] = useState(false) 
   const [isComplete, setIsComplete] = useState(false)
   const [auditComplete, setAuditComplete] = useState(false)
+  const [auditFailures, setAuditFailures] = useState([])
   const [lastOrgNames, setLastOrgNames] = useState([])
   // True until the cached analysis has been read, so routes that need a model
   // wait for the restore instead of bouncing to the picker on first paint.
@@ -237,23 +238,35 @@ export function AppProvider({ children }) {
     const repos = selectAnalysisRepos(allRepos)
 
     const map = {}
+    let hasFailures = false
+    const failedKeys = []
     for (let i = 0; i < repos.length; i += 5) {
       const batch = repos.slice(i, i + 5)
-      await Promise.allSettled(batch.map(async repo => {
+      const results = await Promise.allSettled(batch.map(async repo => {
         map[`${repo.orgLogin}/${repo.name}`] = await fetchIssues(repo.orgLogin, repo.name, pat)
       }))
+      results.forEach((r, idx) => {
+        if (r.status === 'rejected') {
+          hasFailures = true
+          failedKeys.push(`${batch[idx].orgLogin}/${batch[idx].name}`)
+        }
+      })
     }
-    return map
+    if (failedKeys.length) {
+      setAuditFailures(prev => [...new Set([...prev, ...failedKeys])])
+    }
+    return { map, hasFailures }
   }, [pat, selectAnalysisRepos])
 
   // Governance audit : used directly when repos are already complete
   const runAudit = useCallback(async () => {
     if (!model || govLoading) return
     setGovLoading(true)
-    const map = await auditRepos(model.allRepos)
+    setAuditFailures([])
+    const { map, hasFailures } = await auditRepos(model.allRepos)
     setIssuesData(map)
     setGovLoading(false)
-    setAuditComplete(!!pat)
+    setAuditComplete(!hasFailures && !!pat)
   }, [model, pat, govLoading, auditRepos])
 
   // Entry point for Governance / Analytics "Run Complete Analysis"
@@ -276,10 +289,11 @@ export function AppProvider({ children }) {
     if (!currentModel) return
 
     setGovLoading(true)
-    const map = await auditRepos(currentModel.allRepos)
+    setAuditFailures([])
+    const { map, hasFailures } = await auditRepos(currentModel.allRepos)
     setIssuesData(map)
     setGovLoading(false)
-    setAuditComplete(!!pat)
+    setAuditComplete(!hasFailures && !!pat)
   }, [isComplete, model, runFullExplore, auditRepos, pat, govLoading])
 
   // Advanced analytics — parallel batches of 5 (Section 3.2.5)
@@ -338,7 +352,11 @@ export function AppProvider({ children }) {
     setAdvanceAnalyticsLoading(true)
 
     const [issuesMap, pullsMap] = await Promise.all([
-      auditRepos(currentModel.allRepos),
+      (async () => {
+        const { map, hasFailures } = await auditRepos(currentModel.allRepos)
+        if (hasFailures) setAuditFailures(prev => prev)
+        return map
+      })(),
       (async () => {
         const repos = selectAnalysisRepos(currentModel.totalRepos)
         const map = {}
@@ -400,7 +418,7 @@ export function AppProvider({ children }) {
       rateLimit, loading, loadMsg, govLoading, error, totalRepo,
       runAdvanceAnalytics, refreshRateLimit, advanceAnalyticsLoading, advanceAnalyticsComplete,
       runFullAnalytics,
-      isComplete, auditComplete, lastOrgNames, hydrating,
+      isComplete, auditComplete, auditFailures, lastOrgNames, hydrating,
       explore, runFullExplore, runAudit, runGovernanceAnalysis, setError, staleRepoStats
     }}>
       {children}
