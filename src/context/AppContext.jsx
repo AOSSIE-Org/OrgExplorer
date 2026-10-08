@@ -50,6 +50,7 @@ export function AppProvider({ children }) {
   // every page load and the entry would never reach its TTL.
   const restoredFromCache = useRef(false)
 
+  const patRequestId = useRef(0)
   // Restore the last analysis on startup. The model is held in memory, so
   // without this a reload, bookmark or shared link loses it entirely.
   useEffect(() => {
@@ -131,12 +132,18 @@ export function AppProvider({ children }) {
     return false
   }, [pat])
   const savePat = useCallback(async token => {
+    const requestId = ++patRequestId.current
+
     setPat(token)
 
     if (token) {
       localStorage.setItem('oe_pat', token)
 
       const rl = await fetchRateLimit(token)
+
+      // A newer save or delete started while this request was in flight.
+      if (requestId !== patRequestId.current) return
+
       if (rl) {
         setRateLimit(rl)
         localStorage.setItem('oe_rate_limit', JSON.stringify(rl))
