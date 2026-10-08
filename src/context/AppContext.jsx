@@ -38,7 +38,7 @@ export function AppProvider({ children }) {
   const [error, setError] = useState('')
   const [totalRepo, setTotalRepo] = useState(0)
   const [advanceAnalyticsLoading, setAdvanceAnalyticsLoading] = useState(false);
-  const [advanceAnalyticsComplete, setAdvanceAnalyticsComplete] = useState(false) 
+  const [advanceAnalyticsComplete, setAdvanceAnalyticsComplete] = useState(false)
   const [isComplete, setIsComplete] = useState(false)
   const [auditComplete, setAuditComplete] = useState(false)
   const [lastOrgNames, setLastOrgNames] = useState([])
@@ -50,6 +50,7 @@ export function AppProvider({ children }) {
   // every page load and the entry would never reach its TTL.
   const restoredFromCache = useRef(false)
 
+  const patRequestId = useRef(0)
   // Restore the last analysis on startup. The model is held in memory, so
   // without this a reload, bookmark or shared link loses it entirely.
   useEffect(() => {
@@ -123,16 +124,39 @@ export function AppProvider({ children }) {
   }, [rateLimit])
 
   const refreshRateLimit = useCallback(async () => {
+    const requestId = patRequestId.current
     const rl = await fetchRateLimit(pat)
+
+    if (requestId !== patRequestId.current) return null
+
     if (rl) {
       setRateLimit(rl)
       return true
     }
     return false
   }, [pat])
-  const savePat = useCallback(token => {
+  const savePat = useCallback(async token => {
+    const requestId = ++patRequestId.current
+
     setPat(token)
-    token ? localStorage.setItem('oe_pat', token) : localStorage.removeItem('oe_pat')
+
+    if (token) {
+      localStorage.setItem('oe_pat', token)
+
+      const rl = await fetchRateLimit(token)
+
+      // A newer save or delete started while this request was in flight.
+      if (requestId !== patRequestId.current) return
+
+      if (rl) {
+        setRateLimit(rl)
+        localStorage.setItem('oe_rate_limit', JSON.stringify(rl))
+      }
+    } else {
+      localStorage.removeItem('oe_pat')
+      localStorage.removeItem('oe_rate_limit')
+      setRateLimit(null)
+    }
   }, [])
 
   // Multi-org explore
@@ -361,28 +385,28 @@ export function AppProvider({ children }) {
   }, [model, isComplete, runFullExplore, auditRepos, selectAnalysisRepos, pat, govLoading, advanceAnalyticsLoading])
 
   const STALE_DAYS = 90
-  
+
   const staleRepoStats = useMemo(() => {
     const now = Date.now()
-  
+
     return Object.entries(issuesData || {}).map(([key, issues]) => {
       const [org, repo] = key.split('/')
-  
+
       const normalIssues = issues.filter(i => !i.pull_request)
-  
+
       const openIssues = normalIssues.filter(i => i.state === 'open')
-  
+
       const staleIssues = openIssues.filter(i => {
         const updated = new Date(i.updated_at).getTime()
         const diffDays = (now - updated) / (1000 * 60 * 60 * 24)
         return diffDays >= STALE_DAYS
       })
-  
+
       const ratio =
         openIssues.length === 0
           ? 0
           : Math.round((staleIssues.length / openIssues.length) * 100)
-  
+
       return {
         id: key,
         org,

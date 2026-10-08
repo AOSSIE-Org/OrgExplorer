@@ -9,7 +9,7 @@ export default function SettingsPage() {
   const { pat, savePat, rateLimit, refreshRateLimit } = useApp()
   const [draft, setDraft] = useState(pat)
   const [show, setShow] = useState(false)
-  const [saved, setSaved] = useState(false)
+  const isSaved = Boolean(pat && draft.trim() === pat)
   const [cleared, setCleared] = useState(false)
   const [clearing, setClearing] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -39,8 +39,6 @@ export default function SettingsPage() {
       }
 
       savePat(token);
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
     } catch (err) {
       setTokenError('Network error verifying token');
     } finally {
@@ -117,8 +115,8 @@ export default function SettingsPage() {
                   <p>GitHub Authentication</p>
 
                   <button
-                    onMouseEnter={()=> setOpen(true)}
-                    onMouseLeave={()=> setOpen(false)}
+                    onMouseEnter={() => setOpen(true)}
+                    onMouseLeave={() => setOpen(false)}
                     className="p-2 rounded-full hover:bg-(--bg) transition"
                   >
                     <AiOutlineInfoCircle className="text-(--text) cursor-pointer" />
@@ -199,7 +197,7 @@ export default function SettingsPage() {
                 disabled={!draft.trim() || isValidating}
                 style={{ ...C.btn('primary'), display: 'flex', alignItems: 'center', gap: 5, fontSize: 13 }}
               >
-                <FiSave size={13} /> {isValidating ? 'Validating...' : saved ? 'Saved' : 'Save'}
+                <FiSave size={13} /> {isValidating ? 'Validating...' : isSaved ? 'Saved' : 'Save'}
               </button>
               <button
                 onClick={handleDelete}
@@ -269,7 +267,7 @@ export default function SettingsPage() {
                   setRefreshError(false);
                   try {
                     const success = await refreshRateLimit();
-                    if (!success) {
+                    if (success === false) {
                       setRefreshError(true);
                       setTimeout(() => setRefreshError(false), 2000);
                     }
@@ -277,9 +275,9 @@ export default function SettingsPage() {
                     setTimeout(() => setIsRefreshing(false), 500); // Minimum spin duration for visual feedback
                   }
                 }}
-                style={{ 
-                  background: 'none', 
-                  border: 'none', 
+                style={{
+                  background: 'none',
+                  border: 'none',
                   padding: '4px',
                   cursor: 'pointer',
                   display: 'flex',
@@ -291,10 +289,10 @@ export default function SettingsPage() {
                 title={refreshError ? "Failed to refresh" : "Refresh API Quota"}
                 className="hover:bg-(--bg) transition"
               >
-                <FiRefreshCw 
-                  size={14} 
-                  color={refreshError ? "var(--red)" : "var(--text2)"} 
-                  style={{ transition: 'transform 0.3s ease', transform: isRefreshing ? 'rotate(180deg)' : 'none' }} 
+                <FiRefreshCw
+                  size={14}
+                  color={refreshError ? "var(--red)" : "var(--text2)"}
+                  style={{ transition: 'transform 0.3s ease', transform: isRefreshing ? 'rotate(180deg)' : 'none' }}
                 />
               </button>
             </div>

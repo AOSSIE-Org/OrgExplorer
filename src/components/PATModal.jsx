@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import {FiEye, FiEyeOff, FiSave, FiTrash2, FiX} from "react-icons/fi";
+import { FiEye, FiEyeOff, FiSave, FiTrash2, FiX } from "react-icons/fi";
 import { useApp } from "../context/AppContext";
 
 export default function PATModal({ open, onClose }) {
@@ -7,12 +7,11 @@ export default function PATModal({ open, onClose }) {
 
   const [draft, setDraft] = useState(pat);
   const [show, setShow] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const isSaved = Boolean(pat && draft.trim() === pat)
 
   useEffect(() => {
     if (open) {
       setDraft(pat);
-      setSaved(false);
     }
   }, [open, pat]);
 
@@ -20,11 +19,6 @@ export default function PATModal({ open, onClose }) {
 
   const handleSave = () => {
     savePat(draft.trim());
-    setSaved(true);
-
-    setTimeout(() => {
-      setSaved(false);
-    }, 1500);
   };
 
   const handleDelete = () => {
@@ -188,7 +182,7 @@ export default function PATModal({ open, onClose }) {
               }}
             >
               <FiSave />
-              {saved ? "Saved" : "Save"}
+              {isSaved ? "Saved" : "Save"}
             </button>
 
             <button
