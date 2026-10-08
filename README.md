@@ -15,6 +15,15 @@
 
 </div>
 
+<div align="center" style="margin-bottom: 16px;">
+  <img src="badges/lighthouse.svg" alt="Lighthouse Score" />&nbsp;&nbsp;
+  <img src="badges/lighthouse-performance.svg" alt="Lighthouse Performance" />&nbsp;&nbsp;
+  <img src="badges/lighthouse-accessibility.svg" alt="Lighthouse Accessibility" />&nbsp;&nbsp;
+  <img src="badges/lighthouse-best-practices.svg" alt="Lighthouse Best Practices" />&nbsp;&nbsp;
+  <img src="badges/lighthouse-seo.svg" alt="Lighthouse SEO" />&nbsp;&nbsp;
+  <img src="badges/lighthouse-pwa.svg" alt="Lighthouse PWA" />
+</div>
+
 ---
 
 **OrgExplorer** transforms GitHub organizations into interactive, visual intelligence dashboards. Explore repository relationships, contributor networks, activity trends, risk metrics, and organizational health—all without leaving your browser.
@@ -250,11 +259,34 @@ Dashboard renders visual intelligence
    npm run dev
    ```
    Open http://localhost:5173 in your browser.
-
+   
 3. **Build for Production**
    ```bash
    npm run build
    ```
+
+4. **Docker Deployment (Optional)**
+
+   If you want to host OrgExplorer locally or in your own containerized infrastructure:
+
+   * **Using Docker Compose (Recommended)**:
+     ```bash
+     docker compose up --build -d
+     ```
+     Open http://localhost:8080 in your browser.
+
+   * **Using Docker CLI**:
+     ```bash
+     docker build -t orgexplorer .
+     docker run -d -p 8080:80 orgexplorer
+     ```
+     Open http://localhost:8080 in your browser.
+
+5. **Risk Assessment**
+   - Open bus factor panel
+   - Detect low contributor redundancy
+   - Review critical repositories
+
 
 For detailed setup instructions, see [CONTRIBUTING.md](./CONTRIBUTING.md).
 
