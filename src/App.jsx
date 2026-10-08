@@ -32,17 +32,24 @@ function AppContent() {
   return (
     <Layout>
       <Routes>
-        <Route path="/"             element={<HomePage />} />
-        <Route path="/overview"     element={<RequireAnalysis><OverviewPage /></RequireAnalysis>} />
-        <Route path="/repositories" element={<RequireAnalysis><RepositoriesPage /></RequireAnalysis>} />
-        <Route path="/contributors" element={<RequireAnalysis><ContributorsPage /></RequireAnalysis>} />
-        <Route path="/contributors/:username" element={<RequireAnalysis><ContributorProfilePage /></RequireAnalysis>} />
-        <Route path="/network"      element={<RequireAnalysis><NetworkPage /></RequireAnalysis>} />
-        <Route path="/analytics"    element={<RequireAnalysis><AnalyticsPage /></RequireAnalysis>} />
-        <Route path="/governance"   element={<RequireAnalysis><GovernancePage /></RequireAnalysis>} />
-        <Route path="/settings"     element={<SettingsPage />} />
-        <Route path="/support-us"      element={<Support />} />
-        <Route path="*"             element={<Navigate to="/" replace />} />
+        {/* Public */}
+        <Route index element={<HomePage />} />
+        <Route path="settings" element={<SettingsPage />} />
+        <Route path="support-us" element={<Support />} />
+
+        {/* Protected */}
+        <Route element={<RequireAnalysis />}>
+          <Route path="overview" element={<OverviewPage />} />
+          <Route path="repositories" element={<RepositoriesPage />} />
+          <Route path="contributors" element={<ContributorsPage />} />
+          <Route path="contributors/:username" element={<ContributorProfilePage />} />
+          <Route path="network" element={<NetworkPage />} />
+          <Route path="analytics" element={<AnalyticsPage />} />
+          <Route path="governance" element={<GovernancePage />} />
+        </Route>
+
+        {/* 404 */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Layout>
   )
