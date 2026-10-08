@@ -202,3 +202,83 @@ export function getTopRepositories(repos, limit = 10) {
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);
 }
+
+// Maintainer metrics — Step 1: derives what's available from the PR list data
+// (pullsData = { "org/repo": [PR, ...] }). The PR list endpoint does NOT include
+// merged_by or actual reviewers, so per-maintainer merge/review attribution needs
+// a separate per-PR enrichment step. This computes the counts available cheaply:
+// org-wide and per-repo PR outcomes.
+export function computeMaintainerMetrics(pullsData) {
+  const allPulls = Object.values(pullsData || {}).flat()
+
+  let merged = 0
+  let closedUnmerged = 0
+  let open = 0
+
+  for (const pr of allPulls) {
+    if (pr?.merged_at) merged++
+    else if (pr?.state === 'closed') closedUnmerged++
+    else if (pr?.state === 'open') open++
+  }
+
+  const perRepo = Object.entries(pullsData || {}).map(([key, prs]) => {
+    const list = Array.isArray(prs) ? prs : []
+    return {
+      repo: key,
+      total: list.length,
+      merged: list.filter(p => p?.merged_at).length,
+      closedUnmerged: list.filter(p => !p?.merged_at && p?.state === 'closed').length,
+      open: list.filter(p => p?.state === 'open').length,
+    }
+  })
+
+  return { totalPRs: allPulls.length, merged, closedUnmerged, open, perRepo }
+}
+
+// Maintainer attribution — Step 2: tallies per-maintainer activity from ENRICHED PRs.
+// Each enriched PR carries: merged_by (login or null), reviewers (array), repo, and
+// activity_at (the merge/update date). Returns one row per maintainer with merged +
+// reviewed counts, distinct repos managed, and lastActive (most recent activity),
+// org-wide. A person counts as a reviewer once per PR even with multiple reviews.
+export function computeMaintainerAttribution(enrichedPRs = []) {
+  const map = {}
+
+  const ensure = (login, avatar) => {
+    if (!login) return null
+    if (!map[login]) {
+      map[login] = { login, avatar: avatar || '', merged: 0, reviewed: 0, repos: new Set(), lastActive: null }
+    }
+    return map[login]
+  }
+
+    const touch = (entry, org, repo, when) => {
+    if (!entry) return
+    if (repo) entry.repos.add(org ? `${org}/${repo}` : repo)
+    if (when && (!entry.lastActive || when > entry.lastActive)) {
+      entry.lastActive = when
+    }
+  }
+
+  for (const pr of enrichedPRs) {
+    if (!pr) continue
+
+        if (pr.merged_by) {
+      const m = ensure(pr.merged_by, pr.merged_by_avatar)
+      if (m) { m.merged++; touch(m, pr.org, pr.repo, pr.merged_at || pr.updated_at) }
+    }
+    const seen = new Set()
+    for (const r of pr.reviewers || []) {
+      const login = typeof r === 'string' ? r : r?.login
+      if (!login || seen.has(login)) continue
+      seen.add(login)
+      const rev = ensure(login, typeof r === 'object' ? r?.avatar : undefined)
+      // each reviewer's activity date is their own review, not the PR's merge
+      const when = (typeof r === 'object' ? r?.reviewed_at : null) || pr.updated_at
+      if (rev) { rev.reviewed++; touch(rev, pr.org, pr.repo, when) }
+    }
+  }
+
+  return Object.values(map)
+    .map(m => ({ ...m, repos: m.repos.size }))
+    .sort((a, b) => (b.merged + b.reviewed) - (a.merged + a.reviewed))
+}
