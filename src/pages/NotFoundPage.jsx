@@ -49,7 +49,7 @@ export default function NotFoundPage() {
       </h2>
 
       <p style={{ color: 'var(--text2)', fontSize: 14, lineHeight: 1.6, maxWidth: 380, margin: 0 }}>
-        The page you are looking for does not exist or may have been moved.
+        The page you're looking for doesn't exist.
       </p>
 
       <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', marginTop: 28 }}>

@@ -27,7 +27,7 @@ describe('NotFoundPage', () => {
   it('shows a helpful message', () => {
     renderAt(['/nope'])
 
-    expect(screen.getByText(/may have been moved/i)).toBeInTheDocument()
+    expect(screen.getByText(/looking for/i)).toBeInTheDocument()
   })
 
   it('navigates home when "Go to Home" is clicked', async () => {
