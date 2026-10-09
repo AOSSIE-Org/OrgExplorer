@@ -2,14 +2,14 @@ import React, { useState } from "react";
 
 const Bar = ({ w = "100%", h = "0.75rem", className = "" }) => (
   <div
-    className={`animate-pulse rounded bg-neutral-800 ${className}`}
+    className={`animate-pulse rounded bg-(--border) ${className}`}
     style={{ width: w, height: h }}
   />
 );
 
 const Box = ({ className = "", children }) => (
   <div
-    className={`rounded-lg border border-neutral-800 bg-neutral-900 p-4 ${className}`}
+    className={`rounded-lg border border-(--border) bg-(--surface) p-4 ${className}`}
   >
     {children}
   </div>
@@ -17,13 +17,13 @@ const Box = ({ className = "", children }) => (
 
 const Circle = ({ size = 40 }) => (
   <div
-    className="animate-pulse rounded-full bg-neutral-800 shrink-0"
+    className="animate-pulse rounded-full bg-(--border) shrink-0"
     style={{ width: size, height: size }}
   />
 );
 
 const Pill = ({ w = "4rem" }) => (
-  <div className="animate-pulse rounded-full bg-neutral-800 h-5" style={{ width: w }} />
+  <div className="animate-pulse rounded-full bg-(--border) h-5" style={{ width: w }} />
 );
 
 /* Overview */
@@ -117,7 +117,7 @@ export function RepositorySkeleton() {
         ))}
       </div>
 
-      <Box className="divide-y divide-neutral-800 p-0">
+      <Box className="divide-y divide-(--border) p-0">
         {Array.from({ length: 15 }).map((_, i) => (
           <div key={i} className="flex items-center justify-between px-4 py-3">
             <div className="space-y-2 w-1/4">
@@ -165,7 +165,7 @@ export function ContributorSkeleton() {
 
       <Bar w="160px" h="2.25rem" className="rounded-md" />
 
-      <Box className="divide-y divide-neutral-800 p-0">
+      <Box className="divide-y divide-(--border) p-0">
         {Array.from({ length: 15 }).map((_, i) => (
           <div key={i} className="flex items-center justify-between px-4 py-3">
             <div className="flex items-center gap-3 w-1/4">
@@ -206,11 +206,11 @@ export function NetworkSkeleton() {
 
       <Bar w="380px" h="0.6rem" />
 
-      <div className="relative h-96 rounded-lg border border-neutral-800 bg-neutral-950 overflow-hidden">
+      <div className="relative h-96 rounded-lg border border-(--border) bg-(--bg) overflow-hidden">
         {nodes.map((n, i) => (
           <div
             key={i}
-            className="absolute animate-pulse rounded-full bg-neutral-800"
+            className="absolute animate-pulse rounded-full bg-(--border)"
             style={{
               left: `${n.x}%`,
               top: `${n.y}%`,
@@ -297,7 +297,7 @@ export function GovernanceSkeleton() {
         ))}
       </Box>
 
-      <div className="flex gap-6 border-b border-neutral-800 pb-2">
+      <div className="flex gap-6 border-b border-(--border) pb-2">
         {Array.from({ length: 4 }).map((_, i) => (
           <Bar key={i} w="90px" h="0.75rem" />
         ))}
