@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { FiExternalLink, FiShare2, FiArrowRight } from 'react-icons/fi'
 import { useApp } from '../context/AppContext'
 import { C, StatCard, HealthBar } from '../components/UI'
@@ -16,7 +16,6 @@ const fmt = n => n > 999 ? (n / 1000).toFixed(1) + 'k' : String(n)
 export default function OverviewPage() {
   const { orgs, model, totalRepo, isComplete, loading, runFullExplore } = useApp()
   const { theme } = useTheme()
-  const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [orgFilter, setOrgFilter] = useState('All Organizations')
   const [showAllOrgs, setShowAllOrgs] = useState(false)
@@ -81,13 +80,20 @@ export default function OverviewPage() {
         {sub}
       </div>
 
-      <button
-        type="button"
-        onClick={() => navigate(to)}
-        style={{ ...C.btn('primary'), display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+      <Link
+        to={to}
+        className="nav-card-link"
+        style={{
+          ...C.btn('primary'),
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 6,
+          fontSize: 12,
+        }}
+      >
         View {label}
-        <FiArrowRight size={12} />
-      </button>
+        <FiArrowRight size={12} aria-hidden="true" />
+      </Link>
     </div>
   )
 
