@@ -36,7 +36,7 @@ const NavCard = ({ to, label, sub }) => (
       to={to}
       className="nav-card-link"
       onKeyDown={e => {
-        if (e.key === ' ') {
+        if (e.key === ' ' && !e.repeat && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
           e.preventDefault()
           e.currentTarget.click()
         }

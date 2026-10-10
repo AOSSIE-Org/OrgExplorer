@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import OverviewPage from './OverviewPage'
@@ -118,6 +118,20 @@ describe('OverviewPage nav cards accessibility (issue #135)', () => {
     expect(document.activeElement).toBe(link)
     await user.keyboard(' ')
     expect(await screen.findByText('Repos page')).toBeInTheDocument()
+  })
+
+  it('ignores modified or repeated Space on a nav link', async () => {
+    const user = userEvent.setup()
+    renderOverviewWithRoutes()
+
+    const link = screen.getByRole('link', { name: 'View Repositories' })
+    link.focus()
+    await user.keyboard('{Shift>} {/Shift}')
+    expect(screen.queryByText('Repos page')).not.toBeInTheDocument()
+    expect(document.activeElement).toBe(link)
+    fireEvent.keyDown(link, { key: ' ', repeat: true })
+    expect(screen.queryByText('Repos page')).not.toBeInTheDocument()
+    expect(document.activeElement).toBe(link)
   })
 
   it('does not expose card titles, descriptions, or empty areas as extra buttons or links', () => {
