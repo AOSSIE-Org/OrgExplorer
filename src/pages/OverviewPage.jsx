@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { FiExternalLink, FiShare2, FiArrowRight } from 'react-icons/fi'
 import { useApp } from '../context/AppContext'
 import { C, StatCard, HealthBar } from '../components/UI'
@@ -13,10 +13,51 @@ import { useTheme } from '../context/ThemeContext'
 const LANG_COLORS = ['#22c55e', '#f5c518', '#3b82f6', '#ef4444', '#a855f7', '#f97316', '#06b6d4']
 const fmt = n => n > 999 ? (n / 1000).toFixed(1) + 'k' : String(n)
 
+const NavCard = ({ to, label, sub }) => (
+  <div
+    onMouseEnter={e => {
+      e.currentTarget.style.borderColor = 'var(--accent)'
+    }}
+    onMouseLeave={e => {
+      e.currentTarget.style.borderColor = 'var(--border)'
+    }}
+    style={{...C.card,transition: 'border-color .2s' }} >
+    <div
+      style={{ fontWeight: 600,marginBottom: 4, fontSize: 14 }} >
+      {label}
+    </div>
+
+    <div
+      style={{fontSize: 12, color: 'var(--text2)', marginBottom: 12, minHeight: 32 }}>
+      {sub}
+    </div>
+
+    <Link
+      to={to}
+      className="nav-card-link"
+      onKeyDown={e => {
+        if (e.key === ' ' && !e.repeat && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
+          e.preventDefault()
+          e.currentTarget.click()
+        }
+      }}
+      style={{
+        ...C.btn('primary'),
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 6,
+        fontSize: 12,
+      }}
+    >
+      View {label}
+      <FiArrowRight size={12} aria-hidden="true" />
+    </Link>
+  </div>
+)
+
 export default function OverviewPage() {
   const { orgs, model, totalRepo, isComplete, loading, runFullExplore } = useApp()
   const { theme } = useTheme()
-  const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [orgFilter, setOrgFilter] = useState('All Organizations')
   const [showAllOrgs, setShowAllOrgs] = useState(false)
@@ -58,38 +99,6 @@ export default function OverviewPage() {
   const langTotal = langs.reduce((s, [, c]) => s + c, 0)
 
   const topRepos = [...filteredRepos].sort((a, b) => b.healthScore - a.healthScore).slice(0, 5)
-
- 
-
-
-  const NavCard = ({ to, label, sub }) => (
-    <div
-      onMouseEnter={e => {
-        e.currentTarget.style.borderColor = 'var(--accent)'
-      }}
-      onMouseLeave={e => {
-        e.currentTarget.style.borderColor = 'var(--border)'
-      }}
-      style={{...C.card,transition: 'border-color .2s' }} >
-      <div
-        style={{ fontWeight: 600,marginBottom: 4, fontSize: 14 }} >
-        {label}
-      </div>
-
-      <div
-        style={{fontSize: 12, color: 'var(--text2)', marginBottom: 12, minHeight: 32 }}>
-        {sub}
-      </div>
-
-      <button
-        type="button"
-        onClick={() => navigate(to)}
-        style={{ ...C.btn('primary'), display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
-        View {label}
-        <FiArrowRight size={12} />
-      </button>
-    </div>
-  )
 
   return (
     <div style={{ padding: '32px 24px', maxWidth: 1100, margin: '0 auto' }} className="fade-up">

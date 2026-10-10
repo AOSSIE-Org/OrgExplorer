@@ -81,3 +81,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .navbar-link:hover {
   color: var(--accent) !important;
 }
+
+.nav-card-link:focus-visible {
+  outline: 3px solid var(--text);
+  outline-offset: 3px;
+}
