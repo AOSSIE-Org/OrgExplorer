@@ -86,7 +86,8 @@ export default function GovernancePage() {
   const staleIssuesRatio = allIssues.length ? (deadIssues.length / allIssues.length) * 100 : 0;
   const staleIssuesRatioOfOrg = (org)=>{
     if(org==='All Organizations'){return staleIssuesRatio;}
-    return allIssues.length?(deadIssuesOfOrg(org)?(deadIssuesOfOrg(org).length / allIssues.length) * 100 : 0):0;
+    const issueOfOrg = allIssues.filter(i=>i.orgName===org);
+    return issueOfOrg.length?(deadIssuesOfOrg(org)?(deadIssuesOfOrg(org).length / issueOfOrg.length) * 100 : 0):0;
   }
   // Health check 3 — Zombie PRs (>90 days open)
   const zombiePRs = allIssues
@@ -181,7 +182,7 @@ export default function GovernancePage() {
       {/* Summary stat cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 24 }}>
         <StatBox label="Dead Issues"  value={counts.dead}    sub="OPEN 90+ DAYS"          color="var(--red)"    />
-        <StatBox label="Stale Issues Ratio" value={`${staleIssuesRatioOfOrg(orgFilter).toFixed(2)}%`} sub={`of ${allIssues.length} total issues`} color={` ${getStatus(staleIssuesRatio).color}`} />
+        <StatBox label="Stale Issues Ratio" value={`${staleIssuesRatioOfOrg(orgFilter).toFixed(2)}%`} sub={`of ${allIssues.length} total issues`} color={` ${getStatus(staleIssuesRatioOfOrg(orgFilter)).color}`} />
         <StatBox label="Zombie PRs"   value={counts.zombie}  sub="PENDING 90+ DAYS"       color="var(--amber)"  />
         <StatBox label="No License"   value={counts.license} sub="COMPLIANCE MISSING"     color="var(--text2)"  />
       </div>
