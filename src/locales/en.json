@@ -1,0 +1,6 @@
+﻿{
+  "errors": {
+    "failedOrganizationSingular": "Could not load organization: {names}. Check the organization name and try again.",
+    "failedOrganizationPlural": "Could not load organizations: {names}. Check the organization names and try again."
+  }
+}

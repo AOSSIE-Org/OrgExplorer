@@ -1,3 +1,4 @@
+import messages from '../locales/en.json'
 import { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { fetchOrg, fetchRepos, fetchContributors, fetchIssues, fetchRateLimit, fetchPulls } from '../services/github'
 import { buildAnalyticalModel, getTopRepositories } from '../services/analytics'
@@ -79,7 +80,7 @@ export function AppProvider({ children }) {
   }, [])
 
   // Persist the analysis whenever it changes, including audit and analytics
-  // results — those are the most expensive data to refetch.
+  // results â€” those are the most expensive data to refetch.
   useEffect(() => {
     if (hydrating || !model) return
 
@@ -179,9 +180,11 @@ export function AppProvider({ children }) {
           .map(({ name }) => name)
           .join(', ')
 
-        throw new Error(
-          `Could not load organization${failedOrgs.length > 1 ? 's' : ''}: ${failedNames}. Check the organization name${failedOrgs.length > 1 ? 's' : ''} and try again.`
-        )
+        const message = failedOrgs.length > 1
+          ? messages.errors.failedOrganizationPlural
+          : messages.errors.failedOrganizationSingular
+
+        throw new Error(message.replace('{names}', failedNames))
       }
       const validOrgs = orgRes.filter(r => r.status === 'fulfilled').map(r => r.value)
       if (!validOrgs.length) throw new Error('No valid organizations found. Check the names and try again.')
@@ -304,7 +307,7 @@ export function AppProvider({ children }) {
     setAuditComplete(!!pat)
   }, [isComplete, model, runFullExplore, auditRepos, pat, govLoading])
 
-  // Advanced analytics — parallel batches of 5 (Section 3.2.5)
+  // Advanced analytics â€” parallel batches of 5 (Section 3.2.5)
   // Entry point for Analytics "Run Complete Analysis"
   // - If repos/contributors aren't complete yet -> fetch them first (explore),
   //   then fetch pulls using the freshly-returned model (avoids stale closure).
