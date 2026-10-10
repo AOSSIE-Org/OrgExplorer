@@ -1,3 +1,4 @@
+import messages from '../locales/en.json'
 import { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { fetchOrg, fetchRepos, fetchContributors, fetchIssues, fetchRateLimit, fetchPulls } from '../services/github'
 import { buildAnalyticalModel, getTopRepositories } from '../services/analytics'
@@ -79,7 +80,7 @@ export function AppProvider({ children }) {
   }, [])
 
   // Persist the analysis whenever it changes, including audit and analytics
-  // results — those are the most expensive data to refetch.
+  // results â€” those are the most expensive data to refetch.
   useEffect(() => {
     if (hydrating || !model) return
 
@@ -161,6 +162,30 @@ export function AppProvider({ children }) {
     try {
       setLoadMsg('Fetching organization metadata...')
       const orgRes = await Promise.allSettled(names.map(n => fetchOrg(n, pat)))
+
+      const failedOrgs = orgRes
+        .map((result, index) => ({ name: names[index], result }))
+        .filter(({ result }) => result.status === 'rejected')
+
+      if (failedOrgs.length > 0) {
+        const hasRateLimit = failedOrgs.some(
+          ({ result }) => result.reason?.message === 'RATE_LIMIT'
+        )
+
+        if (hasRateLimit) {
+          throw new Error('RATE_LIMIT')
+        }
+
+        const failedNames = failedOrgs
+          .map(({ name }) => name)
+          .join(', ')
+
+        const message = failedOrgs.length > 1
+          ? messages.errors.failedOrganizationPlural
+          : messages.errors.failedOrganizationSingular
+
+        throw new Error(message.replace('{names}', failedNames))
+      }
       const validOrgs = orgRes.filter(r => r.status === 'fulfilled').map(r => r.value)
       if (!validOrgs.length) throw new Error('No valid organizations found. Check the names and try again.')
       setOrgs(validOrgs)
@@ -282,7 +307,7 @@ export function AppProvider({ children }) {
     setAuditComplete(!!pat)
   }, [isComplete, model, runFullExplore, auditRepos, pat, govLoading])
 
-  // Advanced analytics — parallel batches of 5 (Section 3.2.5)
+  // Advanced analytics â€” parallel batches of 5 (Section 3.2.5)
   // Entry point for Analytics "Run Complete Analysis"
   // - If repos/contributors aren't complete yet -> fetch them first (explore),
   //   then fetch pulls using the freshly-returned model (avoids stale closure).
