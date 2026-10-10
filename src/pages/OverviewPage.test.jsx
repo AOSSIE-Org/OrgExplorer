@@ -71,9 +71,9 @@ describe('OverviewPage nav cards accessibility (issue #135)', () => {
     const user = userEvent.setup()
 
     const firstLink = screen.getByRole('link', { name: NAV_LINKS[0].name })
-    for (let i = 0; i < 5 && document.activeElement !== firstLink; i++) {
-      await user.tab()
-    }
+    const infoButton = screen.getByRole('button')
+    infoButton.focus()
+    await user.tab()
     expect(document.activeElement).toBe(firstLink)
     for (const { name } of NAV_LINKS.slice(1)) {
       await user.tab()
