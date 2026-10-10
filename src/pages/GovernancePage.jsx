@@ -45,7 +45,6 @@ export default function GovernancePage() {
   const { orgs, model, issuesData, runAudit, govLoading, auditComplete, loading, runGovernanceAnalysis,staleRepoStats } = useApp()
   const [tab, setTab] = useState('dead')
   const [orgFilter,setOrgFilter] = useState('All Organizations')
-
   const ITEMS_PER_PAGE = 10
   const [stalePage, setStalePage] = useState(1)
   const totalPages = Math.ceil(staleRepoStats.length / ITEMS_PER_PAGE)
@@ -55,7 +54,8 @@ export default function GovernancePage() {
   }, [staleRepoStats, stalePage])
   const paginatedStaleReposOfOrg = (org)=>{
     if(org === 'All Organizations'){return paginatedStaleRepos;}
-    return paginatedStaleRepos.filter((r)=>r.org===org);
+    const start = (stalePage - 1) * ITEMS_PER_PAGE;
+    return staleRepoStats.filter((r)=>r.org===org).slice(start,start+ITEMS_PER_PAGE);
   }
   // Flatten all issues and tag with repo/org
   const allIssues = useMemo(() => {
@@ -250,7 +250,7 @@ export default function GovernancePage() {
           <div style={{ marginBottom: 16 }}>
             <select
               value={orgFilter}
-              onChange={e => setOrgFilter(e.target.value)}
+              onChange={e => {setOrgFilter(e.target.value);setStalePage(1);}}
               style={C.select}
               aria-label="Filter stats by organization"
             >
