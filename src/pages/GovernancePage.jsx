@@ -47,17 +47,15 @@ export default function GovernancePage() {
   const [orgFilter,setOrgFilter] = useState('All Organizations')
   const ITEMS_PER_PAGE = 10
   const [stalePage, setStalePage] = useState(1)
-  const totalPages = Math.ceil(staleRepoStats.length / ITEMS_PER_PAGE)
+  const staleReposForOrg = useMemo(() => {
+    if (orgFilter === 'All Organizations') return staleRepoStats;
+    return staleRepoStats.filter((r)=>r.org===orgFilter);
+  }, [staleRepoStats, orgFilter])
+  const totalPages = Math.ceil(staleReposForOrg.length / ITEMS_PER_PAGE)
   const paginatedStaleRepos = useMemo(() => {
     const start = (stalePage - 1) * ITEMS_PER_PAGE
-    return staleRepoStats.slice(start, start + ITEMS_PER_PAGE)
-  }, [staleRepoStats, stalePage])
-  const paginatedStaleReposOfOrg = (org)=>{
-    if(org === 'All Organizations'){return paginatedStaleRepos;}
-    const start = (stalePage - 1) * ITEMS_PER_PAGE;
-    return staleRepoStats.filter((r)=>r.org===org).slice(start,start+ITEMS_PER_PAGE);
-  }
-  // Flatten all issues and tag with repo/org
+    return staleReposForOrg.slice(start, start + ITEMS_PER_PAGE)
+  }, [staleReposForOrg, stalePage])
   const allIssues = useMemo(() => {
     const arr = []
     Object.entries(issuesData || {}).forEach(([key, issues]) => {
@@ -72,7 +70,7 @@ export default function GovernancePage() {
 
   const hasAudit = Object.keys(issuesData || {}).length > 0
   const daysSince = d => Math.floor((Date.now() - new Date(d)) / 86_400_000)
-
+  const issuesOfOrg = orgFilter==='All Organizations'?allIssues:allIssues.filter(i=>i.orgName===orgFilter);
   // Health check 1 — Dead Issues (>90 days open, not a PR)
   const deadIssues = allIssues
     .filter(i => !i.pull_request && i.state === 'open' && daysSince(i.created_at) >= 90)
@@ -182,7 +180,7 @@ export default function GovernancePage() {
       {/* Summary stat cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 24 }}>
         <StatBox label="Dead Issues"  value={counts.dead}    sub="OPEN 90+ DAYS"          color="var(--red)"    />
-        <StatBox label="Stale Issues Ratio" value={`${staleIssuesRatioOfOrg(orgFilter).toFixed(2)}%`} sub={`of ${allIssues.length} total issues`} color={` ${getStatus(staleIssuesRatioOfOrg(orgFilter)).color}`} />
+        <StatBox label="Stale Issues Ratio" value={`${staleIssuesRatioOfOrg(orgFilter).toFixed(2)}%`} sub={`of ${issuesOfOrg.length} total issues`} color={` ${getStatus(staleIssuesRatioOfOrg(orgFilter)).color}`} />
         <StatBox label="Zombie PRs"   value={counts.zombie}  sub="PENDING 90+ DAYS"       color="var(--amber)"  />
         <StatBox label="No License"   value={counts.license} sub="COMPLIANCE MISSING"     color="var(--text2)"  />
       </div>
