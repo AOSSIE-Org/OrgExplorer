@@ -52,6 +52,22 @@ function renderOverview(initialEntries = ['/']) {
   )
 }
 
+function renderOverviewWithRoutes(initialEntries = ['/']) {
+  return render(
+    <MemoryRouter initialEntries={initialEntries}>
+      <Routes>
+        <Route path="/" element={<OverviewPage />} />
+        <Route path="/repositories" element={<div>Repos page</div>} />
+        <Route path="/contributors" element={<div>Contributors page</div>} />
+        <Route path="/network" element={<div>Network page</div>} />
+        <Route path="/analytics" element={<div>Analytics page</div>} />
+        <Route path="/governance" element={<div>Governance page</div>} />
+        <Route path="/settings" element={<div>Settings page</div>} />
+      </Routes>
+    </MemoryRouter>
+  )
+}
+
 describe('OverviewPage nav cards accessibility (issue #135)', () => {
   it('renders all six controls as links with correct names and hrefs', () => {
     renderOverview()
@@ -71,6 +87,7 @@ describe('OverviewPage nav cards accessibility (issue #135)', () => {
     const user = userEvent.setup()
 
     const firstLink = screen.getByRole('link', { name: NAV_LINKS[0].name })
+    expect(screen.getAllByRole('button')).toHaveLength(1)
     const infoButton = screen.getByRole('button')
     infoButton.focus()
     await user.tab()
@@ -83,24 +100,23 @@ describe('OverviewPage nav cards accessibility (issue #135)', () => {
 
   it('navigates when Enter is pressed on a focused nav link', async () => {
     const user = userEvent.setup()
-    render(
-      <MemoryRouter initialEntries={['/']}>
-        <Routes>
-          <Route path="/" element={<OverviewPage />} />
-          <Route path="/repositories" element={<div>Repos page</div>} />
-          <Route path="/contributors" element={<div>Contributors page</div>} />
-          <Route path="/network" element={<div>Network page</div>} />
-          <Route path="/analytics" element={<div>Analytics page</div>} />
-          <Route path="/governance" element={<div>Governance page</div>} />
-          <Route path="/settings" element={<div>Settings page</div>} />
-        </Routes>
-      </MemoryRouter>
-    )
+    renderOverviewWithRoutes()
 
     const link = screen.getByRole('link', { name: 'View Repositories' })
     link.focus()
     expect(document.activeElement).toBe(link)
     await user.keyboard('{Enter}')
+    expect(await screen.findByText('Repos page')).toBeInTheDocument()
+  })
+
+  it('navigates when Space is pressed on a focused nav link', async () => {
+    const user = userEvent.setup()
+    renderOverviewWithRoutes()
+
+    const link = screen.getByRole('link', { name: 'View Repositories' })
+    link.focus()
+    expect(document.activeElement).toBe(link)
+    await user.keyboard(' ')
     expect(await screen.findByText('Repos page')).toBeInTheDocument()
   })
 
