@@ -105,8 +105,8 @@ describe('buildTimeSeries', () => {
     expect(result.length).toBeLessThanOrEqual(12)
   })
 
-  it('returns at most the last 26 buckets for weekly granularity', () => {
-    // Generate 30 distinct weeks spread across ~8 months
+  it('returns the last 26 buckets in chronological order for weekly granularity', () => {
+    // Generate 30 distinct weeks starting 2025-W02 through 2025-W31
     const spreadIssues = Array.from({ length: 30 }, (_, i) => {
       const date = new Date('2025-01-06T00:00:00Z')
       date.setDate(date.getDate() + i * 7)
@@ -115,8 +115,12 @@ describe('buildTimeSeries', () => {
 
     const result = buildTimeSeries(spreadIssues, 'weekly')
 
-    expect(result.length).toBeLessThanOrEqual(26)
-    expect(result.length).toBeGreaterThan(12) // proves we get more than the old hardcoded 12
+    // The 30 input weeks produce keys 2025-W02 … 2025-W31.
+    // slice(-26) must retain exactly the last 26: 2025-W06 … 2025-W31.
+    // Verify the complete ordered sequence — catches both wrong count and interior reordering
+    expect(result.map(bucket => bucket.date)).toEqual(
+      Array.from({ length: 26 }, (_, i) => `2025-W${String(i + 6).padStart(2, '0')}`),
+    )
   })
 
   it('returns an empty array when given no issues', () => {
