@@ -16,7 +16,20 @@ export default function HomePage() {
 
   const addChip = raw => {
     const parts = raw.split(/[,+\s]+/).map(s => s.trim()).filter(Boolean)
-    setChips(prev => [...new Set([...prev, ...parts])])
+    setChips(prev => {
+      // Deduplicate case-insensitively: `AOSSIE-Org` and `aossie-org` are
+      // the same org, so keep only the first-seen casing.
+      const seen = new Set(prev.map(c => c.toLowerCase()))
+      const next = [...prev]
+      for (const p of parts) {
+        const key = p.toLowerCase()
+        if (!seen.has(key)) {
+          seen.add(key)
+          next.push(p)
+        }
+      }
+      return next
+    })
     setInput('')
   }
 
