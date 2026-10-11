@@ -93,11 +93,7 @@ describe('buildTimeSeries', () => {
     expect(result.map(r => r.date)).toEqual(['2026-01', '2026-02', '2026-03'])
   })
 
-  it('returns at most the last 12 buckets when more months are present', () => {
-    const issues = Array.from({ length: 15 }, (_, i) => ({
-      created_at: `2025-${String((i % 12) + 1).padStart(2, '0')}-01T00:00:00Z`,
-    }))
-    // Construct 15 distinct months across two years to exceed the 12-bucket cap
+  it('returns at most the last 12 buckets for monthly granularity', () => {
     const spreadIssues = Array.from({ length: 15 }, (_, i) => {
       const year = 2025 + Math.floor(i / 12)
       const month = (i % 12) + 1
@@ -107,6 +103,20 @@ describe('buildTimeSeries', () => {
     const result = buildTimeSeries(spreadIssues, 'monthly')
 
     expect(result.length).toBeLessThanOrEqual(12)
+  })
+
+  it('returns at most the last 26 buckets for weekly granularity', () => {
+    // Generate 30 distinct weeks spread across ~8 months
+    const spreadIssues = Array.from({ length: 30 }, (_, i) => {
+      const date = new Date('2025-01-06T00:00:00Z')
+      date.setDate(date.getDate() + i * 7)
+      return { created_at: date.toISOString() }
+    })
+
+    const result = buildTimeSeries(spreadIssues, 'weekly')
+
+    expect(result.length).toBeLessThanOrEqual(26)
+    expect(result.length).toBeGreaterThan(12) // proves we get more than the old hardcoded 12
   })
 
   it('returns an empty array when given no issues', () => {
