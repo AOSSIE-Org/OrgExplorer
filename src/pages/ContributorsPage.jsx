@@ -424,7 +424,7 @@ export default function ContributorsPage() {
                       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                         {c.isConnector && <span style={C.pill('var(--accent)', 'rgba(245,197,24,.12)')}>CONNECTOR</span>}
                         {c.isCrossOrg && <span style={C.pill('var(--purple)', 'rgba(168,85,247,.12)')}>CROSS-ORG</span>}
-                        {c.freshness > 70 && <span style={C.pill('var(--green)', 'rgba(34,197,94,.12)')}>ACTIVE</span>}
+                        {c.freshness > 70 ? <span style={C.pill('var(--green)', 'rgba(34,197,94,.12)')}>ACTIVE</span>:<span style={C.pill('var(--red)', 'rgba(239, 68, 68, 0.12)')}>INACTIVE</span>}
                       </div>
                     </td>
                   </tr>
