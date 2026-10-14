@@ -161,21 +161,34 @@ export function AppProvider({ children }) {
     try {
       setLoadMsg('Fetching organization metadata...')
       const orgRes = await Promise.allSettled(names.map(n => fetchOrg(n, pat)))
+
+      const rateLimitError = orgRes.find(r => r.status === 'rejected' && r.reason?.message === 'RATE_LIMIT')
+      if (rateLimitError) {
+        throw new Error('RATE_LIMIT')
+      }
+
       const validOrgs = orgRes.filter(r => r.status === 'fulfilled').map(r => r.value)
       if (!validOrgs.length) throw new Error('No valid organizations found. Check the names and try again.')
       setOrgs(validOrgs)
 
       setLoadMsg('Fetching repositories...')
       const reposPerOrg = {}
-      await Promise.allSettled(validOrgs.map(async org => {
-        reposPerOrg[org.login] = await fetchRepos(org.login, org.public_repos, pat)
+      const repoRes = await Promise.allSettled(validOrgs.map(async org => {
+        const repos = await fetchRepos(org.login, org.public_repos, pat)
+        reposPerOrg[org.login] = repos
+        return repos
       }))
 
-      const total = Object.values(reposPerOrg).reduce((sum, repos) => sum + repos.length, 0);
+      const repoRateLimit = repoRes.find(r => r.status === 'rejected' && r.reason?.message === 'RATE_LIMIT')
+      if (repoRateLimit) {
+        throw new Error('RATE_LIMIT')
+      }
+
+      const total = Object.values(reposPerOrg).reduce((sum, repos) => sum + (repos ? repos.length : 0), 0);
       setTotalRepo(total);
 
       const totalReposPerOrg = Object.fromEntries(
-        Object.entries(reposPerOrg).map(([org, repos]) => [org, [...repos]])
+        Object.entries(reposPerOrg).map(([org, repos]) => [org, [...(repos || [])]])
       );
 
       setLoadMsg('Fetching contributor data for top repositories...')
@@ -185,9 +198,16 @@ export function AppProvider({ children }) {
         const top = pat ? (reposPerOrg[org.login] || []) : getTopRepositories(reposPerOrg[org.login] || [], 10);
         reposPerOrg[org.login] = top;
 
-        await Promise.allSettled(top.map(async repo => {
-          contribsPerRepo[`${org.login}/${repo.name}`] = await fetchContributors(org.login, repo.name, pat)
+        const contribRes = await Promise.allSettled(top.map(async repo => {
+          const contribs = await fetchContributors(org.login, repo.name, pat)
+          contribsPerRepo[`${org.login}/${repo.name}`] = contribs
+          return contribs
         }))
+
+        const contribRateLimit = contribRes.find(r => r.status === 'rejected' && r.reason?.message === 'RATE_LIMIT')
+        if (contribRateLimit) {
+          throw new Error('RATE_LIMIT')
+        }
       }
 
       setLoadMsg('Building analytical data model...')

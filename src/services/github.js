@@ -97,7 +97,7 @@ async function fetchWithCache(url, pat) {
     })
   )
 
-  if (res.status === 403) throw new Error('RATE_LIMIT')
+  if (res.status === 403 || res.status === 429) throw new Error('RATE_LIMIT')
   if (res.status === 404) throw new Error('NOT_FOUND')
 
   if (res.status === 204 || res.status === 409) {
