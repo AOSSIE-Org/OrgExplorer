@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef } from 'react'
-import { fetchOrg, fetchRepos, fetchContributors, fetchIssues, fetchRateLimit, fetchPulls } from '../services/github'
+import { fetchOrg, fetchRepos, fetchContributors, fetchIssues, fetchRateLimit, fetchPulls, fetchCommits } from '../services/github'
 import { buildAnalyticalModel, getTopRepositories } from '../services/analytics'
 import { saveAnalysis, loadAnalysis } from '../services/cache'
 
@@ -189,6 +189,15 @@ export function AppProvider({ children }) {
           contribsPerRepo[`${org.login}/${repo.name}`] = await fetchContributors(org.login, repo.name, pat)
         }))
       }
+
+      // Single pass over the repo/contributor map — the previous nested loop
+      // re-fetched every repo once per entry (O(n²) redundant work).
+      await Promise.allSettled(
+        Object.entries(contribsPerRepo).map(async ([key, contribs]) => {
+          const [org, repo] = key.split("/");
+          await fetchCommits(contribs, org, repo, pat);
+        })
+      );
 
       setLoadMsg('Building analytical data model...')
       const builtModel = buildAnalyticalModel(validOrgs, reposPerOrg, contribsPerRepo, totalReposPerOrg)
