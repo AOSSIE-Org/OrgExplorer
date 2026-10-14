@@ -167,6 +167,11 @@ export function AppProvider({ children }) {
         throw new Error('RATE_LIMIT')
       }
 
+      const unexpectedError = orgRes.find(r => r.status === 'rejected' && r.reason?.message !== 'NOT_FOUND')
+      if (unexpectedError) {
+        throw (unexpectedError.reason || new Error('Failed to fetch organization data.'))
+      }
+
       const validOrgs = orgRes.filter(r => r.status === 'fulfilled').map(r => r.value)
       if (!validOrgs.length) throw new Error('No valid organizations found. Check the names and try again.')
       setOrgs(validOrgs)
@@ -227,7 +232,9 @@ export function AppProvider({ children }) {
       return builtModel
     } catch (err) {
       setError(err.message === 'RATE_LIMIT'
-        ? 'GitHub API rate limit reached. Add a PAT in Settings for 5,000 req/hr.'
+        ? (pat
+            ? 'GitHub API rate limit reached. Please wait for your quota to refresh.'
+            : 'GitHub API rate limit reached. Add a PAT in Settings for 5,000 req/hr.')
         : err.message)
       return false
     } finally {

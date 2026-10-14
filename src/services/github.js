@@ -97,7 +97,28 @@ async function fetchWithCache(url, pat) {
     })
   )
 
-  if (res.status === 403 || res.status === 429) throw new Error('RATE_LIMIT')
+  if (res.status === 429) throw new Error('RATE_LIMIT')
+  if (res.status === 403) {
+    const remaining = res.headers?.get ? res.headers.get('x-ratelimit-remaining') : null
+    const retryAfter = res.headers?.get ? res.headers.get('retry-after') : null
+
+    if (remaining === '0' || retryAfter) {
+      throw new Error('RATE_LIMIT')
+    }
+
+    try {
+      const cloned = typeof res.clone === 'function' ? res.clone() : res
+      const body = await cloned.json()
+      const msg = typeof body?.message === 'string' ? body.message.toLowerCase() : ''
+      if (msg.includes('rate limit') || msg.includes('secondary rate') || msg.includes('abuse detection')) {
+        throw new Error('RATE_LIMIT')
+      }
+    } catch (e) {
+      if (e.message === 'RATE_LIMIT') throw e
+    }
+
+    throw new Error('HTTP_403')
+  }
   if (res.status === 404) throw new Error('NOT_FOUND')
 
   if (res.status === 204 || res.status === 409) {
