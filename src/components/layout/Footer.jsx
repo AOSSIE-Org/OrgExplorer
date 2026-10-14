@@ -169,7 +169,7 @@ export default function Footer() {
             >
               © {new Date().getFullYear()}
               <span>
-                <Logo className="h-15 w-auto"/>
+                <Link to={'/'}><Logo className="h-15 w-auto cursor-pointer"/></Link>
               </span>
             </p>
 
