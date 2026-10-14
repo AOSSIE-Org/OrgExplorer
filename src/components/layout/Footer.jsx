@@ -16,14 +16,17 @@ const footerLinks = [
   {
     label: "Documentation",
     href: "https://github.com/AOSSIE-Org/OrgExplorer/blob/main/README.md",
+    isExternal: true,
   },
   {
     label: "Terms of Service",
     href: "https://github.com/AOSSIE-Org/OrgExplorer/blob/main/terms-of-service.md",
+    isExternal: true,
   },
   {
     label: "Privacy Policy",
     href: "https://github.com/AOSSIE-Org/OrgExplorer/blob/main/privacy-policy.md",
+    isExternal: true,
   },
   {
     label: "API Status",
@@ -110,6 +113,8 @@ export default function Footer() {
                 <Link
                   key={item.label}
                   to={item.href}
+                  target={item.isExternal ? "_blank" : "_self"}
+                  rel={item.isExternal ? "noopener noreferrer" : undefined}
                   style={{
                     color: "var(--text2)",
                     transition: "color 0.2s ease",
