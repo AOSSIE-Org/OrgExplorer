@@ -1,17 +1,209 @@
 //  Repo Health Indicator
-// Activity (40%) + Issue Health (30%) + Diversity (30%)
+// Derived directly from computeHealthBreakdown for consistent single-source scoring
 export function computeHealthScore(repo, contributorCount = 0) {
-  const daysSince   = (Date.now() - new Date(repo.pushed_at)) / 86_400_000
-  const activity    = Math.max(0, 100 - daysSince)
-  const total       = (repo.open_issues_count || 0) + 10
-  const issueHealth = Math.max(0, 100 - (repo.open_issues_count / total) * 100)
-  const diversity   = Math.min(100, contributorCount * 10)
-  return Math.round(activity * 0.4 + issueHealth * 0.3 + diversity * 0.3)
+  return computeHealthBreakdown(repo, contributorCount).overall
+}
+
+/**
+ * Detailed breakdown of health score components, weights, metrics, and formula.
+ */
+export function computeHealthBreakdown(repo, contributorCount = 0) {
+  const pushedAtMs = repo?.pushed_at ? new Date(repo.pushed_at).getTime() : NaN
+  const hasPush = Number.isFinite(pushedAtMs)
+  const daysSince = hasPush ? Math.max(0, (Date.now() - pushedAtMs) / 86_400_000) : 365
+  const activity = hasPush ? Math.max(0, 100 - daysSince) : 0
+
+  const openIssues = repo?.open_issues_count || 0
+  const total = openIssues + 10
+  const issueHealth = Math.max(0, 100 - (openIssues / total) * 100)
+
+  const hasContributorData = typeof contributorCount === 'number' && Number.isFinite(contributorCount)
+  const diversity = hasContributorData ? Math.min(100, Math.max(0, contributorCount) * 10) : null
+
+  let overall = 0
+  let weights = { activity: 0.4, issues: 0.3, diversity: 0.3 }
+
+  if (hasContributorData) {
+    const activityWeighted = activity * 0.4
+    const issueHealthWeighted = issueHealth * 0.3
+    const diversityWeighted = diversity * 0.3
+    overall = Math.round(activityWeighted + issueHealthWeighted + diversityWeighted)
+  } else {
+    // When contributor data was not fetched, normalize across available dimensions
+    const normActivityWeight = 0.4 / 0.7
+    const normIssueWeight = 0.3 / 0.7
+    weights = { activity: normActivityWeight, issues: normIssueWeight, diversity: 0 }
+    overall = Math.round(activity * normActivityWeight + issueHealth * normIssueWeight)
+  }
+
+  return {
+    overall,
+    weights,
+    categories: [
+      {
+        id: 'activity',
+        name: 'Activity Health',
+        score: Math.round(activity),
+        weight: hasContributorData ? 0.4 : Number((0.4 / 0.7).toFixed(2)),
+        weightedScore: Number((activity * (hasContributorData ? 0.4 : 0.4 / 0.7)).toFixed(1)),
+        metrics: [
+          { label: 'Last Push', value: repo?.pushed_at ? repo.pushed_at.slice(0, 10) : 'No recorded push' },
+          { label: 'Days Since Push', value: hasPush ? Math.floor(daysSince) : 'Unknown' },
+          { label: 'Status', value: hasPush ? computeActivityClassification(repo) : 'Unknown' }
+        ],
+        description: 'Measures recent maintenance activity and commit momentum. Repositories updated within the last 30 days earn the highest score.'
+      },
+      {
+        id: 'issues',
+        name: 'Issue Health',
+        score: Math.round(issueHealth),
+        weight: hasContributorData ? 0.3 : Number((0.3 / 0.7).toFixed(2)),
+        weightedScore: Number((issueHealth * (hasContributorData ? 0.3 : 0.3 / 0.7)).toFixed(1)),
+        metrics: [
+          { label: 'Open Issues', value: openIssues },
+          { label: 'Issue Load Ratio', value: `${Math.round((openIssues / total) * 100)}%` }
+        ],
+        description: 'Evaluates issue maintenance burden. A lower backlog relative to project scale yields a healthier score.'
+      },
+      {
+        id: 'diversity',
+        name: 'Contributor Diversity',
+        score: hasContributorData ? Math.round(diversity) : null,
+        weight: hasContributorData ? 0.3 : 0,
+        weightedScore: hasContributorData ? Number((diversity * 0.3).toFixed(1)) : null,
+        isAvailable: hasContributorData,
+        metrics: [
+          { label: 'Contributors', value: hasContributorData ? contributorCount : 'Unavailable' },
+          { label: 'Target Base', value: '10+ contributors' }
+        ],
+        description: hasContributorData
+          ? 'Reflects contributor spread and project resilience. Projects with 10 or more contributors reach maximum diversity score.'
+          : 'Contributor data was not fetched for this repository. Connect a GitHub PAT in Settings to analyze full contributor diversity.'
+      }
+    ]
+  }
+}
+
+/**
+ * Actionable recommendations based on repository signals and metrics.
+ */
+export function getHealthRecommendations(repo, contributorCount = 0) {
+  const recommendations = []
+  const pushedAtMs = repo?.pushed_at ? new Date(repo.pushed_at).getTime() : NaN
+  const hasPush = Number.isFinite(pushedAtMs)
+  const daysSince = hasPush ? Math.max(0, (Date.now() - pushedAtMs) / 86_400_000) : 365
+  const openIssues = repo?.open_issues_count || 0
+
+  // 1. Activity & Recency
+  if (!hasPush) {
+    recommendations.push({
+      type: 'critical',
+      category: 'Activity',
+      title: 'No Recorded Push Activity',
+      description: 'No push date is recorded for this repository. Push a commit to establish activity history.'
+    })
+  } else if (daysSince > 180) {
+    recommendations.push({
+      type: 'critical',
+      category: 'Activity',
+      title: 'Resume Development & Push Updates',
+      description: `Repository has been inactive for ${Math.floor(daysSince)} days (Hibernating). Regular commits and maintenance prevent code rot and signal active stewardship.`
+    })
+  } else if (daysSince > 90) {
+    recommendations.push({
+      type: 'warning',
+      category: 'Activity',
+      title: 'Address Inactivity',
+      description: `Last push was ${Math.floor(daysSince)} days ago (Dormant). Pushing routine dependency upgrades or bug fixes will help restore Active status.`
+    })
+  } else if (daysSince <= 30) {
+    recommendations.push({
+      type: 'good',
+      category: 'Activity',
+      title: 'Strong Development Momentum',
+      description: 'Recent pushes within the last 30 days demonstrate ongoing active maintenance.'
+    })
+  }
+
+  // 2. Issue Health
+  if (openIssues > 40) {
+    recommendations.push({
+      type: 'critical',
+      category: 'Issues',
+      title: 'Triage High Issue Backlog',
+      description: `There are ${openIssues} open issues. A large unresolved backlog can discourage contributors and slow release cycles.`
+    })
+  } else if (openIssues > 20) {
+    recommendations.push({
+      type: 'warning',
+      category: 'Issues',
+      title: 'Review Open Issues',
+      description: `There are ${openIssues} open issues. Consider tagging stale issues, grouping similar bug reports, or marking 'good first issue' tasks.`
+    })
+  } else if (openIssues === 0) {
+    recommendations.push({
+      type: 'good',
+      category: 'Issues',
+      title: 'Clean Issue Backlog',
+      description: 'Zero open issues indicate high responsiveness and prompt resolution.'
+    })
+  }
+
+  // 3. Contributor Diversity / Resilience
+  if (typeof contributorCount === 'number' && Number.isFinite(contributorCount)) {
+    if (contributorCount <= 1) {
+      recommendations.push({
+        type: 'critical',
+        category: 'Community',
+        title: 'Mitigate Single Maintainer Risk',
+        description: `${contributorCount === 0 ? 'No contributors are' : 'Only 1 contributor is'} recorded. Onboarding co-maintainers or reviewing external PRs is crucial to prevent single point of failure.`
+      })
+    } else if (contributorCount < 5) {
+      recommendations.push({
+        type: 'warning',
+        category: 'Community',
+        title: 'Expand Contributor Base',
+        description: `Only ${contributorCount} contributor(s) recorded. Promoting community contributions will improve diversity and resilience.`
+      })
+    } else if (contributorCount >= 10) {
+      recommendations.push({
+        type: 'good',
+        category: 'Community',
+        title: 'Healthy Contributor Community',
+        description: `${contributorCount} contributors active across the repository provide strong organizational stability.`
+      })
+    }
+  }
+
+  // 4. Governance & Documentation
+  if (!repo?.license) {
+    recommendations.push({
+      type: 'warning',
+      category: 'Governance',
+      title: 'Add an Open Source License',
+      description: 'No license detected. Without an explicit open-source license (such as MIT or Apache 2.0), third parties may hesitate to adopt or contribute.'
+    })
+  }
+
+  if (!repo?.description) {
+    recommendations.push({
+      type: 'optimization',
+      category: 'Documentation',
+      title: 'Add Repository Description & Topics',
+      description: 'Providing a clear summary and discoverability tags helps developers and automated tools understand the project purpose.'
+    })
+  }
+
+  // Sort order: critical first, then warning, optimization, good
+  const PRIORITY = { critical: 0, warning: 1, optimization: 2, good: 3 }
+  return recommendations.sort((a, b) => PRIORITY[a.type] - PRIORITY[b.type])
 }
 
 // Repo Lifecycle — Thriving, Active, Dormant, Hibernating based on recency of last push
 export function computeActivityClassification(repo) {
-  const days = (Date.now() - new Date(repo.pushed_at)) / 86_400_000
+  const pushedAtMs = repo?.pushed_at ? new Date(repo.pushed_at).getTime() : NaN
+  if (!Number.isFinite(pushedAtMs)) return 'Unknown'
+  const days = (Date.now() - pushedAtMs) / 86_400_000
   if (days <= 30)  return 'Thriving'
   if (days <= 90)  return 'Active'
   if (days <= 180) return 'Dormant'
@@ -49,17 +241,31 @@ export function buildAnalyticalModel(orgs, reposPerOrg, contribsPerRepo, totalRe
 
     total.forEach(repo => {
       const key = `${org.login}/${repo.name}`
-      const contribs = contribsPerRepo[key] || []
-      const health = computeHealthScore(repo, contribs.length)
+      const hasContributors = Boolean(contribsPerRepo && Object.prototype.hasOwnProperty.call(contribsPerRepo, key))
+      const contribs = hasContributors ? (contribsPerRepo[key] || []) : []
+      const health = computeHealthScore(repo, hasContributors ? contribs.length : null)
       const activityClassification = computeActivityClassification(repo)
       const bf = computeBusFactor(contribs)
-      totalRepos.push({ ...repo, orgLogin: org.login, contributors: contribs, healthScore: health, activityClassification: activityClassification, busFactor: bf })
+      totalRepos.push({
+        ...repo,
+        orgLogin: org.login,
+        contributors: contribs,
+        contributorsFetched: hasContributors,
+        healthScore: health,
+        activityClassification: activityClassification,
+        busFactor: bf,
+      })
     })
 
     repos.forEach(repo => {
       const key = `${org.login}/${repo.name}`
-      const contribs = contribsPerRepo[key] || []
-      allRepos.push({ ...repo, orgLogin: org.login });
+      const hasContributors = Boolean(contribsPerRepo && Object.prototype.hasOwnProperty.call(contribsPerRepo, key))
+      const contribs = hasContributors ? (contribsPerRepo[key] || []) : []
+      allRepos.push({
+        ...repo,
+        orgLogin: org.login,
+        contributorsFetched: hasContributors,
+      });
 
       // Build contributor map — deduplicated by login across orgs
       contribs.forEach(c => {
