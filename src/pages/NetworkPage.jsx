@@ -1,71 +1,136 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState , useMemo } from 'react'
 import * as d3 from 'd3'
 import { useApp } from '../context/AppContext'
 import { C, PageTitle } from '../components/UI'
 import EmptyStateCard from '../components/EmptyStateCard'
 import { FiDatabase } from 'react-icons/fi'
+import { AiOutlineInfoCircle } from 'react-icons/ai'
 import { useNavigate } from 'react-router-dom'
 import AnalysisBanner from '../components/AnalysisBanner'
 import { NetworkSkeleton } from '../components/Orgexplorerskeletons'
 
 export default function NetworkPage() {
   const { model, isComplete, loading, runFullExplore, allRepos } = useApp()
-  const svgRef   = useRef(null)
-  const simRef   = useRef(null)
-  const [tooltip,      setTooltip]      = useState(null)
-  const [showRepos,    setShowRepos]    = useState(true)
+  const svgRef = useRef(null)
+  const simRef = useRef(null)
+  const [tooltip, setTooltip] = useState(null)
+  const [showRepos, setShowRepos] = useState(true)
   const [showContribs, setShowContribs] = useState(true)
+  const [repoLimit, setRepoLimit] = useState(30)
+  const [openInfo, setOpenInfo] = useState(false)
+  const infoRef = useRef(null)
+
+  const eligibleReposCount = useMemo(() => {
+    if (!model?.allRepos) return 0
+    const relevantRepoKeys = new Set()
+    model.contributors.forEach(c => {
+      c.repos.forEach(repo => {
+        relevantRepoKeys.add(`${repo.org}/${repo.name}`)
+      })
+    })
+    return model.allRepos.filter(r =>
+      relevantRepoKeys.has(`${r.orgLogin}/${r.name}`)
+    ).length
+  }, [model])
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (infoRef.current && !infoRef.current.contains(e.target)) {
+        setOpenInfo(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+  
+  useEffect(() => {
+    if (eligibleReposCount) {
+      setRepoLimit(Math.min(30, eligibleReposCount))     
+    }
+  }, [eligibleReposCount])
 
   useEffect(() => {
     if (!svgRef.current || !model?.allRepos.length) return
 
-    const el  = svgRef.current
-    const W   = el.clientWidth || 860
-    const H   = 580
+    const el = svgRef.current
+    const W = el.clientWidth || 860
+    const H = 580
     const now = Date.now()
 
     const svg = d3.select(el)
     svg.selectAll('*').remove()
     svg.attr('viewBox', `0 0 ${W} ${H}`)
 
-    // Top repos and contributors for performance
-    // Top repos and contributors for performance
+    // Top repos and contributors for performance —
     // allRepos entries don't carry healthScore/activityClassification —
     // only totalRepos does (see buildAnalyticalModel) — so enrich them here
     const repoMetaByKey = new Map(
       model.totalRepos.map(r => [`${r.orgLogin}/${r.name}`, r])
     )
-    const topRepos = model.allRepos.slice(0, 30).map(r => {
-      const meta = repoMetaByKey.get(`${r.orgLogin}/${r.name}`)
-      return {
-        ...r,
-        healthScore: meta?.healthScore ?? 0,
-        activityClassification: meta?.activityClassification ?? 'Unknown',
-      }
-    })
+
     const topContribs = model.contributors
 
-    const nodes = []
-    if (showRepos)    topRepos.forEach(r => nodes.push({ id: `repo:${r.name}`,    type: 'repo',        data: r, ts: new Date(r.pushed_at).getTime(), healthScore: r.healthScore }))
-    if (showContribs) topContribs.forEach(c => nodes.push({ id: `user:${c.login}`, type: 'contributor', data: c, ts: c.lastActive ? new Date(c.lastActive).getTime() : 0, healthScore: c.healthScore }))
-
-    const nodeSet = new Set(nodes.map(n => n.id))
-    const links   = []
+    const relevantRepoKeys = new Set()
     topContribs.forEach(c => {
-      c.repos.slice(0, 5).forEach(repo => {
-        const s = `user:${c.login}`, t = `repo:${repo.name}`
-        if (nodeSet.has(s) && nodeSet.has(t)) links.push({ source: s, target: t, weight: repo.count })
+      c.repos.forEach(repo => {
+        relevantRepoKeys.add(`${repo.org}/${repo.name}`)
       })
     })
 
+    const eligibleRepos = model.allRepos.filter(r =>
+      relevantRepoKeys.has(`${r.orgLogin}/${r.name}`)
+    )
+
+    const topRepos = eligibleRepos
+      .slice(0, repoLimit)
+      .map(r => {
+        const meta = repoMetaByKey.get(`${r.orgLogin}/${r.name}`)
+        return {
+          ...r,
+          healthScore: meta?.healthScore ?? 0,
+          activityClassification: meta?.activityClassification ?? 'Unknown',
+        }
+      })
+
+    const nodes = []
+    if (showRepos) topRepos.forEach(r => nodes.push({ id: `repo:${r.orgLogin}/${r.name}`, type: 'repo', data: r, ts: new Date(r.pushed_at).getTime(), healthScore: r.healthScore }))
+    if (showContribs) topContribs.forEach(c => nodes.push({ id: `user:${c.login}`, type: 'contributor', data: c, ts: c.lastActive ? new Date(c.lastActive).getTime() : 0, healthScore: c.healthScore }))
+
+    const nodeSet = new Set(nodes.map(n => n.id))
+    const links = []
+    const contributorsWithLinks = new Set()
+
+    topContribs.forEach(c => {
+      c.repos.forEach(repo => {
+        const repoKey = `${repo.org}/${repo.name}`
+        if (topRepos.some(r => `${r.orgLogin}/${r.name}` === repoKey)) {
+          contributorsWithLinks.add(`user:${c.login}`)
+        }
+      })
+    })
+
+    topContribs.forEach(c => {
+      c.repos.forEach(repo => {
+        const s = `user:${c.login}`
+        const t = `repo:${repo.org}/${repo.name}`
+        if (nodeSet.has(s) && nodeSet.has(t)) {
+          links.push({ source: s, target: t, weight: repo.count })
+        }
+      })
+    })
+
+    const filteredNodes = nodes.filter(n =>
+      n.type === 'repo' || contributorsWithLinks.has(n.id)
+    )
+
     // Scales
-    const recencyY    = d3.scaleLinear().domain([now - 365 * 86_400_000, now]).range([H * 0.83, H * 0.14]).clamp(true)
-    const repoRadius  = d3.scaleSqrt().domain([0, d3.max(topRepos, r => r.stargazers_count) || 1]).range([5, 22])
-    const contribR    = d3.scaleSqrt().domain([0, d3.max(topContribs, c => c.totalContribs) || 1]).range([4, 14])
-    const edgeW       = d3.scaleLinear().domain([1, d3.max(links, l => l.weight) || 1]).range([1, 6])
+    const recencyY = d3.scaleLinear().domain([now - 365 * 86_400_000, now]).range([H * 0.83, H * 0.14]).clamp(true)
+    const repoRadius = d3.scaleSqrt().domain([0, d3.max(topRepos, r => r.stargazers_count) || 1]).range([5, 22])
+    const contribR = d3.scaleSqrt().domain([0, d3.max(topContribs, c => c.totalContribs) || 1]).range([4, 14])
+    const edgeW = d3.scaleLinear().domain([1, d3.max(links, l => l.weight) || 1]).range([1, 6])
     const healthColor = h => h >= 70 ? '#22c55e' : h >= 40 ? '#f59e0b' : '#ef4444'
 
-    const g    = svg.append('g')
+    const g = svg.append('g')
     const zoom = d3.zoom().scaleExtent([0.2, 4]).on('zoom', e => g.attr('transform', e.transform))
     svg.call(zoom)
 
@@ -78,17 +143,17 @@ export default function NetworkPage() {
 
     // Draw nodes
     const node = g.append('g')
-      .selectAll('g').data(nodes).join('g')
+      .selectAll('g').data(filteredNodes).join('g')
       .attr('cursor', 'pointer')
       .call(
         d3.drag()
           .on('start', (e, d) => { if (!e.active) sim.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y })
-          .on('drag',  (e, d) => { d.fx = e.x; d.fy = e.y })
-          .on('end',   (e, d) => { if (!e.active) sim.alphaTarget(0); d.fx = null; d.fy = null })
+          .on('drag', (e, d) => { d.fx = e.x; d.fy = e.y })
+          .on('end', (e, d) => { if (!e.active) sim.alphaTarget(0); d.fx = null; d.fy = null })
       )
       .on('mouseover', (event, d) => {
         link
-          .attr('stroke',         l => (l.source.id === d.id || l.target.id === d.id) ? '#f5c518' : '#2a2a2a')
+          .attr('stroke', l => (l.source.id === d.id || l.target.id === d.id) ? '#f5c518' : '#2a2a2a')
           .attr('stroke-opacity', l => (l.source.id === d.id || l.target.id === d.id) ? 1 : 0.08)
         const rect = el.getBoundingClientRect()
         setTooltip({ x: event.clientX - rect.left + 14, y: event.clientY - rect.top - 14, node: d })
@@ -98,7 +163,7 @@ export default function NetworkPage() {
         setTooltip(null)
       })
 
-    node.each(function(d) {
+    node.each(function (d) {
       const el = d3.select(this)
       if (d.type === 'repo') {
         const r = repoRadius(d.data.stargazers_count || 0)
@@ -120,7 +185,6 @@ export default function NetworkPage() {
           .attr('cx', 0)
           .attr('cy', 0)
 
-        // Avatar image
         el.append('image')
           .attr('href', d.data.avatar_url)
           .attr('x', -r)
@@ -129,7 +193,6 @@ export default function NetworkPage() {
           .attr('height', r * 2)
           .attr('clip-path', `url(#${clipId})`)
 
-        // Border around avatar
         el.append('circle')
           .attr('r', r)
           .attr('fill', 'none')
@@ -147,13 +210,12 @@ export default function NetworkPage() {
         .attr('pointer-events', 'none')
     })
 
-    // Force simulation with y-force for recency (Section 3.2.7)
-    const sim = d3.forceSimulation(nodes)
-      .force('link',    d3.forceLink(links).id(d => d.id).distance(75).strength(0.4))
-      .force('charge',  d3.forceManyBody().strength(-170))
-      .force('center',  d3.forceCenter(W / 2, H / 2))
+    const sim = d3.forceSimulation(filteredNodes)
+      .force('link', d3.forceLink(links).id(d => d.id).distance(75).strength(0.4))
+      .force('charge', d3.forceManyBody().strength(-170))
+      .force('center', d3.forceCenter(W / 2, H / 2))
       .force('collide', d3.forceCollide(d => d.type === 'repo' ? repoRadius(d.data.stargazers_count || 0) + 8 : 16))
-      .force('y',       d3.forceY(d => recencyY(d.ts || 0)).strength(0.05))
+      .force('y', d3.forceY(d => recencyY(d.ts || 0)).strength(0.05))
 
     simRef.current = sim
 
@@ -163,25 +225,22 @@ export default function NetworkPage() {
         .attr('x2', d => d.target.x).attr('y2', d => d.target.y)
       node.attr('transform', d => `translate(${d.x},${d.y})`)
     })
-    console.log(tooltip)
 
     return () => sim.stop()
-  }, [model, showRepos, showContribs])
+  }, [model, showRepos, showContribs, repoLimit])
 
   const navigate = useNavigate()
-  if(loading) return <NetworkSkeleton />
-  // Matches the guard the other data pages already have: this page reads
-  // model.allRepos directly and threw a TypeError without it.
+  if (loading) return <NetworkSkeleton />
   if (!model) return null
-  
+
   return (
     <div style={{ padding: '32px 24px', maxWidth: 1100, margin: '0 auto' }} className="fade-up">
       <AnalysisBanner
-          page="network"
-          description="Network relationships are computed from a representative subset to balance speed and API usage. Connect a PAT to analyze every repository and access complete results."
-          analysisStatus={isComplete ? 'complete' : 'standard'}
-          loading={loading}
-          onRun={runFullExplore}
+        page="network"
+        description="Network relationships are computed from a representative subset to balance speed and API usage. Connect a PAT to analyze every repository and access complete results."
+        analysisStatus={isComplete ? 'complete' : 'standard'}
+        loading={loading}
+        onRun={runFullExplore}
       />
       <PageTitle
         title="Contributor-Repository Network"
@@ -202,74 +261,136 @@ export default function NetworkPage() {
           <span>Circle yellow = Cross-repo connector</span>
           <span>Circle gray = Regular contributor</span>
           <span>Edge thickness = contribution volume</span>
-          <span style={{ color: 'var(--text3)' }}>Recently active nodes float upward</span>
         </div>
       </div>
+
+      {/* Repo limit slider — matches the style shared by the mentor */}
+      {model?.allRepos?.length > 0 && (
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+            <span style={{ ...C.label, margin: 0 }}>Repositories to include</span>
+            <div
+              ref={infoRef}
+              style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}
+            >
+              <button
+                onClick={() => setOpenInfo(!openInfo)}  
+                onMouseEnter={() => setOpenInfo(true)}
+                onMouseLeave={() => setOpenInfo(false)}
+                aria-label="Repository limit information"       
+                aria-expanded={openInfo} 
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
+              >
+                <AiOutlineInfoCircle size={13} color="var(--text2)" />
+              </button>
+
+              {openInfo && (
+                <div style={{
+                  ...C.card,
+                  position: 'absolute',
+                  top: '130%',
+                  left: 0,
+                  width: '320px',
+                  zIndex: 100,
+                }}>
+                  <h4 style={{ marginBottom: 8, color: 'var(--accent)' }}>
+                    Repository Limit
+                  </h4>
+                  <p style={{ fontSize: 12, color: 'var(--text2)', lineHeight: 1.5 }}>
+                    Only contributors connected to these repositories are shown —
+                    a lower limit keeps the graph fast for large organizations.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 12, color: 'var(--text2)' }}>{Math.min(5, eligibleReposCount)}</span>
+            <input
+              type="range"
+              min={Math.min(5, eligibleReposCount)}
+              max={eligibleReposCount}
+              step="1"
+              value={Math.min(repoLimit, eligibleReposCount)} 
+              onChange={(e) => setRepoLimit(Number(e.target.value))}
+              style={{ flex: 1, maxWidth: 300, cursor: 'pointer', accentColor: 'var(--accent)' }}
+              aria-label="Adjust number of repositories included in the network graph"
+            />
+            <span style={{ fontSize: 12, color: 'var(--text2)' }}>{eligibleReposCount}</span>
+            <span style={{
+              fontSize: 12, fontWeight: 700, color: '#000', background: 'var(--accent)',
+              borderRadius: 9, padding: '9px 15px', whiteSpace: 'nowrap',
+            }}>
+              {Math.min(repoLimit, eligibleReposCount)} repos
+            </span>
+          </div>
+        </div>
+      )}
+
+      <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 16 }}>Recently active nodes float upward</div>
 
       {/* Canvas */}
       {model.allRepos?.length ? (
-    <>
-        <div style={{ ...C.card, padding: 0, overflow: 'hidden', position: 'relative' }}>
-        <svg ref={svgRef} style={{ width: '100%', height: 580, display: 'block', background: 'var(--bg)' }} />
+        <>
+          <div style={{ ...C.card, padding: 0, overflow: 'hidden', position: 'relative' }}>
+            <svg ref={svgRef} style={{ width: '100%', height: 580, display: 'block', background: 'var(--bg)' }} />
 
-        {/* Tooltip */}
-        {tooltip && (
-          <div style={{
-            position: 'absolute', left: tooltip.x, top: tooltip.y,
-            background: 'var(--surface)', border: '1px solid var(--border)',
-            borderRadius: 6, padding: '10px 14px', fontSize: 12,
-            pointerEvents: 'none', zIndex: 10, minWidth: 170,
-          }}>
-            <div style={{ fontWeight: 600, marginBottom: 5 }}>
-              {tooltip.node.data.name || tooltip.node.data.login}
-            </div>
-            {tooltip.node.type === 'repo' ? (
-              <>
-                <div style={{ color: 'var(--text2)', marginBottom: 2 }}>
-                  Health: <strong style={{ color: tooltip.node.data.healthScore >= 70 ? 'var(--green)' : tooltip.node.data.healthScore >= 40 ? 'var(--amber)' : 'var(--red)' }}>
-                    {tooltip.node.data.healthScore}
-                  </strong>
+            {tooltip && (
+              <div style={{
+                position: 'absolute', left: tooltip.x, top: tooltip.y,
+                background: 'var(--surface)', border: '1px solid var(--border)',
+                borderRadius: 6, padding: '10px 14px', fontSize: 12,
+                pointerEvents: 'none', zIndex: 10, minWidth: 170,
+              }}>
+                <div style={{ fontWeight: 600, marginBottom: 5 }}>
+                  {tooltip.node.data.name || tooltip.node.data.login}
                 </div>
-                <div style={{ color: 'var(--text2)', marginBottom: 2 }}>Stars: {tooltip.node.data.stargazers_count?.toLocaleString()}</div>
-                <div style={{ color: 'var(--text2)' }}>Activity: {tooltip.node.data.activityClassification}</div>
-              </>
-            ) : (
-              <>
-                <div style={{ color: 'var(--text2)', marginBottom: 2 }}>
-                  Contributions: <strong>{tooltip.node.data.totalContribs?.toLocaleString()}</strong>
-                </div>
-                <div style={{ color: 'var(--text2)', marginBottom: 2 }}>Repos: {tooltip.node.data.repos?.length}</div>
-                {tooltip.node.data.isConnector && <div style={{ color: 'var(--accent)', fontWeight: 600, marginTop: 4 }}>Cross-repo connector</div>}
-                {tooltip.node.data.isCrossOrg  && <div style={{ color: 'var(--purple)', fontWeight: 600 }}>Cross-org contributor</div>}
-              </>
+                {tooltip.node.type === 'repo' ? (
+                  <>
+                    <div style={{ color: 'var(--text2)', marginBottom: 2 }}>
+                      Health: <strong style={{ color: tooltip.node.data.healthScore >= 70 ? 'var(--green)' : tooltip.node.data.healthScore >= 40 ? 'var(--amber)' : 'var(--red)' }}>
+                        {tooltip.node.data.healthScore}
+                      </strong>
+                    </div>
+                    <div style={{ color: 'var(--text2)', marginBottom: 2 }}>Stars: {tooltip.node.data.stargazers_count?.toLocaleString()}</div>
+                    <div style={{ color: 'var(--text2)' }}>Activity: {tooltip.node.data.activityClassification}</div>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ color: 'var(--text2)', marginBottom: 2 }}>
+                      Contributions: <strong>{tooltip.node.data.totalContribs?.toLocaleString()}</strong>
+                    </div>
+                    <div style={{ color: 'var(--text2)', marginBottom: 2 }}>Repos: {tooltip.node.data.repos?.length}</div>
+                    {tooltip.node.data.isConnector && <div style={{ color: 'var(--accent)', fontWeight: 600, marginTop: 4 }}>Cross-repo connector</div>}
+                    {tooltip.node.data.isCrossOrg && <div style={{ color: 'var(--purple)', fontWeight: 600 }}>Cross-org contributor</div>}
+                  </>
+                )}
+              </div>
             )}
-          </div>
-        )}
 
-        <div style={{ position: 'absolute', bottom: 10, left: 12, fontSize: 11, color: 'var(--text3)' }}>
-          Drag nodes to reposition — scroll to zoom
+            <div style={{ position: 'absolute', bottom: 10, left: 12, fontSize: 11, color: 'var(--text3)' }}>
+              Drag nodes to reposition — scroll to zoom
+            </div>
+          </div>
+        </>
+      ) : (
+        <div style={{ padding: '32px 24px', maxWidth: 900, margin: '0 auto' }}>
+          <EmptyStateCard
+            SvgIcon={<FiDatabase size={36} color='var(--accent)' />}
+            title="No repositories found"
+            description="We couldn't find any repositories in this organization."
+            buttonText="Go to Home"
+            onButtonClick={() => navigate('/')}
+          />
         </div>
-      </div>
-    </>) :
-    (
-      <>
-      <div
-        style={{
-          padding: '32px 24px',
-          maxWidth: 900,
-          margin: '0 auto',
-        }}
-      >
-        <EmptyStateCard
-          SvgIcon={<FiDatabase size={36} color='var(--accent)'/>}
-          title="No repositories found"
-          description="We couldn't find any repositories in this organization."
-          buttonText="Go to Home"
-          onButtonClick={() => navigate('/')}
-        />
-      </div>
-      </>
-    )}
+      )}
     </div>
   )
 }

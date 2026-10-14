@@ -1,5 +1,5 @@
-import React, { Suspense, Component } from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import React, { Suspense, Component, useEffect } from 'react'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AppProvider } from './context/AppContext'
 import { ThemeProvider } from './context/ThemeContext'
 import Navbar          from './components/Navbar'
@@ -17,6 +17,8 @@ const NetworkPage            = React.lazy(() => import('./pages/NetworkPage'))
 const AnalyticsPage          = React.lazy(() => import('./pages/AnalyticsPage'))
 const GovernancePage         = React.lazy(() => import('./pages/GovernancePage'))
 const SettingsPage           = React.lazy(() => import('./pages/SettingsPage'))
+const Support                = React.lazy(() => import('./pages/Support'))
+
 const ROUTE_STRINGS = {
   ERROR_TITLE: 'Unable to load page',
   ERROR_MESSAGE: 'An error occurred while loading this page.',
@@ -73,9 +75,20 @@ function Layout({ children }) {
   )
 }
 
+function ScrollToTop() {
+  const { pathname, search } = useLocation()
+
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [pathname, search])
+
+  return null
+}
+
 function AppContent() {
   return (
     <Layout>
+      <ScrollToTop />
       <ErrorBoundary>
         <Suspense fallback={<PageLoader />}>
           <Routes>
