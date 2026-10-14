@@ -190,7 +190,7 @@ export default function RepositoriesPage() {
           <select value={lang} onChange={e => setLang(e.target.value)} style={C.select}>
             {langs.map(l => <option key={l}>{l}</option>)}
           </select>
-          <button onClick={() => exportReposCSV(filtered)} style={{ ...C.btn('ghost'), padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 5, fontSize: 12 }}>
+          <button onClick={() => exportReposCSV(sorted)} style={{ ...C.btn('ghost'), padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 5, fontSize: 12 }}>
             <FiDownload size={13} /> CSV
           </button>
         </div>
