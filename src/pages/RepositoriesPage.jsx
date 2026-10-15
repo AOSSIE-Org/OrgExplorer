@@ -41,9 +41,15 @@ export default function RepositoriesPage() {
   const navigate = useNavigate()
   const allRepos = model?.totalRepos ?? []
 
-  const langs = useMemo(() =>
-    ['All Languages', ...new Set(allRepos.map(r => r.language).filter(Boolean))].slice(0, 10),
-    [allRepos])
+  const langs = useMemo(() => {
+    const counts = {}
+    allRepos.forEach(r => {
+      if (r.language) counts[r.language] = (counts[r.language] || 0) + 1
+    })
+    const sorted = Object.keys(counts).sort((a, b) => counts[b] - counts[a])
+    return ['All Languages', ...sorted]
+  }, [allRepos])
+
 
   const orgList = useMemo(() =>
     ['All Organizations', ...new Set(allRepos.map(r => r.orgLogin).filter(Boolean))],
@@ -74,6 +80,7 @@ export default function RepositoriesPage() {
     ['forks_count', 'Forks'],
     ['open_issues_count', 'Open Issues'],
     ['healthScore', 'Health'],
+    ['language', 'Language'],
     ['pushed_at', 'Repository Activity'],
   ]
 
@@ -192,7 +199,7 @@ export default function RepositoriesPage() {
           <select value={lang} onChange={e => setLang(e.target.value)} style={C.select}>
             {langs.map(l => <option key={l}>{l}</option>)}
           </select>
-          <button onClick={() => exportReposCSV(filtered)} style={{ ...C.btn('ghost'), padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 5, fontSize: 12 }}>
+          <button onClick={() => exportReposCSV(sorted)} style={{ ...C.btn('ghost'), padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 5, fontSize: 12 }}>
             <FiDownload size={13} /> CSV
           </button>
         </div>
