@@ -3,6 +3,7 @@ import { FiEye, FiEyeOff, FiTrash2, FiSave, FiRefreshCw } from 'react-icons/fi'
 import { useApp } from '../context/AppContext'
 import { C } from '../components/UI'
 import { cacheClear } from '../services/github'
+import { clearAnalysis } from '../services/cache'
 import { AiOutlineInfoCircle } from "react-icons/ai";
 export default function SettingsPage() {
   const { pat, savePat, rateLimit, refreshRateLimit } = useApp()
@@ -10,6 +11,7 @@ export default function SettingsPage() {
   const [show, setShow] = useState(false)
   const [saved, setSaved] = useState(false)
   const [cleared, setCleared] = useState(false)
+  const [clearing, setClearing] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [refreshError, setRefreshError] = useState(false)
   const [isValidating, setIsValidating] = useState(false)
@@ -47,15 +49,26 @@ export default function SettingsPage() {
   }
 
   const handleDelete = () => {
+    if (!window.confirm('Delete your PAT? This cannot be undone.')) return
     savePat('')
     setDraft('')
     setTokenError('')
   }
 
   const handleClear = async () => {
-    await cacheClear()
-    setCleared(true)
-    setTimeout(() => setCleared(false), 2000)
+    if (!window.confirm('Clear all cached data?')) return
+    if (clearing) return
+    setClearing(true)
+    setCleared(false)
+    try {
+      const [cacheOk, analysisOk] = await Promise.all([cacheClear(), clearAnalysis()])
+      if (cacheOk && analysisOk) {
+        setCleared(true)
+        setTimeout(() => setCleared(false), 2000)
+      }
+    } finally {
+      setClearing(false)
+    }
   }
 
   const rateColor = rateLimit
@@ -227,9 +240,11 @@ export default function SettingsPage() {
               </div>
               <button
                 onClick={handleClear}
+                disabled={clearing}
                 style={{ ...C.btn('danger'), fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}
               >
-                <FiTrash2 size={13} /> {cleared ? 'Cleared' : 'Clear All'}
+                <FiTrash2 size={13} />
+                {clearing ? 'Clearing...' : cleared ? 'Cleared' : 'Clear All'}
               </button>
             </div>
             <p style={{ fontSize: 12, color: 'var(--text2)', lineHeight: 1.6 }}>

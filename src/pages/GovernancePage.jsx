@@ -43,8 +43,9 @@ const getStatus = ratio => {
 }
 
 export default function GovernancePage() {
-  const { model, issuesData, runAudit, govLoading, auditComplete, loading, runGovernanceAnalysis, staleRepoStats } = useApp()
+  const { orgs, model, issuesData, runAudit, govLoading, auditComplete, loading, runGovernanceAnalysis, staleRepoStats } = useApp()
   const [tab, setTab] = useState('dead')
+  const [orgFilter, setOrgFilter] = useState('All Organizations')
   const [search, setSearch] = useState('')
 
   const ITEMS_PER_PAGE = 10
@@ -61,16 +62,29 @@ export default function GovernancePage() {
     setStalePage(1)
   }
 
+  const handleOrgChange = e => {
+    setOrgFilter(e.target.value)
+    setDeadPage(1)
+    setZombiePage(1)
+    setStalePage(1)
+  }
+
   useEffect(() => {
     setDeadPage(1)
     setZombiePage(1)
     setStalePage(1)
   }, [issuesData])
 
+  // Stale repos: org filter first, then search, then pagination
+  const staleReposForOrg = useMemo(() => {
+    if (orgFilter === 'All Organizations') return staleRepoStats
+    return staleRepoStats.filter(r => r.org === orgFilter)
+  }, [staleRepoStats, orgFilter])
+
   const filteredStale = useMemo(() => {
-    if (!query) return staleRepoStats
-    return staleRepoStats.filter(r => `${r.org}/${r.repo}`.toLowerCase().includes(query))
-  }, [staleRepoStats, query])
+    if (!query) return staleReposForOrg
+    return staleReposForOrg.filter(r => `${r.org}/${r.repo}`.toLowerCase().includes(query))
+  }, [staleReposForOrg, query])
 
   const totalPages = Math.ceil(filteredStale.length / ITEMS_PER_PAGE)
 
@@ -95,27 +109,53 @@ export default function GovernancePage() {
   const hasAudit = Object.keys(issuesData || {}).length > 0
   const daysSince = d => Math.floor((Date.now() - new Date(d)) / 86_400_000)
   const matchesQuery = text => !query || text.toLowerCase().includes(query)
+  const issuesOfOrg = orgFilter === 'All Organizations' ? allIssues : allIssues.filter(i => i.orgName === orgFilter)
 
   // Health check 1 — Dead Issues (>90 days open, not a PR)
   const deadIssues = allIssues
     .filter(i => !i.pull_request && i.state === 'open' && daysSince(i.created_at) >= 90)
     .sort((a, b) => daysSince(b.created_at) - daysSince(a.created_at))
 
+  const deadIssuesOfOrg = (org) => {
+    if (org === 'All Organizations') { return deadIssues }
+    return deadIssues.filter(issue => issue.orgName === org)
+  }
+
   // Health check 2 — Percentage of dead issues relative to all issues
   const staleIssuesRatio = allIssues.length ? (deadIssues.length / allIssues.length) * 100 : 0
+  const staleIssuesRatioOfOrg = (org) => {
+    if (org === 'All Organizations') { return staleIssuesRatio }
+    const issueOfOrg = allIssues.filter(i => i.orgName === org)
+    return issueOfOrg.length ? (deadIssuesOfOrg(org).length / issueOfOrg.length) * 100 : 0
+  }
 
   // Health check 3 — Zombie PRs (>90 days open)
   const zombiePRs = allIssues
     .filter(i => i.pull_request && i.state === 'open' && daysSince(i.created_at) >= 90)
     .sort((a, b) => daysSince(b.created_at) - daysSince(a.created_at))
 
+  const zombiePRsOfOrg = (org) => {
+    if (org === 'All Organizations') { return zombiePRs }
+    return zombiePRs.filter(pr => pr.orgName === org)
+  }
+
   // Health check 4 — No license
   const noLicense = model.allRepos.filter(r => !r.license && !r.archived && !r.fork)
 
+  const noLicenseOfOrg = (org) => {
+    if (org === 'All Organizations') { return noLicense }
+    return noLicense.filter(r => r.orgLogin === org)
+  }
+
+  // Org-scoped lists (org filter applied first)
+  const scopedDead = deadIssuesOfOrg(orgFilter)
+  const scopedZombie = zombiePRsOfOrg(orgFilter)
+  const scopedLicense = noLicenseOfOrg(orgFilter)
+
   // Search-filtered lists (client-side, uses already-fetched data)
-  const filteredDead = deadIssues.filter(i => matchesQuery(`${i.orgName}/${i.repoName}`))
-  const filteredZombie = zombiePRs.filter(i => matchesQuery(`${i.orgName}/${i.repoName}`))
-  const filteredLicense = noLicense.filter(r => matchesQuery(`${r.orgLogin}/${r.name}`))
+  const filteredDead = scopedDead.filter(i => matchesQuery(`${i.orgName}/${i.repoName}`))
+  const filteredZombie = scopedZombie.filter(i => matchesQuery(`${i.orgName}/${i.repoName}`))
+  const filteredLicense = scopedLicense.filter(r => matchesQuery(`${r.orgLogin}/${r.name}`))
 
   const deadTotalPages = Math.ceil(filteredDead.length / ITEMS_PER_PAGE)
   const paginatedDeadIssues = filteredDead.slice((deadPage - 1) * ITEMS_PER_PAGE, deadPage * ITEMS_PER_PAGE)
@@ -125,9 +165,14 @@ export default function GovernancePage() {
   // Issue resolution rate per repo
   const topRepos = model.allRepos.slice(0, 8)
 
-  const counts = { dead: deadIssues.length, zombie: zombiePRs.length, license: noLicense.length, stale: staleIssuesRatio.toFixed(2) }
+  const counts = {
+    dead: scopedDead.length,
+    zombie: scopedZombie.length,
+    license: scopedLicense.length,
+    stale: staleIssuesRatioOfOrg(orgFilter).toFixed(2)
+  }
 
-  const tabTotals = { dead: deadIssues.length, zombie: zombiePRs.length, stale: staleRepoStats.length, license: noLicense.length }
+  const tabTotals = { dead: scopedDead.length, zombie: scopedZombie.length, stale: staleReposForOrg.length, license: scopedLicense.length }
   const tabMatches = { dead: filteredDead.length, zombie: filteredZombie.length, stale: filteredStale.length, license: filteredLicense.length }
 
   // Stat card
@@ -239,7 +284,7 @@ export default function GovernancePage() {
       {/* Summary stat cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 24 }}>
         <StatBox label="Dead Issues" value={counts.dead} sub="OPEN 90+ DAYS" color="var(--red)" />
-        <StatBox label="Stale Issues Ratio" value={`${staleIssuesRatio.toFixed(2)}%`} sub={`of ${allIssues.length} total issues`} color={` ${getStatus(staleIssuesRatio).color}`} />
+        <StatBox label="Stale Issues Ratio" value={`${staleIssuesRatioOfOrg(orgFilter).toFixed(2)}%`} sub={`of ${issuesOfOrg.length} total issues`} color={` ${getStatus(staleIssuesRatioOfOrg(orgFilter)).color}`} />
         <StatBox label="Zombie PRs" value={counts.zombie} sub="PENDING 90+ DAYS" color="var(--amber)" />
         <StatBox label="No License" value={counts.license} sub="COMPLIANCE MISSING" color="var(--text2)" />
       </div>
@@ -283,26 +328,40 @@ export default function GovernancePage() {
 
       {/* Tabbed detail view */}
       <div style={C.card}>
-        <div style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: '1px solid var(--border)', paddingBottom: 12, overflowX: 'auto' }}>
-          {TABS.map(t => (
-            <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
-              style={{
-                background: 'none', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
-                color: tab === t.key ? 'var(--text)' : 'var(--text2)',
-                fontWeight: tab === t.key ? 600 : 400,
-                fontSize: 13, padding: '6px 12px',
-                borderBottom: tab === t.key ? '2px solid var(--accent)' : '2px solid transparent',
-              }}
+        <div style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: '1px solid var(--border)', paddingBottom: 12, overflowX: 'auto', justifyContent: 'space-between' }}>
+          <div className="tabs">
+            {TABS.map(t => (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
+                  color: tab === t.key ? 'var(--text)' : 'var(--text2)',
+                  fontWeight: tab === t.key ? 600 : 400,
+                  fontSize: 13, padding: '6px 12px',
+                  borderBottom: tab === t.key ? '2px solid var(--accent)' : '2px solid transparent',
+                }}
+              >
+                {t.label}{' '}
+                <span style={{ color: counts[t.key] > 40 ? 'var(--red)' : 'var(--green)', marginLeft: 4 }}>
+                  {counts[t.key]}
+                </span>
+              </button>
+            ))}
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <select
+              value={orgFilter}
+              onChange={handleOrgChange}
+              style={C.select}
+              aria-label="Filter stats by organization"
             >
-              {t.label}{' '}
-              <span style={{ color: counts[t.key] > 40 ? 'var(--red)' : 'var(--green)', marginLeft: 4 }}>
-                {counts[t.key]}
-              </span>
-            </button>
-          ))}
+              <option>All Organizations</option>
+              {orgs.map(o => <option key={o.login}>{o.login}</option>)}
+            </select>
+          </div>
         </div>
+
         {/* Repository search */}
         {tabTotals[tab] > 0 && (
           <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginBottom: 16 }}>
@@ -320,9 +379,10 @@ export default function GovernancePage() {
             )}
           </div>
         )}
+
         {/* Dead Issues */}
         {tab === 'dead' && (
-          deadIssues.length === 0 ? (
+          scopedDead.length === 0 ? (
             <EmptyOk msg="No dead issues found" sub="This org actively maintains its open items." />
           ) : filteredDead.length === 0 ? (
             noMatch
@@ -341,7 +401,7 @@ export default function GovernancePage() {
 
         {/* Zombie PRs */}
         {tab === 'zombie' && (
-          zombiePRs.length === 0 ? (
+          scopedZombie.length === 0 ? (
             <EmptyOk msg="No zombie PRs found" sub="This org reviews and closes contributions actively." />
           ) : filteredZombie.length === 0 ? (
             noMatch
@@ -360,7 +420,7 @@ export default function GovernancePage() {
 
         {/* Stale Issues */}
         {tab === 'stale' && (
-          staleRepoStats.length === 0 ? (
+          staleReposForOrg.length === 0 ? (
             <EmptyOk msg="No stale issues found" sub="All repositories have active open issues." />
           ) : filteredStale.length === 0 ? (
             noMatch
@@ -412,7 +472,7 @@ export default function GovernancePage() {
 
         {/* No License */}
         {tab === 'license' && (
-          noLicense.length === 0 ? (
+          scopedLicense.length === 0 ? (
             <EmptyOk msg="All repos have licenses" sub="Good compliance across the portfolio." />
           ) : filteredLicense.length === 0 ? (
             noMatch
