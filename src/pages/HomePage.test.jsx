@@ -18,6 +18,7 @@ describe('HomePage recent searches', () => {
     stored => {
       localStorage.setItem('oe_recent', stored)
       render(<MemoryRouter><HomePage /></MemoryRouter>)
+      expect(screen.getByRole('button', { name: 'EXPLORE' })).toBeInTheDocument()
       expect(screen.queryByText('Recent searches')).not.toBeInTheDocument()
     }
   )
