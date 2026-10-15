@@ -265,7 +265,7 @@ describe('IndexedDB connection lifecycle and resource cleanup', () => {
     expect(db.close).toHaveBeenCalledTimes(1)
   })
 
-  it('closes database connection on transaction error', async () => {
+  it('closes database connection on transaction error in cacheGet', async () => {
     const closeSpy = vi.fn()
     vi.stubGlobal('indexedDB', {
       open() {
@@ -283,6 +283,51 @@ describe('IndexedDB connection lifecycle and resource cleanup', () => {
                     const getReq = {}
                     queueMicrotask(() => {
                       if (tx.onerror) tx.onerror({ target: { error: new Error('Tx failed') } })
+                    })
+                    return getReq
+                  }
+                }
+              }
+            }
+            return tx
+          }
+        }
+        queueMicrotask(() => {
+          if (req.onsuccess) req.onsuccess({ target: { result: db } })
+        })
+        return req
+      }
+    })
+
+    const result = await cacheGet('https://api.github.com/orgs/AOSSIE-Org')
+    expect(result).toBeNull()
+    expect(closeSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it('closes database connection on transaction abort in cacheGet (even after request success)', async () => {
+    const closeSpy = vi.fn()
+    vi.stubGlobal('indexedDB', {
+      open() {
+        const req = {}
+        const db = {
+          close: closeSpy,
+          transaction() {
+            const tx = {
+              oncomplete: null,
+              onerror: null,
+              onabort: null,
+              error: new DOMException('Transaction aborted', 'AbortError'),
+              objectStore() {
+                return {
+                  get() {
+                    const getReq = {
+                      result: { k: 'https://api.github.com/orgs/AOSSIE-Org', v: { login: 'AOSSIE-Org' }, ts: Date.now() }
+                    }
+                    queueMicrotask(() => {
+                      if (getReq.onsuccess) getReq.onsuccess()
+                      queueMicrotask(() => {
+                        if (tx.onabort) tx.onabort({ target: tx })
+                      })
                     })
                     return getReq
                   }
@@ -343,6 +388,46 @@ describe('IndexedDB connection lifecycle and resource cleanup', () => {
     expect(closeSpy).toHaveBeenCalledTimes(1)
   })
 
+  it('closes database connection on transaction abort in cacheSet', async () => {
+    const closeSpy = vi.fn()
+    vi.stubGlobal('indexedDB', {
+      open() {
+        const req = {}
+        const db = {
+          close: closeSpy,
+          transaction() {
+            const tx = {
+              oncomplete: null,
+              onerror: null,
+              onabort: null,
+              error: new DOMException('Put aborted', 'AbortError'),
+              objectStore() {
+                return {
+                  put() {
+                    const putReq = {}
+                    queueMicrotask(() => {
+                      if (tx.onabort) tx.onabort({ target: tx })
+                    })
+                    return putReq
+                  }
+                }
+              }
+            }
+            return tx
+          }
+        }
+        queueMicrotask(() => {
+          if (req.onsuccess) req.onsuccess({ target: { result: db } })
+        })
+        return req
+      }
+    })
+
+    const result = await cacheSet('https://api.github.com/orgs/AOSSIE-Org', { data: 1 })
+    expect(result).toBe(false)
+    expect(closeSpy).toHaveBeenCalledTimes(1)
+  })
+
   it('closes database connection on transaction error in cacheClear', async () => {
     const closeSpy = vi.fn()
     vi.stubGlobal('indexedDB', {
@@ -361,6 +446,46 @@ describe('IndexedDB connection lifecycle and resource cleanup', () => {
                     const clearReq = {}
                     queueMicrotask(() => {
                       if (tx.onerror) tx.onerror({ target: { error: new Error('Clear tx failed') } })
+                    })
+                    return clearReq
+                  }
+                }
+              }
+            }
+            return tx
+          }
+        }
+        queueMicrotask(() => {
+          if (req.onsuccess) req.onsuccess({ target: { result: db } })
+        })
+        return req
+      }
+    })
+
+    const result = await cacheClear()
+    expect(result).toBe(false)
+    expect(closeSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it('closes database connection on transaction abort in cacheClear', async () => {
+    const closeSpy = vi.fn()
+    vi.stubGlobal('indexedDB', {
+      open() {
+        const req = {}
+        const db = {
+          close: closeSpy,
+          transaction() {
+            const tx = {
+              oncomplete: null,
+              onerror: null,
+              onabort: null,
+              error: new DOMException('Clear aborted', 'AbortError'),
+              objectStore() {
+                return {
+                  clear() {
+                    const clearReq = {}
+                    queueMicrotask(() => {
+                      if (tx.onabort) tx.onabort({ target: tx })
                     })
                     return clearReq
                   }
