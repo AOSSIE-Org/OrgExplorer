@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { normalizeCacheKey, fetchOrg, fetchRepos, fetchContributors } from './github'
+import { normalizeCacheKey, fetchOrg, fetchRepos, fetchContributors, cacheGet, cacheSet, cacheClear } from './github'
 
 /** Minimal in-memory stand-in for the IndexedDB API surface used by github.js. */
 function installFakeIndexedDB() {
   const tables = new Map()
   const db = {
     createObjectStore() {},
-    close() {},
+    close: vi.fn(),
     transaction(storeName) {
       let table = tables.get(storeName)
       if (!table) {
@@ -53,6 +53,7 @@ function installFakeIndexedDB() {
       return req
     },
   })
+  return { db, tables }
 }
 
 /** Counting fetch stub. Handler maps a URL to { status, body }. */
@@ -234,5 +235,64 @@ describe('empty-repository responses', () => {
     }))
 
     await expect(fetchOrg('test-org', 'pat')).rejects.toThrow('HTTP_403')
+  })
+})
+
+describe('IndexedDB connection lifecycle and resource cleanup', () => {
+  it('closes database connection after cacheGet', async () => {
+    const { db } = installFakeIndexedDB()
+    await cacheGet('https://api.github.com/orgs/AOSSIE-Org')
+    expect(db.close).toHaveBeenCalledTimes(1)
+  })
+
+  it('closes database connection after cacheSet', async () => {
+    const { db } = installFakeIndexedDB()
+    await cacheSet('https://api.github.com/orgs/AOSSIE-Org', { login: 'AOSSIE-Org' })
+    expect(db.close).toHaveBeenCalledTimes(1)
+  })
+
+  it('closes database connection after cacheClear', async () => {
+    const { db } = installFakeIndexedDB()
+    await cacheClear()
+    expect(db.close).toHaveBeenCalledTimes(1)
+  })
+
+  it('closes database connection on transaction error', async () => {
+    const closeSpy = vi.fn()
+    vi.stubGlobal('indexedDB', {
+      open() {
+        const req = {}
+        const db = {
+          close: closeSpy,
+          transaction() {
+            const tx = {
+              oncomplete: null,
+              onerror: null,
+              onabort: null,
+              objectStore() {
+                return {
+                  get() {
+                    const getReq = {}
+                    queueMicrotask(() => {
+                      if (tx.onerror) tx.onerror({ target: { error: new Error('Tx failed') } })
+                    })
+                    return getReq
+                  }
+                }
+              }
+            }
+            return tx
+          }
+        }
+        queueMicrotask(() => {
+          if (req.onsuccess) req.onsuccess({ target: { result: db } })
+        })
+        return req
+      }
+    })
+
+    const result = await cacheGet('https://api.github.com/orgs/AOSSIE-Org')
+    expect(result).toBeNull()
+    expect(closeSpy).toHaveBeenCalledTimes(1)
   })
 })

@@ -29,50 +29,106 @@ export function normalizeCacheKey(url) {
 
 function openDB() {
   return new Promise((resolve, reject) => {
+    if (typeof indexedDB === 'undefined') {
+      reject(new Error('IndexedDB unavailable'))
+      return
+    }
     const req = indexedDB.open(DB_NAME, 1)
-    req.onupgradeneeded = e => e.target.result.createObjectStore(STORE, { keyPath: 'k' })
+    req.onupgradeneeded = e => {
+      const db = e.target.result
+      if (db.objectStoreNames) {
+        if (!db.objectStoreNames.contains(STORE)) {
+          db.createObjectStore(STORE, { keyPath: 'k' })
+        }
+      } else if (db.createObjectStore) {
+        db.createObjectStore(STORE, { keyPath: 'k' })
+      }
+    }
     req.onsuccess = e => resolve(e.target.result)
     req.onerror = () => reject(req.error)
+    req.onblocked = () => reject(new Error('IndexedDB blocked'))
   })
 }
 
 export async function cacheGet(key) {
+  let db
   try {
-    const db = await openDB()
+    db = await openDB()
     return new Promise(res => {
-      const req = db.transaction(STORE, 'readonly').objectStore(STORE).get(normalizeCacheKey(key))
+      const tx = db.transaction(STORE, 'readonly')
+      const req = tx.objectStore(STORE).get(normalizeCacheKey(key))
       req.onsuccess = () => {
         const r = req.result
         if (!r || Date.now() - r.ts > TTL_MS) return res(null)
         res(r.v)
       }
       req.onerror = () => res(null)
+      tx.oncomplete = () => db.close()
+      tx.onerror = () => {
+        db.close()
+        res(null)
+      }
+      tx.onabort = () => {
+        db.close()
+        res(null)
+      }
     })
-  } catch { return null }
+  } catch {
+    if (db) db.close()
+    return null
+  }
 }
 
 export async function cacheSet(key, value) {
+  let db
   try {
-    const db = await openDB()
+    db = await openDB()
     return new Promise(res => {
       const tx = db.transaction(STORE, 'readwrite')
       tx.objectStore(STORE).put({ k: normalizeCacheKey(key), v: value, ts: Date.now() })
-      tx.oncomplete = () => res(true)
-      tx.onerror = () => res(false)
+      tx.oncomplete = () => {
+        db.close()
+        res(true)
+      }
+      tx.onerror = () => {
+        db.close()
+        res(false)
+      }
+      tx.onabort = () => {
+        db.close()
+        res(false)
+      }
     })
-  } catch { return false }
+  } catch {
+    if (db) db.close()
+    return false
+  }
 }
 
 export async function cacheClear() {
+  let db
   try {
-    const db = await openDB()
+    db = await openDB()
     return new Promise(res => {
       const tx = db.transaction(STORE, 'readwrite')
       tx.objectStore(STORE).clear()
-      tx.oncomplete = () => res(true)
-      tx.onerror = () => res(false)
+      tx.oncomplete = () => {
+        db.close()
+        res(true)
+      }
+      tx.onerror = () => {
+        db.close()
+        res(false)
+      }
+      tx.onabort = () => {
+        db.close()
+        res(false)
+      }
     })
-  } catch { return false }
+  } catch {
+    if (db) db.close()
+    return false
+  }
 }
 
 // Core fetchWithCache 
