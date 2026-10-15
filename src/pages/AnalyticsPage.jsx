@@ -79,7 +79,7 @@ export default function AnalyticsPage() {
   const mergeGauge = [
     {
       value: Math.min(
-        ((advancedMetrics.avgMergeDays/24) / MAX_DAYS) * 100,
+        ((advancedMetrics.avgMergeHours/24) / MAX_DAYS) * 100,
         100
       )
     }
@@ -370,14 +370,14 @@ export default function AnalyticsPage() {
                 style={{
                   fontSize: 34,
                   fontWeight: 700,
-                  color: getMergeColor(advancedMetrics.avgMergeDays),
+                  color: getMergeColor(advancedMetrics.avgMergeHours),
                   lineHeight: 1,
                 }}
-                className={`${getMergeColor(advancedMetrics.avgMergeDays)}`}>
-                {advancedMetrics.avgMergeDays.toFixed(1)>24?`${((advancedMetrics.avgMergeDays)/24).toFixed(1)}`:`${advancedMetrics.avgMergeDays.toFixed(1)}`}
+                className={`${getMergeColor(advancedMetrics.avgMergeHours)}`}>
+                {advancedMetrics.avgMergeHours.toFixed(1)>=24?`${((advancedMetrics.avgMergeHours)/24).toFixed(1)}`:`${advancedMetrics.avgMergeHours.toFixed(1)}`}
               </span>
               <span style={{ color: 'var(--text2)', fontSize: 14 }}>
-              &nbsp;{`${advancedMetrics.avgMergeDays.toFixed(1)>24?`Days`:'Hours'}`}
+              &nbsp;{`${advancedMetrics.avgMergeHours.toFixed(1)>=24?`Days`:'Hours'}`}
               </span>
             </div>
             </div>
@@ -403,7 +403,7 @@ export default function AnalyticsPage() {
                   clockWise
                   dataKey="value"
                   cornerRadius={12}
-                  fill={getMergeColor(advancedMetrics.avgMergeDays)}
+                  fill={getMergeColor(advancedMetrics.avgMergeHours)}
                 />
               </RadialBarChart>
             </ResponsiveContainer>
@@ -423,7 +423,7 @@ export default function AnalyticsPage() {
                   fontWeight: 700
                 }}
               >
-                {advancedMetrics.avgMergeDays.toFixed(1)>24?`${((advancedMetrics.avgMergeDays)/24).toFixed(1)}`:`${advancedMetrics.avgMergeDays.toFixed(1)}`}
+                {advancedMetrics.avgMergeHours.toFixed(1)>=24?`${((advancedMetrics.avgMergeHours)/24).toFixed(1)}`:`${advancedMetrics.avgMergeHours.toFixed(1)}`}
               </div>
 
               <div
@@ -432,22 +432,22 @@ export default function AnalyticsPage() {
                   fontSize: 14
                 }}
               >
-                {`${advancedMetrics.avgMergeDays.toFixed(1)>24?`${((advancedMetrics.avgMergeDays)/24).toFixed(1)} Days`:`${advancedMetrics.avgMergeDays.toFixed(1)} Hours`}`}
+                {`${advancedMetrics.avgMergeHours.toFixed(1)>=24?`${((advancedMetrics.avgMergeHours)/24).toFixed(1)} Days`:`${advancedMetrics.avgMergeHours.toFixed(1)} Hours`}`}
               </div>
 
               <div
                 style={{
                   marginTop: 8,
                   fontSize: 13,
-                  color: getMergeColor(advancedMetrics.avgMergeDays),
+                  color: getMergeColor(advancedMetrics.avgMergeHours),
                   fontWeight: 600
                 }}
               >
-                {advancedMetrics.avgMergeDays <= 48 // 2days or 48 hrs
+                {advancedMetrics.avgMergeHours <= 48 // 2days or 48 hrs
                   ? 'Excellent'
-                  : advancedMetrics.avgMergeDays <= 120 //5 days or 120 hrs
+                  : advancedMetrics.avgMergeHours <= 120 //5 days or 120 hrs
                   ? 'Good'
-                  : advancedMetrics.avgMergeDays <= 240 //10 days or 240 hrs
+                  : advancedMetrics.avgMergeHours <= 240 //10 days or 240 hrs
                   ? 'Slow'
                   : 'Very Slow'}
               </div>
