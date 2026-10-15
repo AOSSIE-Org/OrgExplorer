@@ -63,7 +63,7 @@ export default function Navbar() {
       >
         {/* Logo */}
         <span onClick={() => { navigate('/'); setMenuOpen(false) }} style={{ cursor: 'pointer', flexShrink: 0 }}>
-          <Logo className="h-15 w-auto" />
+          <Logo className="h-15 w-auto cursor-pointer" />
         </span>
 
         {/* Desktop nav links */}

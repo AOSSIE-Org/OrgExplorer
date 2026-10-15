@@ -123,7 +123,7 @@ export default function ContributorsPage() {
         title="Contributor Intelligence"
         subtitle="Analyzing contribution patterns, coverage risk, and organizational health"
         right={
-          <button onClick={() => exportContributorsCSV(filtered)} style={{ ...C.btn('ghost'), fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}>
+          <button onClick={() => exportContributorsCSV(sorted)} style={{ ...C.btn('ghost'), fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}>
             <FiDownload size={13} /> Export CSV
           </button>
         }
@@ -299,7 +299,7 @@ export default function ContributorsPage() {
               }}
               aria-label="Filter contributors by organization"
             >
-              <option value="all">All Contributors</option>
+              <option value="all">All Organizations</option>
 
               {organizationOptions.map(org => (
                 <option key={org} value={org}>
