@@ -41,9 +41,15 @@ export default function RepositoriesPage() {
   const navigate = useNavigate()
   const allRepos = model?.totalRepos ?? []
 
-  const langs = useMemo(() =>
-    ['All Languages', ...new Set(allRepos.map(r => r.language).filter(Boolean))].slice(0, 10),
-    [allRepos])
+  const langs = useMemo(() => {
+    const counts = {}
+    allRepos.forEach(r => {
+      if (r.language) counts[r.language] = (counts[r.language] || 0) + 1
+    })
+    const sorted = Object.keys(counts).sort((a, b) => counts[b] - counts[a])
+    return ['All Languages', ...sorted]
+  }, [allRepos])
+
 
   const orgList = useMemo(() =>
     ['All Organizations', ...new Set(allRepos.map(r => r.orgLogin).filter(Boolean))],
