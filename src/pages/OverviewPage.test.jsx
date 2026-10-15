@@ -93,6 +93,56 @@ describe('Overview repository creation timeline', () => {
 })
 
 describe('Timeline edge states and tooltip', () => {
+  it('supports keyboard focus and arrow-key tooltips before and after changing grouping', async () => {
+    const user = userEvent.setup()
+    const repos = [
+      { created_at: '2025-12-01T00:00:00Z' },
+      { created_at: '2026-02-01T00:00:00Z' },
+      { created_at: '2026-02-05T00:00:00Z' },
+    ]
+    render(<RepositoryCreationTimeline repos={repos} />)
+    const grouping = screen.getByRole('combobox', { name: 'Group by' })
+    const chart = screen.getByRole('application')
+    const wrapper = chart.parentElement
+    // Recharts uses the wrapper's bounds to position keyboard-driven tooltips.
+    vi.spyOn(wrapper, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 800, 260))
+    Object.defineProperty(wrapper, 'offsetWidth', { value: 800 })
+
+    await user.tab()
+    expect(grouping).toHaveFocus()
+    await user.tab()
+    expect(chart).toHaveFocus()
+    expect(await screen.findByText('2025', { selector: 'strong' })).toBeInTheDocument()
+    expect(screen.getByText('Repositories created: 1')).toBeInTheDocument()
+
+    await user.keyboard('{ArrowRight}')
+    expect(await screen.findByText('2026', { selector: 'strong' })).toBeInTheDocument()
+    expect(screen.getByText('Repositories created: 2')).toBeInTheDocument()
+    expect(screen.getByText('Cumulative loaded repositories: 3')).toBeInTheDocument()
+
+    await user.keyboard('{ArrowLeft}')
+    expect(await screen.findByText('2025', { selector: 'strong' })).toBeInTheDocument()
+    expect(screen.getByText('Cumulative loaded repositories: 1')).toBeInTheDocument()
+
+    await user.tab({ shift: true })
+    expect(grouping).toHaveFocus()
+    // jsdom does not implement native select arrow-key defaults; selectOptions
+    // supplies the selection change while focus and chart keys remain real.
+    await user.selectOptions(grouping, 'monthly')
+    expect(grouping).toHaveValue('monthly')
+    await user.tab()
+    expect(chart).toHaveFocus()
+    await user.keyboard('{ArrowRight}')
+    expect(await screen.findByText('2026-01', { selector: 'strong' })).toBeInTheDocument()
+    expect(screen.getByText('Repositories created: 0')).toBeInTheDocument()
+    expect(screen.getByText('Cumulative loaded repositories: 1')).toBeInTheDocument()
+
+    await user.keyboard('{ArrowRight}')
+    expect(await screen.findByText('2026-02', { selector: 'strong' })).toBeInTheDocument()
+    expect(screen.getByText('Repositories created: 2')).toBeInTheDocument()
+    expect(screen.getByText('Cumulative loaded repositories: 3')).toBeInTheDocument()
+  })
+
   it('shows an empty state and explains omitted invalid dates', () => {
     const { rerender } = render(<RepositoryCreationTimeline repos={[{ created_at: null }]} />)
     expect(screen.getByRole('status')).toHaveTextContent('No repository creation dates available')
