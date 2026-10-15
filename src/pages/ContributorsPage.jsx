@@ -299,7 +299,7 @@ export default function ContributorsPage() {
               }}
               aria-label="Filter contributors by organization"
             >
-              <option value="all">All Contributors</option>
+              <option value="all">All Organizations</option>
 
               {organizationOptions.map(org => (
                 <option key={org} value={org}>
