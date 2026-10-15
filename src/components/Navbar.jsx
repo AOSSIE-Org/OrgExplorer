@@ -62,9 +62,9 @@ export default function Navbar() {
         style={{ backdropFilter: 'blur(10px)' }}
       >
         {/* Logo */}
-        <span onClick={() => { navigate('/'); setMenuOpen(false) }} style={{ cursor: 'pointer', flexShrink: 0 }}>
+        <NavLink to="/" onClick={() => setMenuOpen(false)} style={{ flexShrink: 0 }} aria-label="Home">
           <Logo className="h-15 w-auto cursor-pointer" />
-        </span>
+        </NavLink>
 
         {/* Desktop nav links */}
         <div className="hidden md:flex gap-0.5 flex-1 overflow-x-auto">
