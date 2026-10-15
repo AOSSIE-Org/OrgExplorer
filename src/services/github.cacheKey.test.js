@@ -130,6 +130,96 @@ describe('normalizeCacheKey', () => {
   it('returns non-URL input unchanged', () => {
     expect(normalizeCacheKey('not a url')).toBe('not a url')
   })
+
+  it('differentiates between authenticated and unauthenticated requests', () => {
+    const url = 'https://api.github.com/repos/aossie-org/repo-a/contributors?page=1&per_page=100'
+    const anonKey = normalizeCacheKey(url)
+    const patKey = normalizeCacheKey(url, 'ghp_secret_token')
+
+    expect(anonKey).toBe(`anon:${url}`)
+    expect(patKey).toBe(`auth:${url}`)
+    expect(anonKey).not.toBe(patKey)
+
+    // Empty/falsy pat maps to anon
+    expect(normalizeCacheKey(url, '')).toBe(anonKey)
+    expect(normalizeCacheKey(url, null)).toBe(anonKey)
+    expect(normalizeCacheKey(url, undefined)).toBe(anonKey)
+
+    // Any valid pat maps to auth
+    expect(normalizeCacheKey(url, 'another_pat')).toBe(patKey)
+  })
+
+  it('handles already-scoped keys idempotently', () => {
+    const url = 'https://api.github.com/orgs/aossie-org'
+    expect(normalizeCacheKey('auth:' + url, 'pat')).toBe('auth:' + url)
+    expect(normalizeCacheKey('anon:' + url, '')).toBe('anon:' + url)
+  })
+})
+
+describe('auth-state cache separation (#228)', () => {
+  it('re-fetches contributors when switching from unauthenticated to authenticated', async () => {
+    installFakeIndexedDB()
+    const calls = []
+    vi.stubGlobal('fetch', async (url, opts) => {
+      calls.push({ url: String(url), auth: opts?.headers?.Authorization })
+      return {
+        status: 200,
+        ok: true,
+        headers: { get: () => '5000' },
+        json: async () => [{ login: 'alice', contributions: 10 }],
+      }
+    })
+
+    // 1. Explore without a PAT (unauthenticated)
+    const unauthData = await fetchContributors('AOSSIE-Org', 'Repo-A', '')
+    expect(unauthData).toHaveLength(1)
+    expect(calls).toHaveLength(1)
+    expect(calls[0].auth).toBeUndefined()
+
+    // 2. Explore with a PAT (authenticated)
+    // Previously, page 1 returned stale unauthenticated cache because pat was ignored (#228).
+    // Now, it triggers a fresh authenticated fetch.
+    const authData = await fetchContributors('AOSSIE-Org', 'Repo-A', 'my-token')
+    expect(authData).toHaveLength(1)
+    expect(calls).toHaveLength(2)
+    expect(calls[1].auth).toBe('token my-token')
+
+    // 3. Repeating the authenticated request hits the auth cache (costs zero extra fetches)
+    await fetchContributors('AOSSIE-Org', 'Repo-A', 'my-token')
+    expect(calls).toHaveLength(2)
+
+    // 4. Repeating the unauthenticated request hits the anon cache (costs zero extra fetches)
+    await fetchContributors('AOSSIE-Org', 'Repo-A', '')
+    expect(calls).toHaveLength(2)
+  })
+
+  it('re-fetches repos when adding a PAT', async () => {
+    installFakeIndexedDB()
+    const calls = []
+    vi.stubGlobal('fetch', async (url, opts) => {
+      calls.push({ url: String(url), auth: opts?.headers?.Authorization })
+      return {
+        status: 200,
+        ok: true,
+        headers: { get: () => '5000' },
+        json: async () => [{ name: 'repo-1' }],
+      }
+    })
+
+    // Fetch without PAT
+    await fetchRepos('AOSSIE-Org', 1, '')
+    expect(calls).toHaveLength(1)
+    expect(calls[0].auth).toBeUndefined()
+
+    // Fetch with PAT
+    await fetchRepos('AOSSIE-Org', 1, 'pat-123')
+    expect(calls).toHaveLength(2)
+    expect(calls[1].auth).toBe('token pat-123')
+
+    // Cache hits
+    await fetchRepos('AOSSIE-Org', 1, 'pat-123')
+    expect(calls).toHaveLength(2)
+  })
 })
 
 describe('case-insensitive caching', () => {

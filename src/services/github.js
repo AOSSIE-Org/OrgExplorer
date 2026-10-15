@@ -16,12 +16,24 @@ const TTL_MS = 3_600_000 // 1 hour
  * normalized so equivalent URLs share one key. The request URL itself is
  * never rewritten — this applies to the cache key only.
  */
-export function normalizeCacheKey(url) {
+export function normalizeCacheKey(url, pat) {
+  const isAuth = typeof pat === 'boolean' ? pat : Boolean(pat && String(pat).trim())
+  const scope = isAuth ? 'auth' : 'anon'
+
+  let rawUrl = url
+  if (typeof rawUrl === 'string') {
+    if (rawUrl.startsWith('auth:')) {
+      rawUrl = rawUrl.slice(5)
+    } else if (rawUrl.startsWith('anon:')) {
+      rawUrl = rawUrl.slice(5)
+    }
+  }
+
   try {
-    const u = new URL(url)
+    const u = new URL(rawUrl)
     u.pathname = (u.pathname.replace(/\/+$/, '') || '/').toLowerCase()
     u.searchParams.sort()
-    return u.toString()
+    return `${scope}:${u.toString()}`
   } catch {
     return url
   }
@@ -36,11 +48,11 @@ function openDB() {
   })
 }
 
-export async function cacheGet(key) {
+export async function cacheGet(key, pat) {
   try {
     const db = await openDB()
     return new Promise(res => {
-      const req = db.transaction(STORE, 'readonly').objectStore(STORE).get(normalizeCacheKey(key))
+      const req = db.transaction(STORE, 'readonly').objectStore(STORE).get(normalizeCacheKey(key, pat))
       req.onsuccess = () => {
         const r = req.result
         if (!r || Date.now() - r.ts > TTL_MS) return res(null)
@@ -51,12 +63,12 @@ export async function cacheGet(key) {
   } catch { return null }
 }
 
-export async function cacheSet(key, value) {
+export async function cacheSet(key, value, pat) {
   try {
     const db = await openDB()
     return new Promise(res => {
       const tx = db.transaction(STORE, 'readwrite')
-      tx.objectStore(STORE).put({ k: normalizeCacheKey(key), v: value, ts: Date.now() })
+      tx.objectStore(STORE).put({ k: normalizeCacheKey(key, pat), v: value, ts: Date.now() })
       tx.oncomplete = () => res(true)
       tx.onerror = () => res(false)
     })
@@ -78,7 +90,7 @@ export async function cacheClear() {
 // Core fetchWithCache 
 async function fetchWithCache(url, pat) {
   // L2 check
-  const cached = await cacheGet(url)
+  const cached = await cacheGet(url, pat)
   if (cached) return cached
 
   const headers = { Accept: 'application/vnd.github.v3+json' }
@@ -129,14 +141,14 @@ async function fetchWithCache(url, pat) {
     // All list-endpoint callers treat [] as "no data", and analytics
     // already defaults missing entries to [].
     const empty = []
-    cacheSet(url, empty) // write-back, non-blocking
+    cacheSet(url, empty, pat) // write-back, non-blocking
     return empty
   }
 
   if (!res.ok) throw new Error(`HTTP_${res.status}`)
 
   const data = await res.json()
-  cacheSet(url, data) // write-back, non-blocking
+  cacheSet(url, data, pat) // write-back, non-blocking
   return data
 }
 
