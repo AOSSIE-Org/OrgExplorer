@@ -377,7 +377,7 @@ export default function AnalyticsPage() {
                 {advancedMetrics.avgMergeDays.toFixed(1)}
               </span>
               <span style={{ color: 'var(--text2)', fontSize: 14 }}>
-              &nbsp;Days
+              &nbsp;{`${advancedMetrics.avgMergeDays.toFixed(1)>24?'Days':'Hours'}`}
               </span>
             </div>
             </div>
@@ -432,7 +432,7 @@ export default function AnalyticsPage() {
                   fontSize: 14
                 }}
               >
-                Days
+                {`${advancedMetrics.avgMergeDays.toFixed(1)>24?'Days':'Hours'}`}
               </div>
 
               <div

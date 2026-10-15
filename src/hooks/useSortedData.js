@@ -47,7 +47,7 @@ export function useAdvancedMetrics(pulls = []) {
     const avgMergeDays =
       mergedPRs.length === 0
         ? 0
-        : (totalMergeTime / mergedPRs.length / (1000 * 60 * 60 * 24)) || 0
+        : (totalMergeTime / mergedPRs.length / (1000 * 60 * 60)) || 0
 
     const acceptanceRate =
       mergedPRs.length + rejectedPRs.length === 0
