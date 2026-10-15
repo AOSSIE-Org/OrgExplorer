@@ -131,27 +131,30 @@ describe('normalizeCacheKey', () => {
     expect(normalizeCacheKey('not a url')).toBe('not a url')
   })
 
-  it('differentiates between authenticated and unauthenticated requests', () => {
+  it('differentiates between authenticated and unauthenticated requests and between different PATs', () => {
     const url = 'https://api.github.com/repos/aossie-org/repo-a/contributors?page=1&per_page=100'
     const anonKey = normalizeCacheKey(url)
-    const patKey = normalizeCacheKey(url, 'ghp_secret_token')
+    const patKey1 = normalizeCacheKey(url, 'ghp_secret_token_1')
+    const patKey2 = normalizeCacheKey(url, 'ghp_secret_token_2')
 
     expect(anonKey).toBe(`anon:${url}`)
-    expect(patKey).toBe(`auth:${url}`)
-    expect(anonKey).not.toBe(patKey)
+    expect(patKey1).toMatch(/^auth_[a-f0-9]{16}:/)
+    expect(patKey2).toMatch(/^auth_[a-f0-9]{16}:/)
+    expect(anonKey).not.toBe(patKey1)
+    expect(patKey1).not.toBe(patKey2)
+
+    // Identical PAT produces identical stable cache key
+    expect(normalizeCacheKey(url, 'ghp_secret_token_1')).toBe(patKey1)
 
     // Empty/falsy pat maps to anon
     expect(normalizeCacheKey(url, '')).toBe(anonKey)
     expect(normalizeCacheKey(url, null)).toBe(anonKey)
     expect(normalizeCacheKey(url, undefined)).toBe(anonKey)
-
-    // Any valid pat maps to auth
-    expect(normalizeCacheKey(url, 'another_pat')).toBe(patKey)
   })
 
   it('handles already-scoped keys idempotently', () => {
     const url = 'https://api.github.com/orgs/aossie-org'
-    expect(normalizeCacheKey('auth:' + url, 'pat')).toBe('auth:' + url)
+    expect(normalizeCacheKey('auth:' + url, 'pat')).toBe(normalizeCacheKey(url, 'pat'))
     expect(normalizeCacheKey('anon:' + url, '')).toBe('anon:' + url)
   })
 })
@@ -218,6 +221,42 @@ describe('auth-state cache separation (#228)', () => {
 
     // Cache hits
     await fetchRepos('AOSSIE-Org', 1, 'pat-123')
+    expect(calls).toHaveLength(2)
+  })
+
+  it('isolates cache entries between different PATs so switching tokens never returns stale data', async () => {
+    installFakeIndexedDB()
+    const calls = []
+    vi.stubGlobal('fetch', async (url, opts) => {
+      const auth = opts?.headers?.Authorization
+      calls.push({ url: String(url), auth })
+      const body = auth === 'token pat-A' ? [{ name: 'repo-A' }] : [{ name: 'repo-B' }]
+      return {
+        status: 200,
+        ok: true,
+        headers: { get: () => '5000' },
+        json: async () => body,
+      }
+    })
+
+    // Fetch with PAT A
+    const resA = await fetchRepos('AOSSIE-Org', 1, 'pat-A')
+    expect(resA).toEqual([{ name: 'repo-A' }])
+    expect(calls).toHaveLength(1)
+
+    // Fetch with PAT B -> must not return cached repo-A, must fetch for PAT B
+    const resB = await fetchRepos('AOSSIE-Org', 1, 'pat-B')
+    expect(resB).toEqual([{ name: 'repo-B' }])
+    expect(calls).toHaveLength(2)
+
+    // Repeat with PAT A -> hits PAT A's cache (no extra fetch)
+    const cachedA = await fetchRepos('AOSSIE-Org', 1, 'pat-A')
+    expect(cachedA).toEqual([{ name: 'repo-A' }])
+    expect(calls).toHaveLength(2)
+
+    // Repeat with PAT B -> hits PAT B's cache (no extra fetch)
+    const cachedB = await fetchRepos('AOSSIE-Org', 1, 'pat-B')
+    expect(cachedB).toEqual([{ name: 'repo-B' }])
     expect(calls).toHaveLength(2)
   })
 })

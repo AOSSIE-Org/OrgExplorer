@@ -16,17 +16,27 @@ const TTL_MS = 3_600_000 // 1 hour
  * normalized so equivalent URLs share one key. The request URL itself is
  * never rewritten — this applies to the cache key only.
  */
+function hashToken(str) {
+  let h1 = 0x811c9dc5 >>> 0
+  let h2 = 0x9e3779b9 >>> 0
+  for (let i = 0; i < str.length; i++) {
+    const ch = str.charCodeAt(i)
+    h1 = Math.imul(h1 ^ ch, 16777619) >>> 0
+    h2 = Math.imul(h2 ^ ch, 2246822507) >>> 0
+  }
+  return `${h1.toString(16).padStart(8, '0')}${h2.toString(16).padStart(8, '0')}`
+}
+
 export function normalizeCacheKey(url, pat) {
   const isAuth = typeof pat === 'boolean' ? pat : Boolean(pat && String(pat).trim())
-  const scope = isAuth ? 'auth' : 'anon'
+  const tokenStr = typeof pat === 'string' ? pat.trim() : ''
+  const scope = isAuth
+    ? (tokenStr ? `auth_${hashToken(tokenStr)}` : 'auth')
+    : 'anon'
 
   let rawUrl = url
   if (typeof rawUrl === 'string') {
-    if (rawUrl.startsWith('auth:')) {
-      rawUrl = rawUrl.slice(5)
-    } else if (rawUrl.startsWith('anon:')) {
-      rawUrl = rawUrl.slice(5)
-    }
+    rawUrl = rawUrl.replace(/^(auth(_[a-f0-9]+)?|anon):/, '')
   }
 
   try {
