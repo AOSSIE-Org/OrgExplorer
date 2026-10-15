@@ -268,8 +268,9 @@ export default function SettingsPage() {
                   setIsRefreshing(true);
                   setRefreshError(false);
                   try {
-                    const success = await refreshRateLimit();
-                    if (!success) {
+                    const result = await refreshRateLimit();
+                    // 'superseded' means a PAT change discarded this result — not a failure.
+                    if (result === false) {
                       setRefreshError(true);
                       setTimeout(() => setRefreshError(false), 2000);
                     }
