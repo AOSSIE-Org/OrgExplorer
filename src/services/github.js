@@ -33,6 +33,7 @@ function openDB() {
       reject(new Error('IndexedDB unavailable'))
       return
     }
+    let isBlocked = false
     const req = indexedDB.open(DB_NAME, 1)
     req.onupgradeneeded = e => {
       const db = e.target.result
@@ -44,89 +45,124 @@ function openDB() {
         db.createObjectStore(STORE, { keyPath: 'k' })
       }
     }
-    req.onsuccess = e => resolve(e.target.result)
+    req.onsuccess = e => {
+      if (isBlocked) {
+        e.target.result.close()
+        return
+      }
+      resolve(e.target.result)
+    }
     req.onerror = () => reject(req.error)
-    req.onblocked = () => reject(new Error('IndexedDB blocked'))
+    req.onblocked = () => {
+      isBlocked = true
+      reject(new Error('IndexedDB blocked'))
+    }
   })
 }
 
 export async function cacheGet(key) {
   let db
+  let closed = false
+  const closeDb = () => {
+    if (!closed && db) {
+      closed = true
+      db.close()
+    }
+  }
   try {
     db = await openDB()
-    return new Promise(res => {
+    return await new Promise((resolve, reject) => {
+      let val = null
       const tx = db.transaction(STORE, 'readonly')
       const req = tx.objectStore(STORE).get(normalizeCacheKey(key))
       req.onsuccess = () => {
         const r = req.result
-        if (!r || Date.now() - r.ts > TTL_MS) return res(null)
-        res(r.v)
+        if (r && Date.now() - r.ts <= TTL_MS) {
+          val = r.v
+        }
       }
-      req.onerror = () => res(null)
-      tx.oncomplete = () => db.close()
+      req.onerror = () => reject(req.error)
+      tx.oncomplete = () => {
+        closeDb()
+        resolve(val)
+      }
       tx.onerror = () => {
-        db.close()
-        res(null)
+        closeDb()
+        reject(tx.error)
       }
       tx.onabort = () => {
-        db.close()
-        res(null)
+        closeDb()
+        reject(tx.error)
       }
     })
   } catch {
-    if (db) db.close()
+    closeDb()
     return null
   }
 }
 
 export async function cacheSet(key, value) {
   let db
+  let closed = false
+  const closeDb = () => {
+    if (!closed && db) {
+      closed = true
+      db.close()
+    }
+  }
   try {
     db = await openDB()
-    return new Promise(res => {
+    return await new Promise((resolve, reject) => {
       const tx = db.transaction(STORE, 'readwrite')
       tx.objectStore(STORE).put({ k: normalizeCacheKey(key), v: value, ts: Date.now() })
       tx.oncomplete = () => {
-        db.close()
-        res(true)
+        closeDb()
+        resolve(true)
       }
       tx.onerror = () => {
-        db.close()
-        res(false)
+        closeDb()
+        reject(tx.error)
       }
       tx.onabort = () => {
-        db.close()
-        res(false)
+        closeDb()
+        reject(tx.error)
       }
     })
   } catch {
-    if (db) db.close()
+    closeDb()
     return false
   }
 }
 
 export async function cacheClear() {
   let db
+  let closed = false
+  const closeDb = () => {
+    if (!closed && db) {
+      closed = true
+      db.close()
+    }
+  }
   try {
     db = await openDB()
-    return new Promise(res => {
+    return await new Promise((resolve, reject) => {
       const tx = db.transaction(STORE, 'readwrite')
       tx.objectStore(STORE).clear()
       tx.oncomplete = () => {
-        db.close()
-        res(true)
+        closeDb()
+        resolve(true)
       }
       tx.onerror = () => {
-        db.close()
-        res(false)
+        closeDb()
+        reject(tx.error)
       }
       tx.onabort = () => {
-        db.close()
-        res(false)
+        closeDb()
+        reject(tx.error)
       }
     })
   } catch {
-    if (db) db.close()
+    closeDb()
     return false
   }
 }
