@@ -102,7 +102,7 @@ export default function OverviewPage() {
         onRun={runFullExplore}
       />
       {/* Org identity bar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 28 }}>
+      <div className="flex flex-col md:flex-row items-start md:items-center gap-4 mb-7">
         {isMulti ? (
           <div
             style={{ display: 'flex', alignItems: 'center', cursor: orgs.length > 3 ? 'pointer' : 'default' }}
@@ -168,7 +168,7 @@ export default function OverviewPage() {
               : (orgs[0]?.description || `@${orgs[0]?.login}`)}
           </p>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div className="flex gap-2 mt-4 md:mt-0">
           {!isMulti && orgs[0]?.html_url && (
             <a href={orgs[0].html_url} target="_blank" rel="noreferrer"
               style={{ ...C.btn('primary'), display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
@@ -199,7 +199,7 @@ export default function OverviewPage() {
       )}
 
       {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 24 }}>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         <StatCard label="Total Repos" value={formatNumber(orgFilter === 'All Organizations' ? totalRepo : filteredRepos.length)} />
         <StatCard label="Total Stars" value={formatNumber(totalStars)} />
         <StatCard label="Total Forks" value={formatNumber(totalForks)} />
@@ -214,7 +214,7 @@ export default function OverviewPage() {
       </div>
 
       {/* Language + top repos */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
         <div style={C.card}>
           <div style={{ fontWeight: 600, marginBottom: 4 }}>Language Distribution</div>
           <div style={{ ...C.label, marginBottom: 16 }}>Technology Stack Analysis</div>
@@ -289,7 +289,7 @@ export default function OverviewPage() {
       </div>
 
       {/* Nav cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14 }}>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <NavCard to="/repositories" label="Repositories" sub="Explore and sort repos by health, and activity classification state" />
         <NavCard to="/contributors" label="Contributors" sub="Analyze contribution patterns, bus factor, and connector signals" />
         <NavCard to="/network" label="Network Graph" sub="Visualize contributor-repository relationships with D3 force graph" />

@@ -23,14 +23,15 @@ export default function Navbar() {
   const lowLimit = rateLimit && rateLimit.remaining < 15
 
   return (
-    <nav style={{
+    <nav 
+      className="flex flex-wrap md:flex-nowrap items-center justify-between gap-4"
+      style={{
       position: 'sticky', top: 0, zIndex: 100,
       background: 'var(--bg)',
       backdropFilter: 'blur(10px)',
       borderBottom: '1px solid var(--border)',
-      padding: '0 24px',
-      display: 'flex', alignItems: 'center', gap: 24, height: 56,
-      justifyContent: 'space-between',
+      padding: '12px 24px',
+      minHeight: 56,
     }}>
       {/* Wordmark */}
       <span
@@ -63,7 +64,7 @@ export default function Navbar() {
       </div>
 
       {/* Right side */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0 }}>
+      <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 sm:gap-14 shrink-0" style={{ display: 'flex', alignItems: 'center' }}>
         {rateLimit && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: lowLimit ? 'var(--red)' : 'var(--text2)' }}>
             <FiZap size={12} />
@@ -73,17 +74,19 @@ export default function Navbar() {
         <ThemeToggle />
         <button
           onClick={() => navigate('/settings')}
+          aria-label="Settings"
           style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: 6, padding: '5px 10px', fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}
           className='h-[-webkit-fill-available]'
         >
-          <FiSettings size={13} /> Settings
+          <FiSettings size={13} /> <span className="hidden sm:inline">Settings</span>
         </button>
         <button
           onClick={() => navigate('/support-us')}
-          className="flex items-center gap-2 rounded-md bg-emerald-500 px-4 py-2 text-sm font-medium text-white shadow transition-all duration-200 hover:bg-emerald-600 hover:shadow-lg active:scale-95"
+          aria-label="Support Us"
+          className="flex items-center gap-2 rounded-md bg-emerald-500 px-3 py-2 sm:px-4 text-sm font-medium text-white shadow transition-all duration-200 hover:bg-emerald-600 hover:shadow-lg active:scale-95"
         >
           <FiHeart size={13} fill='white' />
-          Support Us
+          <span className="hidden sm:inline">Support Us</span>
         </button>
       </div>
     </nav>
