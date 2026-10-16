@@ -76,7 +76,6 @@ export default function Footer() {
   return (
     <footer
       className="site-footer"
-      role="contentinfo"
       style={{ borderTop: "1px solid var(--border)" }}
     >
       <div className="site-footer-inner flex w-full flex-col gap-8 px-4 py-8 md:px-6 lg:flex-row lg:items-center lg:justify-around">
