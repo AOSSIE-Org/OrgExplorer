@@ -7,12 +7,11 @@ export default function PATModal({ open, onClose }) {
 
   const [draft, setDraft] = useState(pat);
   const [show, setShow] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const isSaved = Boolean(pat && draft.trim() === pat)
 
   useEffect(() => {
     if (open) {
       setDraft(pat);
-      setSaved(false);
     }
   }, [open, pat]);
 
@@ -45,11 +44,6 @@ export default function PATModal({ open, onClose }) {
 
   const handleSave = () => {
     savePat(draft.trim());
-    setSaved(true);
-
-    setTimeout(() => {
-      setSaved(false);
-    }, 1500);
   };
 
   const handleDelete = () => {
@@ -224,7 +218,7 @@ export default function PATModal({ open, onClose }) {
               }}
             >
               <FiSave />
-              {saved ? "Saved" : "Save"}
+              {isSaved ? "Saved" : "Save"}
             </button>
 
             <button

@@ -9,30 +9,32 @@ import {
 import { HiOutlineMail } from "react-icons/hi";
 import Logo from "../../assets/og-logo.svg?react";
 import { useTheme } from "../../context/ThemeContext";
-import { BsHeart, BsHeartFill } from "react-icons/bs";
-import { color } from "d3";
+import { BsHeartFill } from "react-icons/bs";
 
 const footerLinks = [
   {
     label: "Documentation",
     href: "https://github.com/AOSSIE-Org/OrgExplorer/blob/main/README.md",
+    isExternal: true,
   },
   {
     label: "Terms of Service",
     href: "https://github.com/AOSSIE-Org/OrgExplorer/blob/main/terms-of-service.md",
+    isExternal: true,
   },
   {
     label: "Privacy Policy",
     href: "https://github.com/AOSSIE-Org/OrgExplorer/blob/main/privacy-policy.md",
+    isExternal: true,
   },
   {
     label: "API Status",
-    href: "/settings#api-status",
+    href: "/settings",
   },
   {
     label: "Support Us",
-    href: "/support-us"
-  }
+    href: "/support-us",
+  },
 ];
 
 const socialLinks = [
@@ -70,24 +72,32 @@ const socialLinks = [
 
 export default function Footer() {
   const { theme } = useTheme();
-  return (
-    <footer className="site-footer" role="contentinfo" style={{ borderTop: "1px solid var(--border)" }}>
-      <div className="site-footer-inner flex w-full flex-col gap-8 px-4 py-8 md:px-6 lg:flex-row lg:items-center lg:justify-around">
 
+  return (
+    <footer
+      className="site-footer"
+      role="contentinfo"
+      style={{ borderTop: "1px solid var(--border)" }}
+    >
+      <div className="site-footer-inner flex w-full flex-col gap-8 px-4 py-8 md:px-6 lg:flex-row lg:items-center lg:justify-around">
         {/* LEFT SECTION */}
         <div className="site-footer-brand flex items-center gap-8 justify-center">
           {/* Logo */}
           <img
             src="/aossie-logo.svg"
             alt="AOSSIE"
-            className="h-16 w-auto" />
+            className="h-16 w-auto"
+          />
 
           {/* Separator */}
           <div className="site-footer-divider site-footer-brand-divider h-20 w-px bg-zinc-700" />
 
           {/* Description */}
           <div className="site-footer-description max-w-sm">
-            <p className="mt-2 text-sm leading-5" style={{ color: "var(--text2)" }}>
+            <p
+              className="mt-2 text-sm leading-5"
+              style={{ color: "var(--text2)" }}
+            >
               AOSSIE is a non-profit organization dedicated to building
               impactful open-source software, mentoring contributors,
               and fostering innovation through global collaboration.
@@ -110,7 +120,13 @@ export default function Footer() {
                 <Link
                   key={item.label}
                   to={item.href}
-                  className={item.label === "Support Us" ? "site-footer-support-link" : undefined}
+                  className={
+                    item.label === "Support Us"
+                      ? "site-footer-support-link"
+                      : undefined
+                  }
+                  target={item.isExternal ? "_blank" : "_self"}
+                  rel={item.isExternal ? "noopener noreferrer" : undefined}
                   style={{
                     color: "var(--text2)",
                     transition: "color 0.2s ease",
@@ -165,22 +181,16 @@ export default function Footer() {
           <div className="site-footer-divider h-25 w-px bg-zinc-700 rotate-90 lg:rotate-180" />
 
           <div className="site-footer-meta flex flex-col gap-2 items-end text-right">
-            <p
-              className=" flex items-center
-                text-xs tracking-[0.2em]"
-            >
+            <p className="flex items-center text-xs tracking-[0.2em]">
               © {new Date().getFullYear()}
               <span>
-                <Logo className="h-15 w-auto" />
+                <Link to="/" aria-label="Go to home page">
+                  <Logo className="h-15 w-auto cursor-pointer" />
+                </Link>
               </span>
             </p>
 
-            <p
-              className="
-                text-xs uppercase tracking-[0.2em]
-                text-zinc-600
-              "
-            >
+            <p className="text-xs uppercase tracking-[0.2em] text-zinc-600">
               Built for open source communities
             </p>
 
@@ -188,7 +198,16 @@ export default function Footer() {
               <span>Made with</span>
               <BsHeartFill className="text-yellow-400" size={14} />
               <span>
-                by <a href="https://github.com/AOSSIE-Org" target="_blank" rel="noreferrer" aria-label="AOSSIE GitHub link" className="font-semibold">AOSSIE</a>
+                by{" "}
+                <a
+                  href="https://github.com/AOSSIE-Org"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="AOSSIE GitHub link"
+                  className="font-semibold"
+                >
+                  AOSSIE
+                </a>
               </span>
             </p>
           </div>
@@ -197,4 +216,3 @@ export default function Footer() {
     </footer>
   );
 }
-

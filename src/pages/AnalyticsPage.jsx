@@ -67,7 +67,7 @@ export default function AnalyticsPage() {
       value: advancedMetrics.rejected
     }
   ]
-  
+
   const repoNames = ['All', ...Object.keys(issuesData || {}).map(k => k.split('/')[1])]
   const allRepoNames = ['All Repositories', ...Object.keys(pullsData || {}).map(k => k.split('/')[1])]
   const hasData = Object.keys(issuesData || {}).length > 0
@@ -79,20 +79,20 @@ export default function AnalyticsPage() {
   const mergeGauge = [
     {
       value: Math.min(
-        (advancedMetrics.avgMergeDays / MAX_DAYS) * 100,
+        ((advancedMetrics.avgMergeHours/24) / MAX_DAYS) * 100,
         100
       )
     }
   ]
 
-  const getMergeColor = days => {
-    if (days <= 5) return 'var(--green)'
-    if (days <= 10) return 'var(--accent)'
-    if (days <= 15) return 'var(--amber)'
+  const getMergeColor = hours => {
+    if (hours <= 120) return 'var(--green)'//5 days
+    if (hours <= 240) return 'var(--accent)'//10 days
+    if (hours <= 360) return 'var(--amber)'//15 days
     return 'var(--red)'
   }
   const analyticsComplete = auditComplete && advanceAnalyticsComplete
-  
+
   return (
     <>
     <div style={{ padding: '32px 24px', maxWidth: 1100, margin: '0 auto' }} className="fade-up">
@@ -228,13 +228,13 @@ export default function AnalyticsPage() {
         </InfoBox>
       )}
     </div>
-      
+
     <div style={{ padding: '32px 24px', maxWidth: 1100, margin: '0 auto' }} className="fade-up">
       <PageTitle
         title="Advanced Analytics"
         subtitle="Key metrics and trends for your organization, including PR acceptance rate and PR average merge time, and more."
       />
-        
+
       {/* Controls */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 24, flexWrap: 'wrap', alignItems: 'center' }}>
         {/* Repository Selection */}
@@ -282,7 +282,7 @@ export default function AnalyticsPage() {
             }}
           />
         </div>
-          
+
         {!hasPullsData && (
           <button
             onClick={() => pat ? runFullAnalytics() : runAdvanceAnalytics()}
@@ -370,14 +370,14 @@ export default function AnalyticsPage() {
                 style={{
                   fontSize: 34,
                   fontWeight: 700,
-                  color: getMergeColor(advancedMetrics.avgMergeDays),
+                  color: getMergeColor(advancedMetrics.avgMergeHours),
                   lineHeight: 1,
                 }}
-                className={`${getMergeColor(advancedMetrics.avgMergeDays)}`}>
-                {advancedMetrics.avgMergeDays.toFixed(1)}
+                className={`${getMergeColor(advancedMetrics.avgMergeHours)}`}>
+                {advancedMetrics.avgMergeHours.toFixed(1)>=24?`${((advancedMetrics.avgMergeHours)/24).toFixed(1)}`:`${advancedMetrics.avgMergeHours.toFixed(1)}`}
               </span>
               <span style={{ color: 'var(--text2)', fontSize: 14 }}>
-              &nbsp;Days
+              &nbsp;{`${advancedMetrics.avgMergeHours.toFixed(1)>=24?`Days`:'Hours'}`}
               </span>
             </div>
             </div>
@@ -403,7 +403,7 @@ export default function AnalyticsPage() {
                   clockWise
                   dataKey="value"
                   cornerRadius={12}
-                  fill={getMergeColor(advancedMetrics.avgMergeDays)}
+                  fill={getMergeColor(advancedMetrics.avgMergeHours)}
                 />
               </RadialBarChart>
             </ResponsiveContainer>
@@ -423,7 +423,7 @@ export default function AnalyticsPage() {
                   fontWeight: 700
                 }}
               >
-                {advancedMetrics.avgMergeDays.toFixed(1)}
+                {advancedMetrics.avgMergeHours.toFixed(1)>=24?`${((advancedMetrics.avgMergeHours)/24).toFixed(1)}`:`${advancedMetrics.avgMergeHours.toFixed(1)}`}
               </div>
 
               <div
@@ -432,27 +432,27 @@ export default function AnalyticsPage() {
                   fontSize: 14
                 }}
               >
-                Days
+                {`${advancedMetrics.avgMergeHours.toFixed(1)>=24?`${((advancedMetrics.avgMergeHours)/24).toFixed(1)} Days`:`${advancedMetrics.avgMergeHours.toFixed(1)} Hours`}`}
               </div>
 
               <div
                 style={{
                   marginTop: 8,
                   fontSize: 13,
-                  color: getMergeColor(advancedMetrics.avgMergeDays),
+                  color: getMergeColor(advancedMetrics.avgMergeHours),
                   fontWeight: 600
                 }}
               >
-                {advancedMetrics.avgMergeDays <= 2
+                {advancedMetrics.avgMergeHours <= 48 // 2days or 48 hrs
                   ? 'Excellent'
-                  : advancedMetrics.avgMergeDays <= 5
+                  : advancedMetrics.avgMergeHours <= 120 //5 days or 120 hrs
                   ? 'Good'
-                  : advancedMetrics.avgMergeDays <= 10
+                  : advancedMetrics.avgMergeHours <= 240 //10 days or 240 hrs
                   ? 'Slow'
                   : 'Very Slow'}
               </div>
             </div>
-            
+
             <div
               style={{
                   marginTop: -20,
@@ -496,7 +496,7 @@ export default function AnalyticsPage() {
                 </div>
 
                 <div>
-                  <span 
+                  <span
                   style={{
                     fontSize: 34,
                     fontWeight: 700,
@@ -556,7 +556,7 @@ export default function AnalyticsPage() {
           </div>
         </div>
       )}
-      
+
     </div>
   </>
   )
