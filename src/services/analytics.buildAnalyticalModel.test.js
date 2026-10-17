@@ -162,4 +162,39 @@ describe('buildAnalyticalModel', () => {
     expect(result.totalRepos).toEqual([])
     expect(result.contributors).toEqual([])
   })
+
+  it("uses the most recent lastActive across a contributor's repos, not the last processed", () => {
+    const orgs = [{ login: 'org-a' }]
+    const repos = [makeRepo('repo-a'), makeRepo('repo-b'), makeRepo('repo-c')]
+
+    const reposPerOrg = { 'org-a': repos }
+    const totalReposPerOrg = { 'org-a': repos }
+    // Latest date is in the middle repo, so a "last write wins" bug would
+    // return '2024-03-14' (repo-c) instead of the expected maximum.
+    const contribsPerRepo = {
+      'org-a/repo-a': [{ login: 'alice', avatar_url: '', contributions: 1, lastActive: '2024-02-10' }],
+      'org-a/repo-b': [{ login: 'alice', avatar_url: '', contributions: 1, lastActive: '2024-05-21' }],
+      'org-a/repo-c': [{ login: 'alice', avatar_url: '', contributions: 1, lastActive: '2024-03-14' }],
+    }
+
+    const result = buildAnalyticalModel(orgs, reposPerOrg, contribsPerRepo, totalReposPerOrg)
+
+    expect(result.contributors[0].lastActive).toBe('2024-05-21')
+  })
+
+  it('ignores a null lastActive when another repo has a real date', () => {
+    const orgs = [{ login: 'org-a' }]
+    const repos = [makeRepo('repo-a'), makeRepo('repo-b')]
+
+    const reposPerOrg = { 'org-a': repos }
+    const totalReposPerOrg = { 'org-a': repos }
+    const contribsPerRepo = {
+      'org-a/repo-a': [{ login: 'bob', avatar_url: '', contributions: 1, lastActive: '2024-05-21' }],
+      'org-a/repo-b': [{ login: 'bob', avatar_url: '', contributions: 1, lastActive: null }],
+    }
+
+    const result = buildAnalyticalModel(orgs, reposPerOrg, contribsPerRepo, totalReposPerOrg)
+
+    expect(result.contributors[0].lastActive).toBe('2024-05-21')
+  })
 })
