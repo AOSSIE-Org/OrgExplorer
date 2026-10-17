@@ -16,16 +16,31 @@ export default function HomePage() {
 
   const addChip = raw => {
     const parts = raw.split(/[,+\s]+/).map(s => s.trim()).filter(Boolean)
-    setChips(prev => [...new Set([...prev, ...parts])])
+    setChips(prev => {
+      // Deduplicate case-insensitively: `AOSSIE-Org` and `aossie-org` are
+      // the same org, so keep only the first-seen casing.
+      const seen = new Set(prev.map(c => c.toLowerCase()))
+      const next = [...prev]
+      for (const p of parts) {
+        const key = p.toLowerCase()
+        if (!seen.has(key)) {
+          seen.add(key)
+          next.push(p)
+        }
+      }
+      return next
+    })
     setInput('')
   }
 
   const removeChip = c => setChips(prev => prev.filter(x => x !== c))
-
   const handleKey = e => {
     if ((e.key === 'Enter' || e.key === ',') && input.trim()) {
       e.preventDefault()
       addChip(input)
+    }
+    if (e.key === 'Enter' && !input.trim() && chips.length) {
+      go();
     }
     if (e.key === 'Backspace' && !input && chips.length) {
       setChips(prev => prev.slice(0, -1))
@@ -36,7 +51,9 @@ export default function HomePage() {
     const orgs = targets || (chips.length ? chips : input.trim() ? [input.trim()] : [])
     if (!orgs.length) return
     const success = await explore(orgs)
-    if(success) navigate('/overview')
+    if(success) navigate('/overview',{
+      state:{chips:orgs}
+    })
   }
 
   return (
