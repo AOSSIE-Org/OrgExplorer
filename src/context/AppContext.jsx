@@ -1,32 +1,47 @@
-import { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef } from 'react'
-import { fetchOrg, fetchRepos, fetchContributors, fetchIssues, fetchRateLimit, fetchPulls } from '../services/github'
+
+import {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef
+} from 'react'
+import {
+  fetchOrg,
+  fetchRepos,
+  fetchContributors,
+  fetchIssues,
+  fetchRateLimit,
+  fetchPulls
+} from '../services/github'
 import { buildAnalyticalModel, getTopRepositories } from '../services/analytics'
+import { storage, STORAGE_KEYS } from '../utils/storage'
 import { saveAnalysis, loadAnalysis } from '../services/cache'
 
 const Ctx = createContext(null)
 
 function getStoredRateLimit() {
-  const stored = localStorage.getItem('oe_rate_limit')
+  const stored = storage.get(STORAGE_KEYS.RATE_LIMIT)
 
   if (!stored) return null
 
   try {
-    const data = JSON.parse(stored)
-
-    if (Date.now() > data.reset * 1000) {
-      localStorage.removeItem('oe_rate_limit')
+    if (!stored.reset || Date.now() > stored.reset * 1000) {
+      storage.remove(STORAGE_KEYS.RATE_LIMIT)
       return null
     }
 
-    return data
+    return stored
   } catch {
-    localStorage.removeItem('oe_rate_limit')
+    storage.remove(STORAGE_KEYS.RATE_LIMIT)
     return null
   }
 }
 
 export function AppProvider({ children }) {
-  const [pat, setPat] = useState(() => localStorage.getItem('oe_pat') || '')
+  const [pat, setPat] = useState(() => storage.get(STORAGE_KEYS.PAT) || '')
   const [orgs, setOrgs] = useState([])
   const [model, setModel] = useState(null)
   const [issuesData, setIssuesData] = useState({})
@@ -37,22 +52,19 @@ export function AppProvider({ children }) {
   const [govLoading, setGovLoading] = useState(false)
   const [error, setError] = useState('')
   const [totalRepo, setTotalRepo] = useState(0)
-  const [advanceAnalyticsLoading, setAdvanceAnalyticsLoading] = useState(false);
+  const [advanceAnalyticsLoading, setAdvanceAnalyticsLoading] = useState(false)
   const [advanceAnalyticsComplete, setAdvanceAnalyticsComplete] = useState(false)
   const [isComplete, setIsComplete] = useState(false)
   const [auditComplete, setAuditComplete] = useState(false)
   const [lastOrgNames, setLastOrgNames] = useState([])
-  // True until the cached analysis has been read, so routes that need a model
-  // wait for the restore instead of bouncing to the picker on first paint.
+  // Keep routes waiting until cached analysis has been restored.
   const [hydrating, setHydrating] = useState(true)
-  // Set when state came straight from the cache, so the write-back effect can
-  // skip it. Re-saving an untouched restore would stamp a fresh savedAt on
-  // every page load and the entry would never reach its TTL.
-  const restoredFromCache = useRef(false)
 
+  // Avoid refreshing the cache timestamp just because it was restored.
+  const restoredFromCache = useRef(false)
   const patRequestId = useRef(0)
-  // Restore the last analysis on startup. The model is held in memory, so
-  // without this a reload, bookmark or shared link loses it entirely.
+
+  // Restore the last analysis on startup.
   useEffect(() => {
     let cancelled = false
 
@@ -76,33 +88,49 @@ export function AppProvider({ children }) {
         if (!cancelled) setHydrating(false)
       })
 
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [])
 
-  // Persist the analysis whenever it changes, including audit and analytics
-  // results — those are the most expensive data to refetch.
+  // Persist analysis when it changes.
   useEffect(() => {
     if (hydrating || !model) return
 
-    // Skip the write that would immediately follow a restore.
     if (restoredFromCache.current) {
       restoredFromCache.current = false
       return
     }
 
     saveAnalysis({
-      orgs, model, totalRepo, isComplete, lastOrgNames,
-      issuesData, pullsData, auditComplete, advanceAnalyticsComplete
+      orgs,
+      model,
+      totalRepo,
+      isComplete,
+      lastOrgNames,
+      issuesData,
+      pullsData,
+      auditComplete,
+      advanceAnalyticsComplete
     })
   }, [
-    hydrating, orgs, model, totalRepo, isComplete, lastOrgNames,
-    issuesData, pullsData, auditComplete, advanceAnalyticsComplete
+    hydrating,
+    orgs,
+    model,
+    totalRepo,
+    isComplete,
+    lastOrgNames,
+    issuesData,
+    pullsData,
+    auditComplete,
+    advanceAnalyticsComplete
   ])
 
+  // Listen for rate-limit updates from other parts of the application.
   useEffect(() => {
-    const handler = e => {
-      setRateLimit(e.detail)
-      localStorage.setItem('oe_rate_limit', JSON.stringify(e.detail))
+    const handler = event => {
+      setRateLimit(event.detail)
+      storage.set(STORAGE_KEYS.RATE_LIMIT, event.detail)
     }
 
     window.addEventListener('rate-limit-update', handler)
@@ -112,11 +140,12 @@ export function AppProvider({ children }) {
     }
   }, [])
 
+  // Clear expired rate-limit information.
   useEffect(() => {
     if (!rateLimit?.reset) return
 
     const timeout = setTimeout(() => {
-      localStorage.removeItem('oe_rate_limit')
+      storage.remove(STORAGE_KEYS.RATE_LIMIT)
       setRateLimit(null)
     }, Math.max(0, rateLimit.reset * 1000 - Date.now()))
 
@@ -133,193 +162,287 @@ export function AppProvider({ children }) {
       setRateLimit(rl)
       return true
     }
+
     return false
   }, [pat])
+
+  // Save or remove the GitHub personal access token.
   const savePat = useCallback(async token => {
     const requestId = ++patRequestId.current
 
     setPat(token)
 
     if (token) {
-      localStorage.setItem('oe_pat', token)
+      storage.set(STORAGE_KEYS.PAT, token)
 
       const rl = await fetchRateLimit(token)
 
-      // A newer save or delete started while this request was in flight.
+      // Ignore stale responses if another save or delete has started.
       if (requestId !== patRequestId.current) return
 
       if (rl) {
         setRateLimit(rl)
-        localStorage.setItem('oe_rate_limit', JSON.stringify(rl))
+        storage.set(STORAGE_KEYS.RATE_LIMIT, rl)
       }
     } else {
-      localStorage.removeItem('oe_pat')
-      localStorage.removeItem('oe_rate_limit')
+      storage.remove(STORAGE_KEYS.PAT)
+      storage.remove(STORAGE_KEYS.RATE_LIMIT)
       setRateLimit(null)
     }
   }, [])
 
-  // Multi-org explore
+  // Explore multiple organizations.
   const explore = useCallback(async orgNames => {
-    // Trim and dedupe case-insensitively: `AOSSIE-Org` and `aossie-org`
-    // are the same org on GitHub and must not trigger duplicate fetches.
+    // Trim and deduplicate organization names case-insensitively.
     const seen = new Set()
     const names = []
-    for (const n of orgNames) {
-      const trimmed = String(n).trim()
+
+    for (const name of orgNames) {
+      const trimmed = String(name).trim()
       const key = trimmed.toLowerCase()
+
       if (trimmed && !seen.has(key)) {
         seen.add(key)
         names.push(trimmed)
       }
     }
+
     if (!names.length) return false
-    setLoading(true);
-    setError('');
-    setModel(null);
-    setOrgs([]);
-    setIssuesData({});
-    setLastOrgNames(names);
-    setAuditComplete(false);
-    setAdvanceAnalyticsComplete(false);
+
+    setLoading(true)
+    setError('')
+    setModel(null)
+    setOrgs([])
+    setIssuesData({})
+    setLastOrgNames(names)
+    setAuditComplete(false)
+    setAdvanceAnalyticsComplete(false)
+
     try {
       setLoadMsg('Fetching organization metadata...')
-      const orgRes = await Promise.allSettled(names.map(n => fetchOrg(n, pat)))
 
-      const rateLimitError = orgRes.find(r => r.status === 'rejected' && r.reason?.message === 'RATE_LIMIT')
+      const orgRes = await Promise.allSettled(
+        names.map(name => fetchOrg(name, pat))
+      )
+
+      const rateLimitError = orgRes.find(
+        result =>
+          result.status === 'rejected' &&
+          result.reason?.message === 'RATE_LIMIT'
+      )
+
       if (rateLimitError) {
         throw new Error('RATE_LIMIT')
       }
 
-      const unexpectedError = orgRes.find(r => r.status === 'rejected' && r.reason?.message !== 'NOT_FOUND')
+      const unexpectedError = orgRes.find(
+        result =>
+          result.status === 'rejected' &&
+          result.reason?.message !== 'NOT_FOUND'
+      )
+
       if (unexpectedError) {
-        throw (unexpectedError.reason || new Error('Failed to fetch organization data.'))
+        throw (
+          unexpectedError.reason ||
+          new Error('Failed to fetch organization data.')
+        )
       }
 
-      const validOrgs = orgRes.filter(r => r.status === 'fulfilled').map(r => r.value)
-      if (!validOrgs.length) throw new Error('No valid organizations found. Check the names and try again.')
+      const validOrgs = orgRes
+        .filter(result => result.status === 'fulfilled')
+        .map(result => result.value)
+
+      if (!validOrgs.length) {
+        throw new Error(
+          'No valid organizations found. Check the names and try again.'
+        )
+      }
+
       setOrgs(validOrgs)
 
       setLoadMsg('Fetching repositories...')
-      const reposPerOrg = {}
-      const repoRes = await Promise.allSettled(validOrgs.map(async org => {
-        const repos = await fetchRepos(org.login, org.public_repos, pat)
-        reposPerOrg[org.login] = repos
-        return repos
-      }))
 
-      const repoRateLimit = repoRes.find(r => r.status === 'rejected' && r.reason?.message === 'RATE_LIMIT')
+      const reposPerOrg = {}
+
+      const repoRes = await Promise.allSettled(
+        validOrgs.map(async org => {
+          const repos = await fetchRepos(org.login, org.public_repos, pat)
+          reposPerOrg[org.login] = repos
+          return repos
+        })
+      )
+
+      const repoRateLimit = repoRes.find(
+        result =>
+          result.status === 'rejected' &&
+          result.reason?.message === 'RATE_LIMIT'
+      )
+
       if (repoRateLimit) {
         throw new Error('RATE_LIMIT')
       }
 
-      const total = Object.values(reposPerOrg).reduce((sum, repos) => sum + (repos ? repos.length : 0), 0);
-      setTotalRepo(total);
+      const total = Object.values(reposPerOrg).reduce(
+        (sum, repos) => sum + (repos ? repos.length : 0),
+        0
+      )
+
+      setTotalRepo(total)
 
       const totalReposPerOrg = Object.fromEntries(
-        Object.entries(reposPerOrg).map(([org, repos]) => [org, [...(repos || [])]])
-      );
+        Object.entries(reposPerOrg).map(([org, repos]) => [
+          org,
+          [...(repos || [])]
+        ])
+      )
 
       setLoadMsg('Fetching contributor data for top repositories...')
+
       const contribsPerRepo = {}
+
       for (const org of validOrgs) {
+        const top = pat
+          ? reposPerOrg[org.login] || []
+          : getTopRepositories(reposPerOrg[org.login] || [], 10)
 
-        const top = pat ? (reposPerOrg[org.login] || []) : getTopRepositories(reposPerOrg[org.login] || [], 10);
-        reposPerOrg[org.login] = top;
+        reposPerOrg[org.login] = top
 
-        const contribRes = await Promise.allSettled(top.map(async repo => {
-          const contribs = await fetchContributors(org.login, repo.name, pat)
-          contribsPerRepo[`${org.login}/${repo.name}`] = contribs
-          return contribs
-        }))
+        const contribRes = await Promise.allSettled(
+          top.map(async repo => {
+            const contribs = await fetchContributors(
+              org.login,
+              repo.name,
+              pat
+            )
 
-        const contribRateLimit = contribRes.find(r => r.status === 'rejected' && r.reason?.message === 'RATE_LIMIT')
+            contribsPerRepo[`${org.login}/${repo.name}`] = contribs
+            return contribs
+          })
+        )
+
+        const contribRateLimit = contribRes.find(
+          result =>
+            result.status === 'rejected' &&
+            result.reason?.message === 'RATE_LIMIT'
+        )
+
         if (contribRateLimit) {
           throw new Error('RATE_LIMIT')
         }
       }
 
       setLoadMsg('Building analytical data model...')
-      const builtModel = buildAnalyticalModel(validOrgs, reposPerOrg, contribsPerRepo, totalReposPerOrg)
-      setModel(builtModel)
 
+      const builtModel = buildAnalyticalModel(
+        validOrgs,
+        reposPerOrg,
+        contribsPerRepo,
+        totalReposPerOrg
+      )
+
+      setModel(builtModel)
       setIsComplete(!!pat)
 
-      // Save to recent searches, canonicalized to the official login
-      // casing returned by GitHub and deduplicated case-insensitively, so
-      // `AOSSIE-Org` and `aossie-org` share one entry (and one cache key).
-      const prev = JSON.parse(localStorage.getItem('oe_recent') || '[]')
-      const entry = validOrgs.map(o => o.login).join(', ')
+      // Save recent searches using official GitHub organization names.
+      // Deduplicate entries case-insensitively and keep the latest six.
+      const prev = storage.get(STORAGE_KEYS.RECENT_SEARCHES) || []
+      const entry = validOrgs.map(org => org.login).join(', ')
       const entryKey = entry.toLowerCase()
-      const next = [entry, ...prev.filter(r => String(r).toLowerCase() !== entryKey)].slice(0, 6)
-      localStorage.setItem('oe_recent', JSON.stringify(next))
+
+      const next = [
+        entry,
+        ...prev.filter(
+          item => String(item).toLowerCase() !== entryKey
+        )
+      ].slice(0, 6)
+
+      storage.set(STORAGE_KEYS.RECENT_SEARCHES, next)
+
       return builtModel
     } catch (err) {
-      setError(err.message === 'RATE_LIMIT'
-        ? (pat
+      setError(
+        err.message === 'RATE_LIMIT'
+          ? pat
             ? 'GitHub API rate limit reached. Please wait for your quota to refresh.'
-            : 'GitHub API rate limit reached. Add a PAT in Settings for 5,000 req/hr.')
-        : err.message)
+            : 'GitHub API rate limit reached. Add a PAT in Settings for 5,000 req/hr.'
+          : err.message
+      )
+
       return false
     } finally {
-      setLoading(false); setLoadMsg('')
+      setLoading(false)
+      setLoadMsg('')
     }
   }, [pat])
 
-  // re-run explore for the same orgs: used by the banner on
-  // Overview / Contributors / Repositories / Network
+  // Re-run exploration for the same organizations.
   const runFullExplore = useCallback(() => {
     if (!lastOrgNames.length) return Promise.resolve(false)
     return explore(lastOrgNames)
   }, [explore, lastOrgNames])
 
-  const selectAnalysisRepos = useCallback((allRepos) => {
+  const selectAnalysisRepos = useCallback(allRepos => {
     const byOrg = {}
+
     for (const repo of allRepos) {
-      (byOrg[repo.orgLogin] ??= []).push(repo)
+      ;(byOrg[repo.orgLogin] ??= []).push(repo)
     }
+
     return Object.values(byOrg).flatMap(orgRepos =>
       pat ? orgRepos : getTopRepositories(orgRepos, 10)
     )
   }, [pat])
 
-  // Shared issue-fetch logic: same repo-selection rule as contributors
-  const auditRepos = useCallback(async (allRepos) => {
+  // Shared issue-fetch logic.
+  const auditRepos = useCallback(async allRepos => {
     const repos = selectAnalysisRepos(allRepos)
-
     const map = {}
+
     for (let i = 0; i < repos.length; i += 5) {
       const batch = repos.slice(i, i + 5)
-      await Promise.allSettled(batch.map(async repo => {
-        map[`${repo.orgLogin}/${repo.name}`] = await fetchIssues(repo.orgLogin, repo.name, pat)
-      }))
+
+      await Promise.allSettled(
+        batch.map(async repo => {
+          map[`${repo.orgLogin}/${repo.name}`] = await fetchIssues(
+            repo.orgLogin,
+            repo.name,
+            pat
+          )
+        })
+      )
     }
+
     return map
   }, [pat, selectAnalysisRepos])
 
-  // Governance audit : used directly when repos are already complete
+  // Governance audit.
   const runAudit = useCallback(async () => {
     if (!model || govLoading) return
+
     setGovLoading(true)
-    const map = await auditRepos(model.allRepos)
-    setIssuesData(map)
-    setGovLoading(false)
-    setAuditComplete(!!pat)
+
+    try {
+      const map = await auditRepos(model.allRepos)
+      setIssuesData(map)
+      setAuditComplete(!!pat)
+    } finally {
+      setGovLoading(false)
+    }
   }, [model, pat, govLoading, auditRepos])
 
-  // Entry point for Governance / Analytics "Run Complete Analysis"
-  // - If repos/contributors aren't complete yet -> fetch them first (explore),
-  //   then fetch issues using the freshly-returned model (avoids stale closure).
-  // - If already complete -> skip repo fetching (cache/state already has it),
-  //   just fetch issues.
+  // Run complete governance analysis.
   const runGovernanceAnalysis = useCallback(async () => {
     if (govLoading) return
 
     let currentModel = model
+
     if (!isComplete) {
-      setGovLoading(true) // reflect "working" immediately, explore() also sets its own loading
+      setGovLoading(true)
+
       const freshModel = await runFullExplore()
+
       setGovLoading(false)
+
       if (!freshModel) return
       currentModel = freshModel
     }
@@ -327,25 +450,29 @@ export function AppProvider({ children }) {
     if (!currentModel) return
 
     setGovLoading(true)
-    const map = await auditRepos(currentModel.allRepos)
-    setIssuesData(map)
-    setGovLoading(false)
-    setAuditComplete(!!pat)
+
+    try {
+      const map = await auditRepos(currentModel.allRepos)
+      setIssuesData(map)
+      setAuditComplete(!!pat)
+    } finally {
+      setGovLoading(false)
+    }
   }, [isComplete, model, runFullExplore, auditRepos, pat, govLoading])
 
-  // Advanced analytics — parallel batches of 5 (Section 3.2.5)
-  // Entry point for Analytics "Run Complete Analysis"
-  // - If repos/contributors aren't complete yet -> fetch them first (explore),
-  //   then fetch pulls using the freshly-returned model (avoids stale closure).
-  // - If already complete -> skip repo fetching, just fetch pulls.
+  // Advanced analytics.
   const runAdvanceAnalytics = useCallback(async () => {
     if (advanceAnalyticsLoading) return
 
     let currentModel = model
+
     if (!isComplete) {
-      setAdvanceAnalyticsLoading(true) // reflect "working" immediately
+      setAdvanceAnalyticsLoading(true)
+
       const freshModel = await runFullExplore()
+
       setAdvanceAnalyticsLoading(false)
+
       if (!freshModel) return
       currentModel = freshModel
     }
@@ -353,32 +480,54 @@ export function AppProvider({ children }) {
     if (!currentModel) return
 
     setAdvanceAnalyticsLoading(true)
-    const map = {}
-    const repos = selectAnalysisRepos(currentModel.totalRepos)
 
-    for (let i = 0; i < repos.length; i += 5) {
-      const batch = repos.slice(i, i + 5)
-      await Promise.allSettled(batch.map(async repo => {
-        map[`${repo.orgLogin}/${repo.name}`] = await fetchPulls(repo.orgLogin, repo.name, pat)
-      }))
+    try {
+      const map = {}
+      const repos = selectAnalysisRepos(currentModel.totalRepos)
+
+      for (let i = 0; i < repos.length; i += 5) {
+        const batch = repos.slice(i, i + 5)
+
+        await Promise.allSettled(
+          batch.map(async repo => {
+            map[`${repo.orgLogin}/${repo.name}`] = await fetchPulls(
+              repo.orgLogin,
+              repo.name,
+              pat
+            )
+          })
+        )
+      }
+
+      setPullsData(map)
+      setAdvanceAnalyticsComplete(!!pat)
+    } finally {
+      setAdvanceAnalyticsLoading(false)
     }
-    setPullsData(map)
-    setAdvanceAnalyticsLoading(false)
-    setAdvanceAnalyticsComplete(!!pat)
-  }, [isComplete, model, runFullExplore, selectAnalysisRepos, pat, advanceAnalyticsLoading])
+  }, [
+    isComplete,
+    model,
+    runFullExplore,
+    selectAnalysisRepos,
+    pat,
+    advanceAnalyticsLoading
+  ])
 
-  // Combined entry point for the whole Analytics page banner
-  // Runs explore() once if needed, then fetches issues + pulls in parallel
+  // Run both governance and advanced analytics.
   const runFullAnalytics = useCallback(async () => {
     if (govLoading || advanceAnalyticsLoading) return
 
     let currentModel = model
+
     if (!isComplete) {
       setGovLoading(true)
       setAdvanceAnalyticsLoading(true)
+
       const freshModel = await runFullExplore()
+
       setGovLoading(false)
       setAdvanceAnalyticsLoading(false)
+
       if (!freshModel) return
       currentModel = freshModel
     }
@@ -388,72 +537,116 @@ export function AppProvider({ children }) {
     setGovLoading(true)
     setAdvanceAnalyticsLoading(true)
 
-    const [issuesMap, pullsMap] = await Promise.all([
-      auditRepos(currentModel.allRepos),
-      (async () => {
-        const repos = selectAnalysisRepos(currentModel.totalRepos)
-        const map = {}
-        for (let i = 0; i < repos.length; i += 5) {
-          const batch = repos.slice(i, i + 5)
-          await Promise.allSettled(batch.map(async repo => {
-            map[`${repo.orgLogin}/${repo.name}`] = await fetchPulls(repo.orgLogin, repo.name, pat)
-          }))
-        }
-        return map
-      })()
-    ])
+    try {
+      const [issuesMap, pullsMap] = await Promise.all([
+        auditRepos(currentModel.allRepos),
+        (async () => {
+          const repos = selectAnalysisRepos(currentModel.totalRepos)
+          const map = {}
 
-    setIssuesData(issuesMap)
-    setPullsData(pullsMap)
-    setGovLoading(false)
-    setAdvanceAnalyticsLoading(false)
-    setAuditComplete(!!pat)
-    setAdvanceAnalyticsComplete(!!pat)
-  }, [model, isComplete, runFullExplore, auditRepos, selectAnalysisRepos, pat, govLoading, advanceAnalyticsLoading])
+          for (let i = 0; i < repos.length; i += 5) {
+            const batch = repos.slice(i, i + 5)
+
+            await Promise.allSettled(
+              batch.map(async repo => {
+                map[`${repo.orgLogin}/${repo.name}`] = await fetchPulls(
+                  repo.orgLogin,
+                  repo.name,
+                  pat
+                )
+              })
+            )
+          }
+
+          return map
+        })()
+      ])
+
+      setIssuesData(issuesMap)
+      setPullsData(pullsMap)
+      setAuditComplete(!!pat)
+      setAdvanceAnalyticsComplete(!!pat)
+    } finally {
+      setGovLoading(false)
+      setAdvanceAnalyticsLoading(false)
+    }
+  }, [
+    model,
+    isComplete,
+    runFullExplore,
+    auditRepos,
+    selectAnalysisRepos,
+    pat,
+    govLoading,
+    advanceAnalyticsLoading
+  ])
 
   const STALE_DAYS = 90
 
   const staleRepoStats = useMemo(() => {
     const now = Date.now()
 
-    return Object.entries(issuesData || {}).map(([key, issues]) => {
-      const [org, repo] = key.split('/')
+    return Object.entries(issuesData || {})
+      .map(([key, issues]) => {
+        const [org, repo] = key.split('/')
+        const normalIssues = issues.filter(issue => !issue.pull_request)
+        const openIssues = normalIssues.filter(issue => issue.state === 'open')
 
-      const normalIssues = issues.filter(i => !i.pull_request)
+        const staleIssues = openIssues.filter(issue => {
+          const updated = new Date(issue.updated_at).getTime()
+          const diffDays = (now - updated) / (1000 * 60 * 60 * 24)
+          return diffDays >= STALE_DAYS
+        })
 
-      const openIssues = normalIssues.filter(i => i.state === 'open')
+        const ratio =
+          openIssues.length === 0
+            ? 0
+            : Math.round((staleIssues.length / openIssues.length) * 100)
 
-      const staleIssues = openIssues.filter(i => {
-        const updated = new Date(i.updated_at).getTime()
-        const diffDays = (now - updated) / (1000 * 60 * 60 * 24)
-        return diffDays >= STALE_DAYS
+        return {
+          id: key,
+          org,
+          repo,
+          ratio,
+          staleCount: staleIssues.length,
+          openCount: openIssues.length
+        }
       })
-
-      const ratio =
-        openIssues.length === 0
-          ? 0
-          : Math.round((staleIssues.length / openIssues.length) * 100)
-
-      return {
-        id: key,
-        org,
-        repo,
-        ratio,
-        staleCount: staleIssues.length,
-        openCount: openIssues.length
-      }
-    }).sort((a, b) => b.ratio - a.ratio)
+      .sort((a, b) => b.ratio - a.ratio)
   }, [issuesData])
 
   return (
-    <Ctx.Provider value={{
-      pat, savePat, orgs, model, issuesData, pullsData,
-      rateLimit, loading, loadMsg, govLoading, error, totalRepo,
-      runAdvanceAnalytics, refreshRateLimit, advanceAnalyticsLoading, advanceAnalyticsComplete,
-      runFullAnalytics,
-      isComplete, auditComplete, lastOrgNames, hydrating,
-      explore, runFullExplore, runAudit, runGovernanceAnalysis, setError, staleRepoStats
-    }}>
+    <Ctx.Provider
+      value={{
+        pat,
+        savePat,
+        orgs,
+        model,
+        issuesData,
+        pullsData,
+        rateLimit,
+        loading,
+        loadMsg,
+        govLoading,
+        error,
+        totalRepo,
+        runAdvanceAnalytics,
+        refreshRateLimit,
+        advanceAnalyticsLoading,
+        advanceAnalyticsComplete,
+        runFullAnalytics,
+        isComplete,
+        auditComplete,
+        lastOrgNames,
+        hydrating,
+        explore,
+        runFullExplore,
+        runAudit,
+        runGovernanceAnalysis,
+        setError,
+        staleRepoStats
+      }}
+    >
       {children}
     </Ctx.Provider>
   )

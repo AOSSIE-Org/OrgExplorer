@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { FiSearch, FiX } from 'react-icons/fi'
 import { useApp } from '../context/AppContext'
 import { C, Spinner } from '../components/UI'
-
+import { storage, STORAGE_KEYS } from '../utils/storage'
 const QUICK = ['AOSSIE-Org', 'DjedAlliance', 'StabilityNexus']
 
 export default function HomePage() {
@@ -12,7 +12,8 @@ export default function HomePage() {
   const [input, setInput] = useState('')
   const [chips, setChips] = useState([])
 
-  const recent = JSON.parse(localStorage.getItem('oe_recent') || '[]')
+ const recent = storage.get(STORAGE_KEYS.RECENT_SEARCHES) || []
+
 
   const addChip = raw => {
     const parts = raw.split(/[,+\s]+/).map(s => s.trim()).filter(Boolean)
