@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { FiArrowLeft, FiDownload, FiExternalLink, FiCalendar, FiBriefcase, FiAlertTriangle, FiCopy, FiCheck } from 'react-icons/fi'
 import { useApp } from '../context/AppContext'
 import { C, PageTitle, Spinner, StatCard } from '../components/UI'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { contributorProfileStrings } from '../i18n/contributorProfile'
+
 const ITEMS_PER_PAGE = 10
 
 // Reusable ContributionTable component
@@ -160,6 +162,15 @@ export default function ContributorProfilePage() {
   const [tab, setTab] = useState('prs')
   const [selectedOrg, setSelectedOrg] = useState('all')
   const [copied, setCopied] = useState(false)
+  const copyTimeoutRef = useRef(null)
+
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current)
+      }
+    }
+  }, [])
 
   const [prsPage, setPrsPage] = useState(1)
   const [issuesPage, setIssuesPage] = useState(1)
@@ -489,12 +500,17 @@ export default function ContributorProfilePage() {
   // Copy Markdown to Clipboard
   const copyMarkdown = async () => {
     try {
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current)
+      }
       const md = generateMarkdown()
       await navigator.clipboard.writeText(md)
       setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
+      copyTimeoutRef.current = setTimeout(() => setCopied(false), 2000)
     } catch (e) {
       console.error('Failed to copy to clipboard:', e)
+      setCopied(false)
+      setError('Failed to copy to clipboard. Please use the Export (.md) button to download the report.')
     }
   }
 
@@ -567,10 +583,10 @@ export default function ContributorProfilePage() {
               onClick={copyMarkdown}
               disabled={!filteredContribs.length}
               style={{ ...C.btn('ghost'), display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}
-              title="Copy markdown report to clipboard"
+              title={contributorProfileStrings.copyTitle}
             >
               {copied ? <FiCheck size={13} color="var(--green)" /> : <FiCopy size={13} />}
-              {copied ? 'Copied!' : 'Copy Markdown'}
+              {copied ? contributorProfileStrings.copied : contributorProfileStrings.copyMarkdown}
             </button>
             <button
               onClick={exportMarkdown}
