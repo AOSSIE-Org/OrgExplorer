@@ -102,8 +102,14 @@ export default function RepositoriesPage() {
               Repository Explorer
 
               <button
+                aria-label="Repositories information"
+                aria-expanded={openInfo}
+                onClick={() => setOpenInfo((prev) => !prev)}
                 onMouseEnter={() => setOpenInfo(true)}
                 onMouseLeave={() => setOpenInfo(false)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') setOpenInfo(false)
+                }}
                 className="p-3 rounded-full hover:bg-(--bg) transition"
               >
                 <AiOutlineInfoCircle className="text-(--text) cursor-pointer" />
