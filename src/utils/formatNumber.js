@@ -1,19 +1,23 @@
 export function formatNumber(num) {
-  if (num >= 1_000_000_000) {
-    return `${(num / 1_000_000_000).toFixed(1)}B`;
+  if (num === null || num === undefined || isNaN(num)) return '0';
+  
+  const n = Number(num);
+
+  if (n >= 1_000_000_000) {
+    return `${(n / 1_000_000_000).toFixed(1)}B`;
   }
 
-  if (num >= 1_000_000) {
-    const millions = (num / 1_000_000).toFixed(1);
-    if (millions === '1000.0') return `${(num / 1_000_000_000).toFixed(1)}B`;
+  if (n >= 1_000_000) {
+    const millions = (n / 1_000_000).toFixed(1);
+    if (millions === '1000.0') return `${(n / 1_000_000_000).toFixed(1)}B`;
     return `${millions}M`;
   }
 
-  if (num >= 1_000) {
-    const thousands = (num / 1_000).toFixed(1);
-    if (thousands === '1000.0') return `${(num / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) {
+    const thousands = (n / 1_000).toFixed(1);
+    if (thousands === '1000.0') return `${(n / 1_000_000).toFixed(1)}M`;
     return `${thousands}K`;
   }
 
-  return num.toString();
+  return n.toString();
 }
