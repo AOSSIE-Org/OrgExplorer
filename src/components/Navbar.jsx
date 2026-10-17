@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { FiHeart, FiSettings, FiZap } from 'react-icons/fi'
 import { useApp } from '../context/AppContext'
 import ThemeToggle from './ThemeToggle'
-import Logo from "../assests/og-logo.svg?react";
+import Logo from "../assets/og-logo.svg?react";
 import { useTheme } from '../context/ThemeContext'
 
 const LINKS = [
@@ -36,7 +36,7 @@ export default function Navbar() {
       <span
         onClick={() => navigate('/')}
       >
-        <Logo className="h-15 w-auto" />
+        <Logo className="h-15 w-auto cursor-pointer" />
       </span>
 
       {/* Nav links — only visible when data is loaded */}

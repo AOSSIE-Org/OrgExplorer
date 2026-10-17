@@ -1,7 +1,7 @@
 import SupportUsButton from "support-us-button";
 import "support-us-button/style.css";
 import { useTheme } from "../context/ThemeContext";
-import logo from "../assests/og-logo.svg";
+import logo from "../assets/og-logo.svg";
 function Support() {
   const { theme } = useTheme();
   const supportUsButtonProps = {

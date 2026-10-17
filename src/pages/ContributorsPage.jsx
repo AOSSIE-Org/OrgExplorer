@@ -84,6 +84,7 @@ export default function ContributorsPage() {
 
   const { sorted, sortConfig, onSort } = useSortedData(filtered, 'totalContribs', 'desc')
   const visible = sorted.slice(0, shown)
+  const showNoSearchResults = search.trim() && filtered.length === 0 
 
   if(loading) return <ContributorSkeleton />
   if (!model) return null
@@ -123,7 +124,7 @@ export default function ContributorsPage() {
         title="Contributor Intelligence"
         subtitle="Analyzing contribution patterns, coverage risk, and organizational health"
         right={
-          <button onClick={() => exportContributorsCSV(filtered)} style={{ ...C.btn('ghost'), fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}>
+          <button onClick={() => exportContributorsCSV(sorted)} style={{ ...C.btn('ghost'), fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}>
             <FiDownload size={13} /> Export CSV
           </button>
         }
@@ -299,7 +300,7 @@ export default function ContributorsPage() {
               }}
               aria-label="Filter contributors by organization"
             >
-              <option value="all">All Contributors</option>
+              <option value="all">All Organizations</option>
 
               {organizationOptions.map(org => (
                 <option key={org} value={org}>
@@ -424,7 +425,7 @@ export default function ContributorsPage() {
                       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                         {c.isConnector && <span style={C.pill('var(--accent)', 'rgba(245,197,24,.12)')}>CONNECTOR</span>}
                         {c.isCrossOrg && <span style={C.pill('var(--purple)', 'rgba(168,85,247,.12)')}>CROSS-ORG</span>}
-                        {c.freshness > 70 && <span style={C.pill('var(--green)', 'rgba(34,197,94,.12)')}>ACTIVE</span>}
+                        {c.freshness > 70 ? <span style={C.pill('var(--green)', 'rgba(34,197,94,.12)')}>ACTIVE</span>:<span style={C.pill('var(--red)', 'rgba(239, 68, 68, 0.12)')}>INACTIVE</span>}
                       </div>
                     </td>
                   </tr>
