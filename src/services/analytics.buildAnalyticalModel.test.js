@@ -34,6 +34,26 @@ describe('buildAnalyticalModel', () => {
     expect(repoBResult.orgLogin).toBe('org-a')
   })
 
+  it('computes normalized health scores for repos without contributor data while preserving diversity penalties for fetched repos with zero contributors', () => {
+    const orgs = [{ login: 'org-a' }]
+    const repoFetchedZero = makeRepo('repo-zero')
+    const repoUnfetched = makeRepo('repo-unfetched')
+
+    const reposPerOrg = { 'org-a': [repoFetchedZero] }
+    const totalReposPerOrg = { 'org-a': [repoFetchedZero, repoUnfetched] }
+    const contribsPerRepo = {
+      'org-a/repo-zero': [],
+      // repo-unfetched has no entry in contribsPerRepo
+    }
+
+    const result = buildAnalyticalModel(orgs, reposPerOrg, contribsPerRepo, totalReposPerOrg)
+    const zeroResult = result.totalRepos.find(r => r.name === 'repo-zero')
+    const unfetchedResult = result.totalRepos.find(r => r.name === 'repo-unfetched')
+
+    expect(unfetchedResult.healthScore).toBe(100)
+    expect(zeroResult.healthScore).toBe(70)
+  })
+
   it('populates allRepos only from the scoped reposPerOrg, not from totalReposPerOrg', () => {
     const orgs = [{ login: 'org-a' }]
     const repoA = makeRepo('repo-a')

@@ -53,6 +53,25 @@ describe('computeHealthScore', () => {
 
     expect(computeHealthScore(repo, 0)).toBeGreaterThanOrEqual(0)
   })
+
+  it('renormalizes activity and issue health to 100% when contributor data is unavailable', () => {
+    // activity = 100, issueHealth = 100
+    // unavailable contributor data: (100 * 0.4 + 100 * 0.3) / 0.7 = 100
+    const repo = { pushed_at: new Date().toISOString(), open_issues_count: 0 }
+
+    expect(computeHealthScore(repo, null)).toBe(100)
+    expect(computeHealthScore(repo, undefined)).toBe(100)
+    expect(computeHealthScore(repo)).toBe(100)
+  })
+
+  it('preserves diversity penalty when contributor data is fetched and count is zero', () => {
+    // activity = 100, issueHealth = 100, diversity = 0
+    // score = 100 * 0.4 + 100 * 0.3 + 0 = 70
+    const repo = { pushed_at: new Date().toISOString(), open_issues_count: 0 }
+
+    expect(computeHealthScore(repo, 0)).toBe(70)
+    expect(computeHealthScore(repo, 0)).toBeLessThan(computeHealthScore(repo, null))
+  })
 })
 
 describe('computeActivityClassification', () => {
