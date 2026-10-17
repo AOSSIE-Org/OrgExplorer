@@ -4,6 +4,7 @@ import { FiArrowLeft, FiDownload, FiExternalLink, FiCalendar, FiBriefcase, FiAle
 import { useApp } from '../context/AppContext'
 import { C, PageTitle, Spinner, StatCard } from '../components/UI'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+const ITEMS_PER_PAGE = 10
 
 // Reusable ContributionTable component
 function ContributionTable({ items, dateHeader, resolveStatus }) {
@@ -54,6 +55,48 @@ function ContributionTable({ items, dateHeader, resolveStatus }) {
           })}
         </tbody>
       </table>
+    </div>
+  )
+}
+
+// Reusable Pagination component
+function Pagination({ page, totalPages, onPrev, onNext }) {
+  if (totalPages <= 1) return null
+  return (
+    <div style={{
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginTop: 16,
+      padding: '0 14px 14px'
+    }}>
+      <button
+        onClick={onPrev}
+        disabled={page === 1}
+        style={{
+          ...C.btn('primary'),
+          padding: '8px 14px',
+          cursor: page === 1 ? 'not-allowed' : 'pointer',
+          opacity: page === 1 ? 0.5 : 1
+        }}
+      >
+        ← Previous
+      </button>
+      <span style={{ fontSize: 13, color: 'var(--text2)' }}>
+        Page {page} of {totalPages}
+      </span>
+      <button
+        onClick={onNext}
+        disabled={page === totalPages}
+        style={{
+          ...C.btn('primary'),
+          padding: '8px 14px',
+          cursor: page === totalPages ? 'not-allowed' : 'pointer',
+          opacity: page === totalPages ? 0.5 : 1
+        }}
+      >
+        Next →
+      </button>
     </div>
   )
 }
@@ -116,7 +159,8 @@ export default function ContributorProfilePage() {
   const [mergedPRKeys, setMergedPRKeys] = useState(new Set())
   const [tab, setTab] = useState('prs')
   const [selectedOrg, setSelectedOrg] = useState('all')
-
+  const [prsPage, setPrsPage] = useState(1)
+  const [issuesPage, setIssuesPage] = useState(1)
 
   const contributor = useMemo(
     () => model?.contributors?.find(c => c.login === username),
@@ -294,6 +338,12 @@ export default function ContributorProfilePage() {
     })
   }, [rawContributions, selectedOrg, startDate, endDate])
 
+  // Reset pagination when filters change
+  useEffect(() => {
+    setPrsPage(1)
+    setIssuesPage(1)
+  }, [filteredContribs, selectedOrg, startDate, endDate, username])
+
   const contributorOrgs = useMemo(() => {
     const orgSet = new Set()
     rawContributions.forEach(item => {
@@ -343,6 +393,19 @@ export default function ContributorProfilePage() {
 
     return { prs: prList, issues: issueList }
   }, [filteredContribs, pullsData, mergedPRKeys])
+
+  // Pagination calculations
+  const prsTotalPages = Math.ceil(prs.length / ITEMS_PER_PAGE)
+  const paginatedPRs = prs.slice(
+    (prsPage - 1) * ITEMS_PER_PAGE,
+    prsPage * ITEMS_PER_PAGE
+  )
+
+  const issuesTotalPages = Math.ceil(issues.length / ITEMS_PER_PAGE)
+  const paginatedIssues = issues.slice(
+    (issuesPage - 1) * ITEMS_PER_PAGE,
+    issuesPage * ITEMS_PER_PAGE
+  )
 
   // Time-series charting data (Chronological sorting by YYYY-MM)
   const chartData = useMemo(() => {
@@ -618,7 +681,11 @@ export default function ContributorProfilePage() {
       <div style={C.card}>
         <div style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: '1px solid var(--border)', paddingBottom: 12 }}>
           <button
-            onClick={() => setTab('prs')}
+            onClick={() =>{
+               setTab('prs')
+                setPrsPage(1)
+            }}
+           
             style={{
               background: 'none', border: 'none', cursor: 'pointer',
               color: tab === 'prs' ? 'var(--text)' : 'var(--text2)',
@@ -630,7 +697,11 @@ export default function ContributorProfilePage() {
             Pull Requests ({prs.length})
           </button>
           <button
-            onClick={() => setTab('issues')}
+            onClick={() =>{ 
+              setTab('issues')
+              setIssuesPage(1)
+            }}
+           
             style={{
               background: 'none', border: 'none', cursor: 'pointer',
               color: tab === 'issues' ? 'var(--text)' : 'var(--text2)',
@@ -644,27 +715,43 @@ export default function ContributorProfilePage() {
         </div>
 
         {tab === 'prs' ? (
-          <ContributionTable
-            items={prs}
-            dateHeader="SUBMITTED ON"
-            resolveStatus={(p) => {
-              const status = p.state === 'open' ? 'Open' : p.isMerged ? 'Merged' : 'Closed'
-              const color = status === 'Merged' ? 'var(--green)' : status === 'Open' ? 'var(--blue)' : 'var(--text2)'
-              const bg = status === 'Merged' ? 'rgba(34,197,94,.12)' : status === 'Open' ? 'rgba(59,130,246,.12)' : 'var(--surface2)'
-              return { status, color, bg }
-            }}
-          />
+          <>
+            <ContributionTable
+              items={paginatedPRs}      
+              dateHeader="SUBMITTED ON"
+              resolveStatus={(p) => {
+                const status = p.state === 'open' ? 'Open' : p.isMerged ? 'Merged' : 'Closed'
+                const color = status === 'Merged' ? 'var(--green)' : status === 'Open' ? 'var(--blue)' : 'var(--text2)'
+                const bg = status === 'Merged' ? 'rgba(34,197,94,.12)' : status === 'Open' ? 'rgba(59,130,246,.12)' : 'var(--surface2)'
+                return { status, color, bg }
+              }}
+            />
+            <Pagination
+              page={prsPage}
+              totalPages={prsTotalPages}
+              onPrev={() => setPrsPage(p => p - 1)}
+              onNext={() => setPrsPage(p => p + 1)}
+            />
+          </>
         ) : (
-          <ContributionTable
-            items={issues}
-            dateHeader="CREATED ON"
-            resolveStatus={(i) => {
-              const status = i.state === 'open' ? 'Open' : 'Closed'
-              const color = status === 'Open' ? 'var(--blue)' : 'var(--text2)'
-              const bg = status === 'Open' ? 'rgba(59,130,246,.12)' : 'var(--surface2)'
-              return { status, color, bg }
-            }}
-          />
+          <>
+            <ContributionTable
+              items={paginatedIssues}   
+              dateHeader="CREATED ON"
+              resolveStatus={(i) => {
+                const status = i.state === 'open' ? 'Open' : 'Closed'
+                const color = status === 'Open' ? 'var(--blue)' : 'var(--text2)'
+                const bg = status === 'Open' ? 'rgba(59,130,246,.12)' : 'var(--surface2)'
+                return { status, color, bg }
+              }}
+            />
+            <Pagination
+              page={issuesPage}
+              totalPages={issuesTotalPages}
+              onPrev={() => setIssuesPage(p => p - 1)}
+              onNext={() => setIssuesPage(p => p + 1)}
+            />
+          </>
         )}
       </div>
     </div>
