@@ -34,11 +34,13 @@ export default function HomePage() {
   }
 
   const removeChip = c => setChips(prev => prev.filter(x => x !== c))
-
   const handleKey = e => {
     if ((e.key === 'Enter' || e.key === ',') && input.trim()) {
       e.preventDefault()
       addChip(input)
+    }
+    if (e.key === 'Enter' && !input.trim() && chips.length) {
+      go();
     }
     if (e.key === 'Backspace' && !input && chips.length) {
       setChips(prev => prev.slice(0, -1))
@@ -49,7 +51,9 @@ export default function HomePage() {
     const orgs = targets || (chips.length ? chips : input.trim() ? [input.trim()] : [])
     if (!orgs.length) return
     const success = await explore(orgs)
-    if(success) navigate('/overview')
+    if(success) navigate('/overview',{
+      state:{chips:orgs}
+    })
   }
 
   return (
