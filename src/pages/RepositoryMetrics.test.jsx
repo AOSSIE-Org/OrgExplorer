@@ -23,6 +23,7 @@ vi.mock('recharts', () => {
 
 beforeEach(() => {
   Object.assign(app, {
+    orgs: ['first-org', 'second-org', 'uncached-org'].map(login => ({ login })),
     model: {
       allRepos: [
         { id: 1, name: 'docs', orgLogin: 'first-org', license: { key: 'mit' } },
@@ -90,7 +91,7 @@ describe('repository metrics across organizations', () => {
     render(<GovernancePage />)
 
     for (const [org, rate] of [['first-org', '100%'], ['second-org', '0%'], ['uncached-org', 'No data']]) {
-      const row = screen.getByText(org).parentElement.parentElement
+      const row = screen.getByText(org, { selector: 'span' }).parentElement.parentElement
       expect(within(row).getByText(rate)).toBeInTheDocument()
     }
   })
