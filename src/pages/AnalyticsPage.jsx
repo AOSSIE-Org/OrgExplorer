@@ -119,6 +119,7 @@ export default function AnalyticsPage() {
       {/* Controls */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 24, flexWrap: 'wrap', alignItems: 'center' }}>
         <select
+          aria-label="Filter activity trends by repository"
           value={selectedRepo}
           onChange={e => setSelectedRepo(e.target.value)}
           style={C.select}
@@ -254,6 +255,7 @@ export default function AnalyticsPage() {
           />
 
           <select
+            aria-label="Filter advanced metrics by repository"
             value={selectedRepoForAM}
             onChange={e => setSelectedRepoForAM(e.target.value)}
             style={{

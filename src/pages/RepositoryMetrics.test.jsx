@@ -53,7 +53,7 @@ describe('repository metrics across organizations', () => {
   it('selects each same-name repository independently in activity trends', async () => {
     const user = userEvent.setup()
     render(<AnalyticsPage />)
-    const selector = screen.getAllByRole('combobox')[0]
+    const selector = screen.getByRole('combobox', { name: 'Filter activity trends by repository' })
 
     expect(within(selector).getAllByRole('option').map(option => option.value))
       .toEqual(['All', 'first-org/docs', 'second-org/docs'])
@@ -72,7 +72,7 @@ describe('repository metrics across organizations', () => {
   it('uses the selected organization for advanced pull request metrics', async () => {
     const user = userEvent.setup()
     render(<AnalyticsPage />)
-    const selector = screen.getAllByRole('combobox')[1]
+    const selector = screen.getByRole('combobox', { name: 'Filter advanced metrics by repository' })
 
     expect(within(selector).getAllByRole('option').map(option => option.value))
       .toEqual(['All Repositories', 'first-org/docs', 'second-org/docs'])
