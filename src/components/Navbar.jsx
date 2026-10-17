@@ -10,11 +10,12 @@ const LINKS = [
   { to: '/overview', label: 'Overview' },
   { to: '/repositories', label: 'Repositories' },
   { to: '/contributors', label: 'Contributors' },
+  { to: '/maintainers', label: 'Maintainers' },
   { to: '/network', label: 'Network' },
   { to: '/analytics', label: 'Analytics' },
   { to: '/governance', label: 'Governance' },
 ]
-
+  
 export default function Navbar() {
   const { orgs, rateLimit } = useApp()
   const { theme } = useTheme();
