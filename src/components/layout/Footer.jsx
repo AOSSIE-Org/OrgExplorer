@@ -174,7 +174,7 @@ export default function Footer() {
             >
               © {new Date().getFullYear()}
               <span>
-                <Link to={'/'}><Logo className="h-15 w-auto cursor-pointer"/></Link>
+                <Link aria-label="OrgExplorer home" to={'/'}><Logo className="h-15 w-auto cursor-pointer"/></Link>
               </span>
             </p>
 
