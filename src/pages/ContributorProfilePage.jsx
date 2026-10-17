@@ -4,6 +4,7 @@ import { FiArrowLeft, FiDownload, FiExternalLink, FiCalendar, FiBriefcase, FiAle
 import { useApp } from '../context/AppContext'
 import { C, PageTitle, Spinner, StatCard } from '../components/UI'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import ContributorExpertiseInsights from '../components/ContributorExpertiseInsights'
 const ITEMS_PER_PAGE = 10
 
 // Reusable ContributionTable component
@@ -432,6 +433,7 @@ export default function ContributorProfilePage() {
     return Object.values(monthlyBuckets).sort((a, b) => a.yyyymm.localeCompare(b.yyyymm))
   }, [filteredContribs])
 
+
   // Export to Markdown Report with pipe & newline escaping
   const exportMarkdown = () => {
     const dateStr = new Date().toLocaleDateString()
@@ -640,6 +642,11 @@ export default function ContributorProfilePage() {
           accent="var(--green)"
         />
       </div>
+
+       {/* CONTRIBUTOR EXPERTISE & INSIGHTS SECTION      */}
+       
+      <ContributorExpertiseInsights contributions={filteredContribs} />
+
 
       {/* Visual Activity Timeline Chart */}
       {chartData.length > 0 ? (
