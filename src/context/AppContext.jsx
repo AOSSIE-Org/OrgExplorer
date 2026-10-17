@@ -1,6 +1,7 @@
-import { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react'
+import { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { fetchOrg, fetchRepos, fetchContributors, fetchIssues, fetchRateLimit, fetchPulls } from '../services/github'
 import { buildAnalyticalModel, getTopRepositories } from '../services/analytics'
+import { saveAnalysis, loadAnalysis } from '../services/cache'
 
 const Ctx = createContext(null)
 
@@ -37,10 +38,66 @@ export function AppProvider({ children }) {
   const [error, setError] = useState('')
   const [totalRepo, setTotalRepo] = useState(0)
   const [advanceAnalyticsLoading, setAdvanceAnalyticsLoading] = useState(false);
-  const [advanceAnalyticsComplete, setAdvanceAnalyticsComplete] = useState(false) 
+  const [advanceAnalyticsComplete, setAdvanceAnalyticsComplete] = useState(false)
   const [isComplete, setIsComplete] = useState(false)
   const [auditComplete, setAuditComplete] = useState(false)
   const [lastOrgNames, setLastOrgNames] = useState([])
+  // True until the cached analysis has been read, so routes that need a model
+  // wait for the restore instead of bouncing to the picker on first paint.
+  const [hydrating, setHydrating] = useState(true)
+  // Set when state came straight from the cache, so the write-back effect can
+  // skip it. Re-saving an untouched restore would stamp a fresh savedAt on
+  // every page load and the entry would never reach its TTL.
+  const restoredFromCache = useRef(false)
+
+  const patRequestId = useRef(0)
+  // Restore the last analysis on startup. The model is held in memory, so
+  // without this a reload, bookmark or shared link loses it entirely.
+  useEffect(() => {
+    let cancelled = false
+
+    loadAnalysis()
+      .then(cached => {
+        if (cancelled || !cached) return
+
+        restoredFromCache.current = true
+
+        setOrgs(cached.orgs || [])
+        setModel(cached.model)
+        setTotalRepo(cached.totalRepo || 0)
+        setIsComplete(!!cached.isComplete)
+        setLastOrgNames(cached.lastOrgNames || [])
+        setIssuesData(cached.issuesData || {})
+        setPullsData(cached.pullsData || {})
+        setAuditComplete(!!cached.auditComplete)
+        setAdvanceAnalyticsComplete(!!cached.advanceAnalyticsComplete)
+      })
+      .finally(() => {
+        if (!cancelled) setHydrating(false)
+      })
+
+    return () => { cancelled = true }
+  }, [])
+
+  // Persist the analysis whenever it changes, including audit and analytics
+  // results — those are the most expensive data to refetch.
+  useEffect(() => {
+    if (hydrating || !model) return
+
+    // Skip the write that would immediately follow a restore.
+    if (restoredFromCache.current) {
+      restoredFromCache.current = false
+      return
+    }
+
+    saveAnalysis({
+      orgs, model, totalRepo, isComplete, lastOrgNames,
+      issuesData, pullsData, auditComplete, advanceAnalyticsComplete
+    })
+  }, [
+    hydrating, orgs, model, totalRepo, isComplete, lastOrgNames,
+    issuesData, pullsData, auditComplete, advanceAnalyticsComplete
+  ])
 
   useEffect(() => {
     const handler = e => {
@@ -67,46 +124,100 @@ export function AppProvider({ children }) {
   }, [rateLimit])
 
   const refreshRateLimit = useCallback(async () => {
+    const requestId = patRequestId.current
     const rl = await fetchRateLimit(pat)
+
+    if (requestId !== patRequestId.current) return null
+
     if (rl) {
       setRateLimit(rl)
       return true
     }
     return false
   }, [pat])
-  const savePat = useCallback(token => {
+  const savePat = useCallback(async token => {
+    const requestId = ++patRequestId.current
+
     setPat(token)
-    token ? localStorage.setItem('oe_pat', token) : localStorage.removeItem('oe_pat')
+
+    if (token) {
+      localStorage.setItem('oe_pat', token)
+
+      const rl = await fetchRateLimit(token)
+
+      // A newer save or delete started while this request was in flight.
+      if (requestId !== patRequestId.current) return
+
+      if (rl) {
+        setRateLimit(rl)
+        localStorage.setItem('oe_rate_limit', JSON.stringify(rl))
+      }
+    } else {
+      localStorage.removeItem('oe_pat')
+      localStorage.removeItem('oe_rate_limit')
+      setRateLimit(null)
+    }
   }, [])
 
   // Multi-org explore
   const explore = useCallback(async orgNames => {
+    // Trim and dedupe case-insensitively: `AOSSIE-Org` and `aossie-org`
+    // are the same org on GitHub and must not trigger duplicate fetches.
+    const seen = new Set()
+    const names = []
+    for (const n of orgNames) {
+      const trimmed = String(n).trim()
+      const key = trimmed.toLowerCase()
+      if (trimmed && !seen.has(key)) {
+        seen.add(key)
+        names.push(trimmed)
+      }
+    }
+    if (!names.length) return false
     setLoading(true);
     setError('');
     setModel(null);
     setOrgs([]);
     setIssuesData({});
-    setLastOrgNames(orgNames);
+    setLastOrgNames(names);
     setAuditComplete(false);
     setAdvanceAnalyticsComplete(false);
     try {
       setLoadMsg('Fetching organization metadata...')
-      const orgRes = await Promise.allSettled(orgNames.map(n => fetchOrg(n, pat)))
+      const orgRes = await Promise.allSettled(names.map(n => fetchOrg(n, pat)))
+
+      const rateLimitError = orgRes.find(r => r.status === 'rejected' && r.reason?.message === 'RATE_LIMIT')
+      if (rateLimitError) {
+        throw new Error('RATE_LIMIT')
+      }
+
+      const unexpectedError = orgRes.find(r => r.status === 'rejected' && r.reason?.message !== 'NOT_FOUND')
+      if (unexpectedError) {
+        throw (unexpectedError.reason || new Error('Failed to fetch organization data.'))
+      }
+
       const validOrgs = orgRes.filter(r => r.status === 'fulfilled').map(r => r.value)
       if (!validOrgs.length) throw new Error('No valid organizations found. Check the names and try again.')
       setOrgs(validOrgs)
 
       setLoadMsg('Fetching repositories...')
       const reposPerOrg = {}
-      await Promise.allSettled(validOrgs.map(async org => {
-        reposPerOrg[org.login] = await fetchRepos(org.login, org.public_repos, pat)
+      const repoRes = await Promise.allSettled(validOrgs.map(async org => {
+        const repos = await fetchRepos(org.login, org.public_repos, pat)
+        reposPerOrg[org.login] = repos
+        return repos
       }))
 
-      const total = Object.values(reposPerOrg).reduce((sum, repos) => sum + repos.length, 0);
+      const repoRateLimit = repoRes.find(r => r.status === 'rejected' && r.reason?.message === 'RATE_LIMIT')
+      if (repoRateLimit) {
+        throw new Error('RATE_LIMIT')
+      }
+
+      const total = Object.values(reposPerOrg).reduce((sum, repos) => sum + (repos ? repos.length : 0), 0);
       setTotalRepo(total);
 
       const totalReposPerOrg = Object.fromEntries(
-        Object.entries(reposPerOrg).map(([org, repos]) => [org, [...repos]])
+        Object.entries(reposPerOrg).map(([org, repos]) => [org, [...(repos || [])]])
       );
 
       setLoadMsg('Fetching contributor data for top repositories...')
@@ -119,9 +230,16 @@ export function AppProvider({ children }) {
         // Batch contributor requests to prevent API abuse limits
         for (let i = 0; i < top.length; i += 5) {
           const batch = top.slice(i, i + 5)
-          await Promise.allSettled(batch.map(async repo => {
-            contribsPerRepo[`${org.login}/${repo.name}`] = await fetchContributors(org.login, repo.name, pat)
+          const contribRes = await Promise.allSettled(batch.map(async repo => {
+            const contribs = await fetchContributors(org.login, repo.name, pat)
+            contribsPerRepo[`${org.login}/${repo.name}`] = contribs
+            return contribs
           }))
+
+          const contribRateLimit = contribRes.find(r => r.status === 'rejected' && r.reason?.message === 'RATE_LIMIT')
+          if (contribRateLimit) {
+            throw new Error('RATE_LIMIT')
+          }
         }
       }
 
@@ -131,14 +249,20 @@ export function AppProvider({ children }) {
 
       setIsComplete(!!pat)
 
-      // Save to recent searches
+      // Save to recent searches, canonicalized to the official login
+      // casing returned by GitHub and deduplicated case-insensitively, so
+      // `AOSSIE-Org` and `aossie-org` share one entry (and one cache key).
       const prev = JSON.parse(localStorage.getItem('oe_recent') || '[]')
-      const entry = orgNames.join(', ')
-      localStorage.setItem('oe_recent', JSON.stringify([...new Set([entry, ...prev])].slice(0, 6)))
+      const entry = validOrgs.map(o => o.login).join(', ')
+      const entryKey = entry.toLowerCase()
+      const next = [entry, ...prev.filter(r => String(r).toLowerCase() !== entryKey)].slice(0, 6)
+      localStorage.setItem('oe_recent', JSON.stringify(next))
       return builtModel
     } catch (err) {
       setError(err.message === 'RATE_LIMIT'
-        ? 'GitHub API rate limit reached. Add a PAT in Settings for 5,000 req/hr.'
+        ? (pat
+            ? 'GitHub API rate limit reached. Please wait for your quota to refresh.'
+            : 'GitHub API rate limit reached. Add a PAT in Settings for 5,000 req/hr.')
         : err.message)
       return false
     } finally {
@@ -292,28 +416,28 @@ export function AppProvider({ children }) {
   }, [model, isComplete, runFullExplore, auditRepos, selectAnalysisRepos, pat, govLoading, advanceAnalyticsLoading])
 
   const STALE_DAYS = 90
-  
+
   const staleRepoStats = useMemo(() => {
     const now = Date.now()
-  
+
     return Object.entries(issuesData || {}).map(([key, issues]) => {
       const [org, repo] = key.split('/')
-  
+
       const normalIssues = issues.filter(i => !i.pull_request)
-  
+
       const openIssues = normalIssues.filter(i => i.state === 'open')
-  
+
       const staleIssues = openIssues.filter(i => {
         const updated = new Date(i.updated_at).getTime()
         const diffDays = (now - updated) / (1000 * 60 * 60 * 24)
         return diffDays >= STALE_DAYS
       })
-  
+
       const ratio =
         openIssues.length === 0
           ? 0
           : Math.round((staleIssues.length / openIssues.length) * 100)
-  
+
       return {
         id: key,
         org,
@@ -331,7 +455,7 @@ export function AppProvider({ children }) {
       rateLimit, loading, loadMsg, govLoading, error, totalRepo,
       runAdvanceAnalytics, refreshRateLimit, advanceAnalyticsLoading, advanceAnalyticsComplete,
       runFullAnalytics,
-      isComplete, auditComplete, lastOrgNames,
+      isComplete, auditComplete, lastOrgNames, hydrating,
       explore, runFullExplore, runAudit, runGovernanceAnalysis, setError, staleRepoStats
     }}>
       {children}

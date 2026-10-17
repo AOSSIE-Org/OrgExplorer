@@ -24,35 +24,30 @@ export function useSortedData(data = [], defaultKey = 'healthScore', defaultDir 
 
 export function useAdvancedMetrics(pulls = []) {
   return useMemo(() => {
-    if (!pulls.length) {
+    if (!pulls || !pulls.length) {
       return {
-        avgMergeDays: 0,
+        avgMergeHours: 0,
         acceptanceRate: 0,
         merged: 0,
         rejected: 0
       }
     }
 
-    const mergedPRs = pulls.filter(pr => pr.merged_at)
-
-    const rejectedPRs = pulls.filter(
+    const validPulls = pulls.filter(Boolean)
+    const mergedPRs = validPulls.filter(pr => pr.merged_at)
+    const rejectedPRs = validPulls.filter(
       pr => pr.state === 'closed' && !pr.merged_at
     )
 
     const totalMergeTime = mergedPRs.reduce((sum, pr) => {
-      return (
-        sum +
-        (new Date(pr.merged_at).getTime() -
-          new Date(pr.created_at).getTime())
-      )
+      const duration = new Date(pr.merged_at).getTime() - new Date(pr.created_at).getTime()
+      return Number.isFinite(duration) && duration >= 0 ? sum + duration : sum
     }, 0)
 
-    const avgMergeDays =
+    const avgMergeHours =
       mergedPRs.length === 0
         ? 0
-        : totalMergeTime /
-          mergedPRs.length /
-          (1000 * 60 * 60 * 24)
+        : (totalMergeTime / mergedPRs.length / (1000 * 60 * 60)) || 0
 
     const acceptanceRate =
       mergedPRs.length + rejectedPRs.length === 0
@@ -62,7 +57,7 @@ export function useAdvancedMetrics(pulls = []) {
           100
 
     return {
-      avgMergeDays,
+      avgMergeHours,
       acceptanceRate,
       merged: mergedPRs.length,
       rejected: rejectedPRs.length
