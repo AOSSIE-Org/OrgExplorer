@@ -179,6 +179,7 @@ export function AppProvider({ children }) {
     setModel(null);
     setOrgs([]);
     setIssuesData({});
+    setPullsData({});
     setLastOrgNames(names);
     setAuditComplete(false);
     setAdvanceAnalyticsComplete(false);
