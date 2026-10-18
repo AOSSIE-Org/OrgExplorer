@@ -65,7 +65,7 @@ export default function AnalyticsPage() {
       value: advancedMetrics.rejected
     }
   ]
-  
+
   const repoNames = ['All', ...Object.keys(issuesData || {})]
   const allRepoNames = ['All Repositories', ...Object.keys(pullsData || {})]
   const hasData = Object.keys(issuesData || {}).length > 0
@@ -90,7 +90,7 @@ export default function AnalyticsPage() {
     return 'var(--red)'
   }
   const analyticsComplete = auditComplete && advanceAnalyticsComplete
-  
+
   return (
     <>
     <div style={{ padding: '32px 24px', maxWidth: 1100, margin: '0 auto' }} className="fade-up">
@@ -227,13 +227,13 @@ export default function AnalyticsPage() {
         </InfoBox>
       )}
     </div>
-      
+
     <div style={{ padding: '32px 24px', maxWidth: 1100, margin: '0 auto' }} className="fade-up">
       <PageTitle
         title="Advanced Analytics"
         subtitle="Key metrics and trends for your organization, including PR acceptance rate and PR average merge time, and more."
       />
-        
+
       {/* Controls */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 24, flexWrap: 'wrap', alignItems: 'center' }}>
         {/* Repository Selection */}
@@ -282,7 +282,7 @@ export default function AnalyticsPage() {
             }}
           />
         </div>
-          
+
         {!hasPullsData && (
           <button
             onClick={() => pat ? runFullAnalytics() : runAdvanceAnalytics()}
@@ -452,7 +452,7 @@ export default function AnalyticsPage() {
                   : 'Very Slow'}
               </div>
             </div>
-            
+
             <div
               style={{
                   marginTop: -20,
@@ -496,7 +496,7 @@ export default function AnalyticsPage() {
                 </div>
 
                 <div>
-                  <span 
+                  <span
                   style={{
                     fontSize: 34,
                     fontWeight: 700,
@@ -556,7 +556,7 @@ export default function AnalyticsPage() {
           </div>
         </div>
       )}
-      
+
     </div>
   </>
   )

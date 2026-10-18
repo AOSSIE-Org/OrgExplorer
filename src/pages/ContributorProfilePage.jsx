@@ -302,7 +302,7 @@ export default function ContributorProfilePage() {
       setEndDate('')
     }
   }
-  
+
 
   const filteredContribs = useMemo(() => {
     return rawContributions.filter(item => {
@@ -685,7 +685,7 @@ export default function ContributorProfilePage() {
                setTab('prs')
                 setPrsPage(1)
             }}
-           
+
             style={{
               background: 'none', border: 'none', cursor: 'pointer',
               color: tab === 'prs' ? 'var(--text)' : 'var(--text2)',
@@ -697,11 +697,11 @@ export default function ContributorProfilePage() {
             Pull Requests ({prs.length})
           </button>
           <button
-            onClick={() =>{ 
+            onClick={() =>{
               setTab('issues')
               setIssuesPage(1)
             }}
-           
+
             style={{
               background: 'none', border: 'none', cursor: 'pointer',
               color: tab === 'issues' ? 'var(--text)' : 'var(--text2)',
@@ -717,7 +717,7 @@ export default function ContributorProfilePage() {
         {tab === 'prs' ? (
           <>
             <ContributionTable
-              items={paginatedPRs}      
+              items={paginatedPRs}
               dateHeader="SUBMITTED ON"
               resolveStatus={(p) => {
                 const status = p.state === 'open' ? 'Open' : p.isMerged ? 'Merged' : 'Closed'
@@ -736,7 +736,7 @@ export default function ContributorProfilePage() {
         ) : (
           <>
             <ContributionTable
-              items={paginatedIssues}   
+              items={paginatedIssues}
               dateHeader="CREATED ON"
               resolveStatus={(i) => {
                 const status = i.state === 'open' ? 'Open' : 'Closed'
