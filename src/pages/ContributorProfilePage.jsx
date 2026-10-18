@@ -506,11 +506,12 @@ export default function ContributorProfilePage() {
       const md = generateMarkdown()
       await navigator.clipboard.writeText(md)
       setCopied(true)
+      setError(prev => (prev === contributorProfileStrings.copyError ? '' : prev))
       copyTimeoutRef.current = setTimeout(() => setCopied(false), 2000)
     } catch (e) {
       console.error('Failed to copy to clipboard:', e)
       setCopied(false)
-      setError('Failed to copy to clipboard. Please use the Export (.md) button to download the report.')
+      setError(contributorProfileStrings.copyError)
     }
   }
 
