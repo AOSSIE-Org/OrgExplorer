@@ -2,11 +2,12 @@ import "@testing-library/jest-dom/vitest";
 import { afterEach } from "vitest";
 import { cleanup } from "@testing-library/react";
 
+const storage = new Map();
+
 afterEach(() => {
   cleanup();
+  storage.clear();
 });
-
-const storage = new Map();
 const localStorageMock = {
   getItem: (key) => (storage.has(key) ? storage.get(key) : null),
   setItem: (key, value) => {
