@@ -159,6 +159,7 @@ export default function ContributorProfilePage() {
   const [mergedPRKeys, setMergedPRKeys] = useState(new Set())
   const [tab, setTab] = useState('prs')
   const [selectedOrg, setSelectedOrg] = useState('all')
+  const [selectedRepo, setSelectedRepo] = useState('all')
   const [prsPage, setPrsPage] = useState(1)
   const [issuesPage, setIssuesPage] = useState(1)
 
@@ -205,6 +206,7 @@ export default function ContributorProfilePage() {
     setRawContributions([])
     setMergedPRKeys(new Set())
     setSelectedOrg('all')
+    setSelectedRepo('all')
 
     if (!username) {
       setLoading(false)
@@ -302,17 +304,22 @@ export default function ContributorProfilePage() {
       setEndDate('')
     }
   }
-  
 
   const filteredContribs = useMemo(() => {
     return rawContributions.filter(item => {
 
       // Organization filter
       if (selectedOrg !== 'all') {
-       const organization = getOrgFromRepoUrl(item.repository_url)
+        const organization = getOrgFromRepoUrl(item.repository_url)
         if (organization !== selectedOrg) {
           return false
         }
+      }
+
+      // Repository filter (full "org/repo" key, so same-named repos in
+      // different orgs are never mixed up)
+      if (selectedRepo !== 'all' && getFullRepoFromUrl(item.repository_url) !== selectedRepo) {
+        return false
       }
 
       // Date filter
@@ -336,22 +343,33 @@ export default function ContributorProfilePage() {
 
       return true
     })
-  }, [rawContributions, selectedOrg, startDate, endDate])
+  }, [rawContributions, selectedOrg, selectedRepo, startDate, endDate])
 
   // Reset pagination when filters change
   useEffect(() => {
     setPrsPage(1)
     setIssuesPage(1)
-  }, [filteredContribs, selectedOrg, startDate, endDate, username])
+  }, [filteredContribs, selectedOrg, selectedRepo, startDate, endDate, username])
 
   const contributorOrgs = useMemo(() => {
     const orgSet = new Set()
     rawContributions.forEach(item => {
-     const org = getOrgFromRepoUrl(item.repository_url)
+      const org = getOrgFromRepoUrl(item.repository_url)
       if (org) orgSet.add(org)
     })
     return Array.from(orgSet)
   }, [rawContributions])
+
+  // Repositories this contributor is active in (scoped to the selected org)
+  const contributorRepos = useMemo(() => {
+    const repoSet = new Set()
+    rawContributions.forEach(item => {
+      if (selectedOrg !== 'all' && getOrgFromRepoUrl(item.repository_url) !== selectedOrg) return
+      const fullRepo = getFullRepoFromUrl(item.repository_url)
+      if (fullRepo) repoSet.add(fullRepo)
+    })
+    return Array.from(repoSet).sort()
+  }, [rawContributions, selectedOrg])
 
   // Categorize contributions (Precomputes pulls calculations outside loop)
   const { prs, issues } = useMemo(() => {
@@ -441,6 +459,9 @@ export default function ContributorProfilePage() {
     let md = `# Contribution Report: ${username}\n\n`
     md += `* **Generated on:** ${dateStr}\n`
     md += `* **Organizations explored:** ${orgsStr}\n`
+    if (selectedRepo !== 'all') {
+      md += `* **Repository:** ${selectedRepo}\n`
+    }
     md += `* **Reporting Period:** ${dateRangeStr}\n\n`
 
     md += `## 📊 Executive Summary\n\n`
@@ -593,12 +614,34 @@ export default function ContributorProfilePage() {
               <select
                 id="organization-filter"
                 value={selectedOrg}
-                onChange={e => setSelectedOrg(e.target.value)}
+                onChange={e => {
+                  setSelectedOrg(e.target.value)
+                  setSelectedRepo('all')
+                }}
                 style={C.input}
               >
                 <option value="all">All Organizations</option>
                 {contributorOrgs.map(org => (
                   <option key={org} value={org}>{org}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {contributorRepos.length > 1 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label htmlFor="repository-filter" style={{ fontSize: 11, color: 'var(--text2)', fontWeight: 500 }}>
+                REPOSITORY
+              </label>
+              <select
+                id="repository-filter"
+                value={selectedRepo}
+                onChange={e => setSelectedRepo(e.target.value)}
+                style={C.input}
+              >
+                <option value="all">All Repositories</option>
+                {contributorRepos.map(repo => (
+                  <option key={repo} value={repo}>{repo}</option>
                 ))}
               </select>
             </div>
@@ -681,11 +724,10 @@ export default function ContributorProfilePage() {
       <div style={C.card}>
         <div style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: '1px solid var(--border)', paddingBottom: 12 }}>
           <button
-            onClick={() =>{
-               setTab('prs')
-                setPrsPage(1)
+            onClick={() => {
+              setTab('prs')
+              setPrsPage(1)
             }}
-           
             style={{
               background: 'none', border: 'none', cursor: 'pointer',
               color: tab === 'prs' ? 'var(--text)' : 'var(--text2)',
@@ -697,11 +739,10 @@ export default function ContributorProfilePage() {
             Pull Requests ({prs.length})
           </button>
           <button
-            onClick={() =>{ 
+            onClick={() => {
               setTab('issues')
               setIssuesPage(1)
             }}
-           
             style={{
               background: 'none', border: 'none', cursor: 'pointer',
               color: tab === 'issues' ? 'var(--text)' : 'var(--text2)',
@@ -717,7 +758,7 @@ export default function ContributorProfilePage() {
         {tab === 'prs' ? (
           <>
             <ContributionTable
-              items={paginatedPRs}      
+              items={paginatedPRs}
               dateHeader="SUBMITTED ON"
               resolveStatus={(p) => {
                 const status = p.state === 'open' ? 'Open' : p.isMerged ? 'Merged' : 'Closed'
@@ -736,7 +777,7 @@ export default function ContributorProfilePage() {
         ) : (
           <>
             <ContributionTable
-              items={paginatedIssues}   
+              items={paginatedIssues}
               dateHeader="CREATED ON"
               resolveStatus={(i) => {
                 const status = i.state === 'open' ? 'Open' : 'Closed'
