@@ -53,6 +53,15 @@ export default function ContributorsPage() {
     return (orgs ?? []).map(org => org.login)
   }, [orgs])
 
+  // Reset the org filter whenever the list shrinks to a single organisation so
+  // that a previously-selected org does not silently narrow the results while
+  // the dropdown is hidden.
+  useEffect(() => {
+    if (organizationOptions.length <= 1) {
+      setSelectedOrg('all')
+    }
+  }, [organizationOptions])
+
 
 
 
@@ -286,7 +295,7 @@ export default function ContributorsPage() {
             placeholder="Search by username..."
             style={{ ...C.input, width: 220 }}
           />
-          {organizationOptions.length > 0 && (
+          {organizationOptions.length > 1 && (
             <select
               value={selectedOrg}
               onChange={e => {
