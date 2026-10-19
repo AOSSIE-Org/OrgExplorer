@@ -82,7 +82,7 @@ describe('buildTimeSeries', () => {
   })
 
   it('uses the same UTC month and week buckets in different viewer timezones', () => {
-    const originalTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
+    const originalTimeZone = process.env.TZ
     const monthlyEvent = [{ created_at: '2026-11-01T00:30:00Z', pull_request: {} }]
     const weeklyEvent = [{ created_at: '2026-01-03T00:30:00Z', pull_request: {} }]
 
@@ -100,7 +100,8 @@ describe('buildTimeSeries', () => {
       expect(utcWeek).toBe('2026-W01')
       expect(pacificWeek).toBe(utcWeek)
     } finally {
-      process.env.TZ = originalTimeZone
+      if (originalTimeZone === undefined) delete process.env.TZ
+      else process.env.TZ = originalTimeZone
     }
   })
 
