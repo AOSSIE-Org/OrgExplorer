@@ -81,6 +81,29 @@ describe('buildTimeSeries', () => {
     weekly.forEach(bucket => expect(bucket.date).toMatch(/^\d{4}-W\d{2}$/))
   })
 
+  it('uses the same UTC month and week buckets in different viewer timezones', () => {
+    const originalTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
+    const monthlyEvent = [{ created_at: '2026-11-01T00:30:00Z', pull_request: {} }]
+    const weeklyEvent = [{ created_at: '2026-01-03T00:30:00Z', pull_request: {} }]
+
+    try {
+      process.env.TZ = 'UTC'
+      const utcMonth = buildTimeSeries(monthlyEvent, 'monthly')[0].date
+      const utcWeek = buildTimeSeries(weeklyEvent, 'weekly')[0].date
+
+      process.env.TZ = 'America/Los_Angeles'
+      const pacificMonth = buildTimeSeries(monthlyEvent, 'monthly')[0].date
+      const pacificWeek = buildTimeSeries(weeklyEvent, 'weekly')[0].date
+
+      expect(utcMonth).toBe('2026-11')
+      expect(pacificMonth).toBe(utcMonth)
+      expect(utcWeek).toBe('2026-W01')
+      expect(pacificWeek).toBe(utcWeek)
+    } finally {
+      process.env.TZ = originalTimeZone
+    }
+  })
+
   it('sorts buckets chronologically', () => {
     const issues = [
       { created_at: '2026-03-01T00:00:00Z' },
