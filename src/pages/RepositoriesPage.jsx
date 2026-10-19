@@ -107,6 +107,8 @@ export default function RepositoriesPage() {
                 onClick={() => setOpenInfo((prev) => !prev)}
                 onMouseEnter={() => setOpenInfo(true)}
                 onMouseLeave={() => setOpenInfo(false)}
+                onFocus={() => setOpenInfo(true)}
+                onBlur={() => setOpenInfo(false)}
                 onKeyDown={(e) => {
                   if (e.key === 'Escape') setOpenInfo(false)
                 }}
