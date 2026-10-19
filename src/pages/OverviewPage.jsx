@@ -266,6 +266,8 @@ export default function OverviewPage() {
               onClick={() => setOpen((prev) => !prev)}
               onMouseEnter={() => setOpen(true)}
               onMouseLeave={() => setOpen(false)}
+              onFocus={() => setOpen(true)}
+              onBlur={() => setOpen(false)}
               onKeyDown={(e) => {
                 if (e.key === 'Escape') setOpen(false)
               }}
