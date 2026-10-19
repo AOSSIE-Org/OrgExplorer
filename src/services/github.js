@@ -1,4 +1,4 @@
-// IndexedDB Cache (L2) 
+// IndexedDB Cache (L2)
 const DB_NAME = 'orgexplorer_cache'
 const STORE = 'cache'
 const TTL_MS = 3_600_000 // 1 hour
@@ -75,7 +75,7 @@ export async function cacheClear() {
   } catch { return false }
 }
 
-// Core fetchWithCache 
+// Core fetchWithCache
 async function fetchWithCache(url, pat) {
   // L2 check
   const cached = await cacheGet(url)

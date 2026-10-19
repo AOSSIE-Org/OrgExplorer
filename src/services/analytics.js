@@ -148,9 +148,10 @@ export function buildTimeSeries(issues = [], granularity = 'monthly') {
     }
   })
 
+  const SLICE_COUNT = granularity === 'weekly' ? 26 : 12
   return Object.values(buckets)
     .sort((a, b) => a.date.localeCompare(b.date))
-    .slice(-12)
+    .slice(-SLICE_COUNT)
 }
 
 // CSV Export

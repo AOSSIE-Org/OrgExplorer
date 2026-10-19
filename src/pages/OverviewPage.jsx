@@ -7,7 +7,7 @@ import SocialShareButton from '../components/SocialShareButton';
 import { AiOutlineInfoCircle } from "react-icons/ai";
 import AnalysisBanner from '../components/AnalysisBanner'
 import { OverviewSkeleton } from '../components/Orgexplorerskeletons'
-import {formatNumber} from '../utils/formatNumber'
+import { formatNumber } from '../utils/formatNumber'
 import { useTheme } from '../context/ThemeContext'
 
 const LANG_COLORS = ['#22c55e', '#f5c518', '#3b82f6', '#ef4444', '#a855f7', '#f97316', '#06b6d4']
@@ -23,8 +23,8 @@ export default function OverviewPage() {
   const infoRef = useRef(null)
   const location = useLocation();
   const chips = location.state?.chips || [];
-  const verifiedOrgs = orgs.map(o=>o.login);
-  const notVerifiedOrgs = chips.filter(c=>!verifiedOrgs.some(org=>c.trim()===org));
+  const verifiedOrgs = orgs.map(o => o.login);
+  const notVerifiedOrgs = chips.filter(c => !verifiedOrgs.some(org => c.trim() === org));
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -66,7 +66,7 @@ export default function OverviewPage() {
 
   const topRepos = [...filteredRepos].sort((a, b) => b.healthScore - a.healthScore).slice(0, 5)
 
- 
+
 
 
   const NavCard = ({ to, label, sub }) => (
@@ -77,14 +77,14 @@ export default function OverviewPage() {
       onMouseLeave={e => {
         e.currentTarget.style.borderColor = 'var(--border)'
       }}
-      style={{...C.card,transition: 'border-color .2s' }} >
+      style={{ ...C.card, transition: 'border-color .2s' }} >
       <div
-        style={{ fontWeight: 600,marginBottom: 4, fontSize: 14 }} >
+        style={{ fontWeight: 600, marginBottom: 4, fontSize: 14 }} >
         {label}
       </div>
 
       <div
-        style={{fontSize: 12, color: 'var(--text2)', marginBottom: 12, minHeight: 32 }}>
+        style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 12, minHeight: 32 }}>
         {sub}
       </div>
 
@@ -99,7 +99,7 @@ export default function OverviewPage() {
   )
 
   return (
-    <div style={{ padding: '32px 24px', maxWidth: 1100, margin: '0 auto' }} className="fade-up">
+    <div style={{ padding: '32px 24px', maxWidth: 1100, margin: '0 auto' }} className="fade-up overview-page">
 
       <AnalysisBanner
         page="overview"
@@ -109,8 +109,20 @@ export default function OverviewPage() {
         onRun={runFullExplore}
       />
       {/* Org identity bar */}
-      {chips.length>orgs.length &&<div className="text-amber-400">{`Analysis completed with warnings: ${chips.length - orgs.length} of ${chips.length} organizations could not be loaded: ${notVerifiedOrgs}.`}</div>}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 28 }}>
+      {chips.length > orgs.length && (
+        <div className="text-amber-400 mb-4">
+          {`Analysis completed with warnings: ${chips.length - orgs.length} of ${chips.length} organizations could not be loaded: ${notVerifiedOrgs.join(', ')}.`}
+        </div>
+      )}
+      <div
+        className="overview-org-header overview-org-card"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 14,
+          marginBottom: 28,
+        }}
+      >
         {isMulti ? (
           <div
             style={{ display: 'flex', alignItems: 'center', cursor: orgs.length > 3 ? 'pointer' : 'default' }}
@@ -131,6 +143,7 @@ export default function OverviewPage() {
                 }}
               >
                 <img
+                  className="overview-org-logo"
                   src={o.avatar_url}
                   alt={o.login}
                   style={{
@@ -163,10 +176,10 @@ export default function OverviewPage() {
           </div>
         ) : (
           orgs[0]?.avatar_url && (
-            <img src={orgs[0].avatar_url} alt="" style={{ width: 56, height: 56 }} />
+            <img className="overview-org-logo" src={orgs[0].avatar_url} alt="" style={{ width: 56, height: 56 }} />
           )
         )}
-        <div style={{ flex: 1 }}>
+        <div className="overview-org-info" style={{ flex: 1 }}>
           <h1 style={{ fontSize: 22, fontWeight: 700 }}>
             {isMulti ? orgs.map(o => o.login).join(' + ') : (orgs[0]?.name || orgs[0]?.login)}
           </h1>
@@ -176,7 +189,7 @@ export default function OverviewPage() {
               : (orgs[0]?.description || `@${orgs[0]?.login}`)}
           </p>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div className="overview-org-actions" style={{ display: 'flex', gap: 8 }}>
           {githubOrg?.html_url && (
             <a
               href={githubOrg.html_url}
@@ -218,7 +231,7 @@ export default function OverviewPage() {
       )}
 
       {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 24 }}>
+      <div className="overview-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 24 }}>
         <StatCard label="Total Repos" value={formatNumber(orgFilter === 'All Organizations' ? totalRepo : filteredRepos.length)} />
         <StatCard label="Total Stars" value={formatNumber(totalStars)} />
         <StatCard label="Total Forks" value={formatNumber(totalForks)} />
@@ -233,7 +246,7 @@ export default function OverviewPage() {
       </div>
 
       {/* Language + top repos */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
+      <div className="overview-charts-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
         <div style={C.card}>
           <div style={{ fontWeight: 600, marginBottom: 4 }}>Language Distribution</div>
           <div style={{ ...C.label, marginBottom: 16 }}>Technology Stack Analysis</div>
@@ -308,7 +321,7 @@ export default function OverviewPage() {
       </div>
 
       {/* Nav cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14 }}>
+      <div className="overview-nav-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14 }}>
         <NavCard to="/repositories" label="Repositories" sub="Explore and sort repos by health, and activity classification state" />
         <NavCard to="/contributors" label="Contributors" sub="Analyze contribution patterns, bus factor, and connector signals" />
         <NavCard to="/network" label="Network Graph" sub="Visualize contributor-repository relationships with D3 force graph" />
