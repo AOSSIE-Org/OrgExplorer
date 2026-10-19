@@ -42,11 +42,14 @@ export default function OverviewPage() {
     setOrgFilter('All Organizations')
   }, [orgs])
 
-  if(loading) return <OverviewSkeleton />
+  if (loading) return <OverviewSkeleton />
   if (!model) return null
 
   const { totalRepos } = model
   const isMulti = orgs.length > 1
+  const githubOrg = isMulti
+    ? orgs.find(o => o.login === orgFilter)
+    : orgs[0]
 
   const filteredRepos = orgFilter === 'All Organizations'
     ? totalRepos
@@ -174,15 +177,26 @@ export default function OverviewPage() {
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          {!isMulti && orgs[0]?.html_url && (
-            <a href={orgs[0].html_url} target="_blank" rel="noreferrer"
-              style={{ ...C.btn('primary'), display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+          {githubOrg?.html_url && (
+            <a
+              href={githubOrg.html_url}
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                ...C.btn('primary'),
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                fontSize: 12,
+              }}
+              aria-label={`View ${githubOrg.login} on GitHub`}
+            >
               <FiExternalLink size={13} /> View on GitHub
             </a>
           )}
-          <SocialShareButton 
+          <SocialShareButton
             theme={theme}
-           buttonStyle={theme === 'dark' ? 'default' : 'light'}
+            buttonStyle={theme === 'dark' ? 'default' : 'light'}
             title={isMulti ? `OrgExplorer: ${orgs.map(o => o.login).join(' + ')}` : `OrgExplorer: ${orgs[0]?.name || orgs[0]?.login}`}
             description={isMulti ? `${orgs.length} organizations — combined portfolio view` : (orgs[0]?.description || `@${orgs[0]?.login}`)}
           />
