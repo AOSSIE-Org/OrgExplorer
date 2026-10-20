@@ -38,12 +38,13 @@ export default function MaintainersPage() {
   useEffect(() => {
     const controller = new AbortController()
     async function run() {
-      if (!pat || !hasPulls) { setEnrichedPRs([]); return }
+      if (!pat || !hasPulls) { setEnrichedPRs([]); setRateLimited(false); return }
       setEnriching(true)
       const totalCap = perRepo * Object.keys(pullsData).length
-      const enriched = await enrichMaintainerPRs(pullsData, pat, perRepo, totalCap, controller.signal)
+      const { enriched, rateLimited } = await enrichMaintainerPRs(pullsData, pat, perRepo, totalCap, controller.signal)
       if (controller.signal.aborted) return
       setEnrichedPRs(enriched)
+      setRateLimited(rateLimited)
       setEnriching(false)
     }
     run()
