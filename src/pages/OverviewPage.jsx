@@ -280,7 +280,7 @@ export default function OverviewPage() {
                   <strong>Activity (40%)</strong> – How recently the repository has been updated.
                 </li>
                 <li>
-                  <strong>Issue Health (30%)</strong> – Balance between open issues and maintenance.
+                  <strong>Issue Health (30%)</strong> – Based on open issues and open pull requests (GitHub counts both together).
                 </li>
                 <li>
                   <strong>Contributor Diversity (30%)</strong> – Number of active contributors.

@@ -78,7 +78,7 @@ export default function RepositoriesPage() {
     ['name', 'Repository'],
     ['stargazers_count', 'Stars'],
     ['forks_count', 'Forks'],
-    ['open_issues_count', 'Open Issues'],
+    ['open_issues_count', 'Open Issues & PRs'],
     ['healthScore', 'Health'],
     ['language', 'Language'],
     ['pushed_at', 'Repository Activity'],
@@ -171,7 +171,7 @@ export default function RepositoriesPage() {
               <ul style={{ marginLeft: 18 }}>
                 <li>Stars → Community interest</li>
                 <li>Forks → Adoption & contributions</li>
-                <li>Issues → Current maintenance workload</li>
+                <li>Open Issues & PRs → Current maintenance workload (GitHub counts open PRs here)</li>
               </ul>
             </div>
           </div>

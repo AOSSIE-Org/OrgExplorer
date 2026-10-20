@@ -164,7 +164,7 @@ function download(content, filename, type = 'text/csv') {
 }
 
 export function exportReposCSV(repos) {
-  const header = ['Repository', 'Org', 'Stars', 'Forks', 'Open Issues', 'Health Score', 'Activity Classification', 'Language', 'Last Active']
+  const header = ['Repository', 'Org', 'Stars', 'Forks', 'Open Issues & PRs', 'Health Score', 'Activity Classification', 'Language', 'Last Active']
   const rows = repos.map(r => [r.name, r.orgLogin, r.stargazers_count, r.forks_count, r.open_issues_count, r.healthScore, r.activityClassification, r.language || 'N/A', r.pushed_at?.slice(0, 10)])
   download([header, ...rows].map(r => r.join(',')).join('\n'), 'orgexplorer-repos.csv')
 }
