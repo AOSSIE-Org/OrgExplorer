@@ -53,9 +53,6 @@ export default function ContributorsPage() {
     return (orgs ?? []).map(org => org.login)
   }, [orgs])
 
-  // Reset the org filter whenever the list shrinks to a single organisation so
-  // that a previously-selected org does not silently narrow the results while
-  // the dropdown is hidden.
   useEffect(() => {
     if (organizationOptions.length <= 1) {
       setSelectedOrg('all')
@@ -64,16 +61,15 @@ export default function ContributorsPage() {
 
 
 
-
   const scopedContributors = useMemo(() => {
-    if (selectedOrg === 'all') {
+    if (organizationOptions.length <= 1 || selectedOrg === 'all') {
       return contributors
     }
 
     return contributors.filter(contributor =>
       contributor.orgs.includes(selectedOrg)
     )
-  }, [contributors, selectedOrg])
+  }, [contributors, selectedOrg, organizationOptions])
 
   const busFactor = useMemo(
     () => computeBusFactor(scopedContributors),
