@@ -26,6 +26,7 @@ export default function MaintainersPage() {
   const [selectedOrg, setSelectedOrg] = useState('all')
   const [enrichedPRs, setEnrichedPRs] = useState([])
   const [enriching, setEnriching] = useState(false)
+  const [rateLimited, setRateLimited] = useState(false)
   const [showInfo, setShowInfo] = useState(false)
   const [perRepo, setPerRepo] = useState(MAINTAINER_PR_PER_REPO)
 
@@ -109,6 +110,11 @@ export default function MaintainersPage() {
         </div>
       ) : (
         <div style={{ ...C.card, padding: 0, overflowX: 'auto' }}>
+          {rateLimited && (
+            <div style={{ borderLeft: '3px solid var(--amber)', padding: '10px 14px', fontSize: 13, color: 'var(--text2)', borderBottom: '1px solid var(--border)' }}>
+              Hit the GitHub rate limit while loading, so this shows partial data. Try again later, or lower the "PRs per repo" slider.
+            </div>
+          )}
           <div style={{ padding: '14px 16px', display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', borderBottom: '1px solid var(--border)' }}>
             <input
               value={search} onChange={e => setSearch(e.target.value)}
