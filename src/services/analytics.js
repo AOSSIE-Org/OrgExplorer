@@ -111,8 +111,10 @@ export function buildTimeSeries(issues = [], granularity = 'monthly') {
     const d = new Date(dateStr)
     if (granularity === 'weekly') {
       // Bucket in UTC so that the same timestamp falls in the same week for every viewer.
+      // Use whole UTC days so that times within one calendar day share a bucket.
       const jan1 = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
-      const week = Math.ceil(((d - jan1) / 86_400_000 + jan1.getUTCDay() + 1) / 7)
+      const days = Math.floor((d - jan1) / 86_400_000)
+      const week = Math.ceil((days + jan1.getUTCDay() + 1) / 7)
       return `${d.getUTCFullYear()}-W${String(week).padStart(2, '0')}`
     }
     return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`
