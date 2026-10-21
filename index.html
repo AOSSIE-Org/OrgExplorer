@@ -48,8 +48,14 @@
 
   <link rel="preconnect" href="https://api.github.com" />
   <link rel="dns-prefetch" href="https://api.github.com" />
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/AOSSIE-Org/SocialShareButton/src/social-share-button.css"
-    crossorigin="anonymous" />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net" />
+  <link rel="preload" href="https://cdn.jsdelivr.net/gh/AOSSIE-Org/SocialShareButton/src/social-share-button.css"
+    as="style" onload="this.onload=null;this.rel='stylesheet'" />
+  <noscript>
+    <link rel="stylesheet"
+      href="https://cdn.jsdelivr.net/gh/AOSSIE-Org/SocialShareButton/src/social-share-button.css" />
+  </noscript>
   <script defer src="https://cdn.jsdelivr.net/gh/AOSSIE-Org/SocialShareButton/src/social-share-button.js"
     crossorigin="anonymous"></script>
   <script type="application/ld+json">
