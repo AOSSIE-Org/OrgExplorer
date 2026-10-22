@@ -144,9 +144,15 @@ async function fetchWithCache(url, pat) {
 export const fetchOrg = (org, pat) =>
   fetchWithCache(`https://api.github.com/orgs/${org}`, pat)
 
+// With a PAT that has org visibility, /orgs/:org/repos can also return
+// private repos, so the real page count can exceed org.public_repos. Rather
+// than deriving maxPages from that figure, keep paginating until a short
+// page arrives, bounded by this safety cap instead.
+const MAX_PAT_REPO_PAGES = 50 // 5,000 repos
+
 export async function fetchRepos(org, repoCount, pat) {
   const all = []
-  const maxPages = pat ? Math.ceil(repoCount / 100) : 5
+  const maxPages = pat ? MAX_PAT_REPO_PAGES : 5
   for (let page = 1; page <= maxPages; page++) {
     const url = `https://api.github.com/orgs/${org}/repos?per_page=100&page=${page}&sort=updated`
     const data = await fetchWithCache(url, pat)
