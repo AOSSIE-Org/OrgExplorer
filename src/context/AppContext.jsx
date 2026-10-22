@@ -159,6 +159,12 @@ export function AppProvider({ children }) {
     }
   }, [])
 
+  // Identity of the latest exploration. Analytics runs capture it before they
+  // start fetching and discard their results if a newer exploration has begun
+  // in the meantime, so pull requests fetched for the previous organizations
+  // never land in (or get persisted with) the new model.
+  const explorationId = useRef(0)
+
   // Multi-org explore
   const explore = useCallback(async orgNames => {
     // Trim and dedupe case-insensitively: `AOSSIE-Org` and `aossie-org`
@@ -174,6 +180,7 @@ export function AppProvider({ children }) {
       }
     }
     if (!names.length) return false
+    explorationId.current += 1
     setLoading(true);
     setError('');
     setModel(null);
@@ -353,6 +360,7 @@ export function AppProvider({ children }) {
 
     if (!currentModel) return
 
+    const runId = explorationId.current
     setAdvanceAnalyticsLoading(true)
     const map = {}
     const repos = selectAnalysisRepos(currentModel.totalRepos)
@@ -363,6 +371,13 @@ export function AppProvider({ children }) {
         map[`${repo.orgLogin}/${repo.name}`] = await fetchPulls(repo.orgLogin, repo.name, pat)
       }))
     }
+
+    // A newer exploration started while these pull requests were loading.
+    if (runId !== explorationId.current) {
+      setAdvanceAnalyticsLoading(false)
+      return
+    }
+
     setPullsData(map)
     setAdvanceAnalyticsLoading(false)
     setAdvanceAnalyticsComplete(!!pat)
@@ -386,6 +401,7 @@ export function AppProvider({ children }) {
 
     if (!currentModel) return
 
+    const runId = explorationId.current
     setGovLoading(true)
     setAdvanceAnalyticsLoading(true)
 
@@ -403,6 +419,13 @@ export function AppProvider({ children }) {
         return map
       })()
     ])
+
+    // A newer exploration started while these results were loading.
+    if (runId !== explorationId.current) {
+      setGovLoading(false)
+      setAdvanceAnalyticsLoading(false)
+      return
+    }
 
     setIssuesData(issuesMap)
     setPullsData(pullsMap)
