@@ -8,12 +8,12 @@ export function computeHealthScore(repo, contributorCount = 0) {
  * Detailed breakdown of health score components, weights, metrics, and formula.
  */
 export function computeHealthBreakdown(repo, contributorCount = 0) {
-  const pushedAtMs = repo?.pushed_at ? new Date(repo.pushed_at).getTime() : NaN
+  const pushedAtMs = Date.parse(repo?.pushed_at)
   const hasPush = Number.isFinite(pushedAtMs)
-  const daysSince = hasPush ? Math.max(0, (Date.now() - pushedAtMs) / 86_400_000) : 365
+  const daysSince = hasPush ? Math.max(0, (Date.now() - pushedAtMs) / 86_400_000) : Infinity
   const activity = hasPush ? Math.max(0, 100 - daysSince) : 0
 
-  const openIssues = repo?.open_issues_count || 0
+  const openIssues = Number(repo?.open_issues_count) || 0
   const total = openIssues + 10
   const issueHealth = Math.max(0, 100 - (openIssues / total) * 100)
 
@@ -49,7 +49,7 @@ export function computeHealthBreakdown(repo, contributorCount = 0) {
         metrics: [
           { label: 'Last Push', value: repo?.pushed_at ? repo.pushed_at.slice(0, 10) : 'No recorded push' },
           { label: 'Days Since Push', value: hasPush ? Math.floor(daysSince) : 'Unknown' },
-          { label: 'Status', value: hasPush ? computeActivityClassification(repo) : 'Unknown' }
+          { label: 'Status', value: computeActivityClassification(repo) }
         ],
         description: 'Measures recent maintenance activity and commit momentum. Repositories updated within the last 30 days earn the highest score.'
       },
@@ -89,10 +89,10 @@ export function computeHealthBreakdown(repo, contributorCount = 0) {
  */
 export function getHealthRecommendations(repo, contributorCount = 0) {
   const recommendations = []
-  const pushedAtMs = repo?.pushed_at ? new Date(repo.pushed_at).getTime() : NaN
+  const pushedAtMs = Date.parse(repo?.pushed_at)
   const hasPush = Number.isFinite(pushedAtMs)
-  const daysSince = hasPush ? Math.max(0, (Date.now() - pushedAtMs) / 86_400_000) : 365
-  const openIssues = repo?.open_issues_count || 0
+  const daysSince = hasPush ? Math.max(0, (Date.now() - pushedAtMs) / 86_400_000) : Infinity
+  const openIssues = Number(repo?.open_issues_count) || 0
 
   // 1. Activity & Recency
   if (!hasPush) {
@@ -201,11 +201,10 @@ export function getHealthRecommendations(repo, contributorCount = 0) {
 
 // Repo Lifecycle — Thriving, Active, Dormant, Hibernating based on recency of last push
 export function computeActivityClassification(repo) {
-  const pushedAtMs = repo?.pushed_at ? new Date(repo.pushed_at).getTime() : NaN
-  if (!Number.isFinite(pushedAtMs)) return 'Unknown'
-  const days = (Date.now() - pushedAtMs) / 86_400_000
-  if (days <= 30)  return 'Thriving'
-  if (days <= 90)  return 'Active'
+  const pushedAtMs = Date.parse(repo?.pushed_at)
+  const days = Number.isFinite(pushedAtMs) ? (Date.now() - pushedAtMs) / 86_400_000 : Infinity
+  if (days <= 30) return 'Thriving'
+  if (days <= 90) return 'Active'
   if (days <= 180) return 'Dormant'
   return 'Hibernating'
 }
@@ -231,7 +230,7 @@ export function computeBusFactor(contributors = []) {
 // Merges multiple orgs into one normalized graph:
 // Organization → Repositories → Contributors → Issues/PRs
 export function buildAnalyticalModel(orgs, reposPerOrg, contribsPerRepo, totalReposPerOrg) {
-  const allRepos      = []
+  const allRepos = []
   const contributorMap = {}
   const totalRepos = [];
 
@@ -293,10 +292,10 @@ export function buildAnalyticalModel(orgs, reposPerOrg, contribsPerRepo, totalRe
   // Finalize contributors: compute signals
   const contributors = Object.values(contributorMap).map(c => ({
     ...c,
-    orgs:        Array.from(c.orgs),
+    orgs: Array.from(c.orgs),
     isConnector: c.repos.length >= 3,
-    isCrossOrg:  c.orgs.size > 1,
-    freshness:   c.lastActive
+    isCrossOrg: c.orgs.size > 1,
+    freshness: c.lastActive
       ? Math.max(0, 100 - (Date.now() - new Date(c.lastActive)) / 86_400_000)
       : 0,
   })).sort((a, b) => b.totalContribs - a.totalContribs)
@@ -334,7 +333,7 @@ export function buildTimeSeries(issues = [], granularity = 'monthly') {
     if (ck) {
       ensure(ck)
       if (isPR) buckets[ck].prs_created++
-      else      buckets[ck].issues_created++
+      else buckets[ck].issues_created++
     }
 
     if (item.closed_at) {
@@ -342,7 +341,7 @@ export function buildTimeSeries(issues = [], granularity = 'monthly') {
       if (xk) {
         ensure(xk)
         if (isPR) buckets[xk].prs_closed++
-        else      buckets[xk].issues_closed++
+        else buckets[xk].issues_closed++
       }
     }
 
@@ -352,35 +351,36 @@ export function buildTimeSeries(issues = [], granularity = 'monthly') {
     }
   })
 
+  const SLICE_COUNT = granularity === 'weekly' ? 26 : 12
   return Object.values(buckets)
     .sort((a, b) => a.date.localeCompare(b.date))
-    .slice(-12)
+    .slice(-SLICE_COUNT)
 }
 
 // CSV Export
 function download(content, filename, type = 'text/csv') {
   const blob = new Blob([content], { type })
-  const url  = URL.createObjectURL(blob)
-  const a    = Object.assign(document.createElement('a'), { href: url, download: filename })
+  const url = URL.createObjectURL(blob)
+  const a = Object.assign(document.createElement('a'), { href: url, download: filename })
   a.click()
   URL.revokeObjectURL(url)
 }
 
 export function exportReposCSV(repos) {
-  const header = ['Repository','Org','Stars','Forks','Open Issues','Health Score','Activity Classification','Language','Last Active']
-  const rows   = repos.map(r => [r.name, r.orgLogin, r.stargazers_count, r.forks_count, r.open_issues_count, r.healthScore, r.activityClassification, r.language || 'N/A', r.pushed_at?.slice(0, 10)])
+  const header = ['Repository', 'Org', 'Stars', 'Forks', 'Open Issues', 'Health Score', 'Activity Classification', 'Language', 'Last Active']
+  const rows = repos.map(r => [r.name, r.orgLogin, r.stargazers_count, r.forks_count, r.open_issues_count, r.healthScore, r.activityClassification, r.language || 'N/A', r.pushed_at?.slice(0, 10)])
   download([header, ...rows].map(r => r.join(',')).join('\n'), 'orgexplorer-repos.csv')
 }
 
 export function exportContributorsCSV(contributors) {
-  const header = ['Login','Total Contributions','Repos','Orgs','Last Active','Connector','Cross-Org']
-  const rows   = contributors.map(c => [c.login, c.totalContribs, c.repos.length, c.orgs.length, c.lastActive?.slice(0, 10) || '', c.isConnector, c.isCrossOrg])
+  const header = ['Login', 'Total Contributions', 'Repos', 'Orgs', 'Last Active', 'Connector', 'Cross-Org']
+  const rows = contributors.map(c => [c.login, c.totalContribs, c.repos.length, c.orgs.length, c.lastActive?.slice(0, 10) || '', c.isConnector, c.isCrossOrg])
   download([header, ...rows].map(r => r.join(',')).join('\n'), 'orgexplorer-contributors.csv')
 }
 
 export function exportTrendsCSV(series) {
-  const header = ['Date','PRs Created','PRs Merged','PRs Closed','Issues Created','Issues Closed']
-  const rows   = series.map(s => [s.date, s.prs_created, s.prs_merged, s.prs_closed, s.issues_created, s.issues_closed])
+  const header = ['Date', 'PRs Created', 'PRs Merged', 'PRs Closed', 'Issues Created', 'Issues Closed']
+  const rows = series.map(s => [s.date, s.prs_created, s.prs_merged, s.prs_closed, s.issues_created, s.issues_closed])
   download([header, ...rows].map(r => r.join(',')).join('\n'), 'orgexplorer-trends.csv')
 }
 
@@ -389,16 +389,16 @@ export function getTopRepositories(repos, limit = 10) {
 
   return [...repos]
     .map(repo => {
-      const pushedAtMs = Date.parse(repo.pushed_at);  
+      const pushedAtMs = Date.parse(repo.pushed_at);
       const daysSinceLastPush = Number.isFinite(pushedAtMs) ? (Date.now() - pushedAtMs) / MS_PER_DAY : Infinity;
 
       const activityBonus = 0.5 * Math.max(0, 365 - daysSinceLastPush);
 
-      const score =  
-        (repo.stargazers_count ?? 0) +  
-        (repo.forks_count ?? 0) * 2 +  
-        (repo.watchers_count ?? 0) * 1.5 +  
-        activityBonus;  
+      const score =
+        (repo.stargazers_count ?? 0) +
+        (repo.forks_count ?? 0) * 2 +
+        (repo.watchers_count ?? 0) * 1.5 +
+        activityBonus;
 
       return {
         ...repo,
