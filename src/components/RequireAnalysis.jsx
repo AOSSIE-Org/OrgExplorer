@@ -1,4 +1,4 @@
-import { Navigate } from 'react-router-dom'
+import { Navigate, Outlet } from 'react-router-dom'
 import { useApp } from '../context/AppContext'
 
 /**
@@ -16,12 +16,12 @@ import { useApp } from '../context/AppContext'
  * `loading` keeps the children mounted while explore() refetches — it clears the
  * model first, and each page shows its own skeleton during that window.
  */
-export default function RequireAnalysis({ children }) {
+export default function RequireAnalysis() {
   const { model, loading, hydrating } = useApp()
 
   if (hydrating) return null
 
   if (!model && !loading) return <Navigate to="/" replace />
 
-  return children
+  return <Outlet />
 }
