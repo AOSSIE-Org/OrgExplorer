@@ -261,8 +261,16 @@ export default function OverviewPage() {
             <p>High Impact Repositories</p>
 
             <button
+              aria-label="Overview information"
+              aria-expanded={open}
+              onClick={() => setOpen((prev) => !prev)}
               onMouseEnter={() => setOpen(true)}
               onMouseLeave={() => setOpen(false)}
+              onFocus={() => setOpen(true)}
+              onBlur={() => setOpen(false)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') setOpen(false)
+              }}
               className="p-3 rounded-full hover:bg-(--bg) transition"
             >
               <AiOutlineInfoCircle className="text-(--text) cursor-pointer" />
