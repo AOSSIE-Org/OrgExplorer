@@ -611,6 +611,18 @@ export default function ContributorProfilePage() {
               {copied ? <FiCheck size={13} color="var(--green)" /> : <FiCopy size={13} />}
               {copied ? contributorProfileStrings.copied : contributorProfileStrings.copyMarkdown}
             </button>
+            <span
+              role="status"
+              aria-live="polite"
+              aria-atomic="true"
+              className="sr-only"
+            >
+              {copied
+                ? contributorProfileStrings.copied
+                : error === contributorProfileStrings.copyError
+                ? contributorProfileStrings.copyError
+                : ''}
+            </span>
             <button
               onClick={exportMarkdown}
               disabled={!filteredContribs.length}
@@ -623,7 +635,11 @@ export default function ContributorProfilePage() {
       />
 
       {error && (
-        <div style={{ ...C.card, display: 'flex', alignItems: 'center', gap: 12, borderColor: 'var(--red)', background: 'rgba(239,68,68,.05)', marginBottom: 20 }}>
+        <div
+          role="alert"
+          aria-live="polite"
+          style={{ ...C.card, display: 'flex', alignItems: 'center', gap: 12, borderColor: 'var(--red)', background: 'rgba(239,68,68,.05)', marginBottom: 20 }}
+        >
           <FiAlertTriangle color="var(--red)" size={18} />
           <span style={{ fontSize: 13, color: 'var(--red)', fontWeight: 500 }}>{error}</span>
         </div>
