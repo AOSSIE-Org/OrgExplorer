@@ -47,6 +47,21 @@ describe('RepoHealthDrawer', () => {
     expect(screen.getByRole('tab', { name: /Score Breakdown/i })).toHaveAttribute('aria-selected', 'true')
   })
 
+  it('keeps focus inside the dialog at both tab boundaries', () => {
+    render(<RepoHealthDrawer repo={sampleRepo} isOpen={true} onClose={() => {}} />)
+
+    const firstFocusable = screen.getByRole('button', { name: /Close health details/i })
+    const lastFocusable = screen.getByRole('tabpanel', { name: /Score Breakdown/i })
+
+    lastFocusable.focus()
+    fireEvent.keyDown(window, { key: 'Tab' })
+    expect(firstFocusable).toHaveFocus()
+
+    firstFocusable.focus()
+    fireEvent.keyDown(window, { key: 'Tab', shiftKey: true })
+    expect(lastFocusable).toHaveFocus()
+  })
+
   it('renders category breakdown cards on default tab', () => {
     render(<RepoHealthDrawer repo={sampleRepo} isOpen={true} onClose={() => {}} />)
 
