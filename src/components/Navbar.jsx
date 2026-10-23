@@ -15,7 +15,7 @@ const LINKS = [
 ]
 
 export default function Navbar() {
-  const { rateLimit } = useApp()
+  const { rateLimit, model } = useApp()
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -25,7 +25,7 @@ export default function Navbar() {
   const menuToggleRef = useRef(null)
   const mobileMenuRef = useRef(null)
   const lowLimit = rateLimit && rateLimit.remaining < 15
-  const showOrgLinks = pathname !== '/'
+  const showOrgLinks = !!model && pathname !== '/'
 
   useEffect(() => {
     const navbar = navbarRef.current
