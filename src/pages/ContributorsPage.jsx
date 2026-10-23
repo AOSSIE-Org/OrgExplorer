@@ -15,6 +15,7 @@ export default function ContributorsPage() {
   const [search, setSearch] = useState('')
   const [shown, setShown] = useState(20)
   const [openInfo, setOpenInfo] = useState(null)
+  const [pinnedInfo, setPinnedInfo] = useState(null)
   const [selectedOrg, setSelectedOrg] = useState('all')
   const busFactorRef = useRef(null)
   const freshnessRef = useRef(null)
@@ -38,6 +39,7 @@ export default function ContributorsPage() {
       ) return
 
       setOpenInfo(null)
+      setPinnedInfo(null)
     }
 
     document.addEventListener('mousedown', handleClickOutside)
@@ -279,7 +281,7 @@ export default function ContributorsPage() {
       </div>
 
       {/* Analytical table */}
-      <div style={{ ...C.card, padding: 0, overflowX: 'auto' }}>
+      <div style={{ ...C.card, padding: 0, overflowX: 'auto', minHeight: 380 }}>
         <div style={{ padding: '14px 16px', display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', borderBottom: '1px solid var(--border)' }}>
           <input
             value={search} onChange={e => setSearch(e.target.value)}
@@ -330,26 +332,48 @@ export default function ContributorsPage() {
                     <div
                       className="flex items-center gap-2"
                       style={{ position: 'relative' }}
+                      onMouseEnter={() => setOpenInfo("signals")}
+                      onMouseLeave={() => {
+                        if (pinnedInfo !== "signals") {
+                          setOpenInfo(prev => prev === "signals" ? null : prev)
+                        }
+                      }}
                     >
                       <p>SIGNALS</p>
 
                       <button
-                        onMouseEnter={() => setOpenInfo("signals")}
-                        onMouseLeave={() => setOpenInfo(null)}
+                        type="button"
+                        onClick={() => {
+                          if (pinnedInfo === "signals") {
+                            setPinnedInfo(null)
+                            setOpenInfo(null)
+                          } else {
+                            setPinnedInfo("signals")
+                            setOpenInfo("signals")
+                          }
+                        }}
                         className="p-2 rounded-full hover:bg-(--bg) transition"
+                        aria-label="Signals information"
+                        aria-expanded={openInfo === 'signals' || pinnedInfo === 'signals'}
+                        aria-controls="signals-info-popup"
                       >
                         <AiOutlineInfoCircle className="text-(--text) cursor-pointer" />
                       </button>
 
-                      {openInfo === 'signals' && (
+                      {(openInfo === 'signals' || pinnedInfo === 'signals') && (
                         <div
+                          id="signals-info-popup"
+                          role="region"
+                          aria-label="Contributor Signals"
                           style={{
                             ...C.card,
                             position: 'absolute',
                             top: '130%',
                             right: 2,
                             width: '320px',
+                            maxWidth: 'min(320px, calc(100vw - 40px))',
                             zIndex: 100,
+                            boxShadow: '0 8px 30px rgba(0,0,0,0.3)',
                           }}
                           className="info-popover"
                         >
