@@ -53,18 +53,23 @@ export default function ContributorsPage() {
     return (orgs ?? []).map(org => org.login)
   }, [orgs])
 
+  useEffect(() => {
+    if (organizationOptions.length <= 1) {
+      setSelectedOrg('all')
+    }
+  }, [organizationOptions])
 
 
 
   const scopedContributors = useMemo(() => {
-    if (selectedOrg === 'all') {
+    if (organizationOptions.length <= 1 || selectedOrg === 'all') {
       return contributors
     }
 
     return contributors.filter(contributor =>
       contributor.orgs.includes(selectedOrg)
     )
-  }, [contributors, selectedOrg])
+  }, [contributors, selectedOrg, organizationOptions])
 
   const busFactor = useMemo(
     () => computeBusFactor(scopedContributors),
@@ -286,7 +291,7 @@ export default function ContributorsPage() {
             placeholder="Search by username..."
             style={{ ...C.input, width: 220 }}
           />
-          {organizationOptions.length > 0 && (
+          {organizationOptions.length > 1 && (
             <select
               value={selectedOrg}
               onChange={e => {
