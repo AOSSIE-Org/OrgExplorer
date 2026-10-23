@@ -163,6 +163,7 @@ export default function ContributorProfilePage() {
   const [selectedOrg, setSelectedOrg] = useState('all')
   const [copied, setCopied] = useState(false)
   const copyTimeoutRef = useRef(null)
+  const copyGenRef = useRef(0)
 
   useEffect(() => {
     return () => {
@@ -521,16 +522,17 @@ export default function ContributorProfilePage() {
 
   // Copy Markdown to Clipboard
   const copyMarkdown = async () => {
+    const gen = ++copyGenRef.current
     try {
-      if (copyTimeoutRef.current) {
-        clearTimeout(copyTimeoutRef.current)
-      }
       const md = generateMarkdown()
       await navigator.clipboard.writeText(md)
+      if (gen !== copyGenRef.current) return
+      clearTimeout(copyTimeoutRef.current)
       setCopied(true)
       setError(prev => (prev === contributorProfileStrings.copyError ? '' : prev))
       copyTimeoutRef.current = setTimeout(() => setCopied(false), 2000)
     } catch (e) {
+      if (gen !== copyGenRef.current) return
       console.error('Failed to copy to clipboard:', e)
       setCopied(false)
       setError(contributorProfileStrings.copyError)
