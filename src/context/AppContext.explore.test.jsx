@@ -19,13 +19,17 @@ vi.mock('../services/github', () => ({
 }))
 
 function TestExplorer() {
-  const { explore, error, loading, model } = useApp()
+  const { explore, error, loading, model, orgs, totalRepo } = useApp()
   return (
     <div>
       <button onClick={() => explore(['test-org'])}>Explore</button>
+      <button onClick={() => explore(['microsoft'])}>Explore Microsoft</button>
+      <button onClick={() => explore(['DjedAlliance'])}>Explore DjedAlliance</button>
       {loading && <span data-testid="loading">Loading...</span>}
       {error && <span data-testid="error-message">{error}</span>}
       {model && <span data-testid="model-loaded">Model Loaded</span>}
+      <span data-testid="organization">{orgs.map(org => org.login).join(',')}</span>
+      <span data-testid="total-repositories">{totalRepo}</span>
     </div>
   )
 }
@@ -167,5 +171,46 @@ describe('AppContext explore rate-limit and error handling', () => {
 
     expect(await screen.findByTestId('model-loaded')).toBeInTheDocument()
     expect(screen.queryByTestId('error-message')).not.toBeInTheDocument()
+  })
+
+  it('ignores results from an older search that finishes after the latest search', async () => {
+    let resolveMicrosoftRepos
+    const microsoftRepos = new Promise(resolve => {
+      resolveMicrosoftRepos = resolve
+    })
+    github.fetchRepos.mockImplementation(async org => {
+      if (org === 'microsoft') return microsoftRepos
+      return [{ name: 'djed-repo', stargazers_count: 1, forks_count: 1, open_issues_count: 0 }]
+    })
+
+    github.fetchOrg.mockImplementation(async org => ({
+      login: org,
+      public_repos: org === 'microsoft' ? 500 : 34
+    }))
+    github.fetchContributors.mockResolvedValue([])
+
+    render(
+      <AppProvider>
+        <TestExplorer />
+      </AppProvider>
+    )
+
+    await act(async () => {
+      screen.getByText('Explore Microsoft').click()
+      await Promise.resolve()
+      screen.getByText('Explore DjedAlliance').click()
+    })
+
+    expect(await screen.findByTestId('model-loaded')).toBeInTheDocument()
+    expect(screen.getByTestId('organization')).toHaveTextContent('DjedAlliance')
+    expect(screen.getByTestId('total-repositories')).toHaveTextContent('1')
+
+    await act(async () => {
+      resolveMicrosoftRepos([{ name: 'microsoft-repo', stargazers_count: 1, forks_count: 1, open_issues_count: 0 }])
+      await Promise.resolve()
+    })
+
+    expect(screen.getByTestId('organization')).toHaveTextContent('DjedAlliance')
+    expect(screen.getByTestId('total-repositories')).toHaveTextContent('1')
   })
 })
