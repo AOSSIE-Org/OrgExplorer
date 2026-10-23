@@ -182,6 +182,7 @@ export function AppProvider({ children }) {
     setLastOrgNames(names);
     setAuditComplete(false);
     setAdvanceAnalyticsComplete(false);
+    setIsComplete(false);
     try {
       setLoadMsg('Fetching organization metadata...')
       const orgRes = await Promise.allSettled(names.map(n => fetchOrg(n, pat)))
@@ -211,6 +212,14 @@ export function AppProvider({ children }) {
       const repoRateLimit = repoRes.find(r => r.status === 'rejected' && r.reason?.message === 'RATE_LIMIT')
       if (repoRateLimit) {
         throw new Error('RATE_LIMIT')
+      }
+
+      const failedRepoOrgs = repoRes
+        .map((r, i) => (r.status === 'rejected' ? validOrgs[i].login : null))
+        .filter(Boolean)
+
+      if (failedRepoOrgs.length > 0) {
+        throw new Error(`Could not fetch repositories for ${failedRepoOrgs.join(', ')}. Please try again.`)
       }
 
       const total = Object.values(reposPerOrg).reduce((sum, repos) => sum + (repos ? repos.length : 0), 0);

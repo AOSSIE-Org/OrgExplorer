@@ -18,14 +18,15 @@ vi.mock('../services/github', () => ({
   fetchPulls: vi.fn(),
 }))
 
-function TestExplorer() {
-  const { explore, error, loading, model } = useApp()
+function TestExplorer({ orgs = ['test-org'] }) {
+  const { explore, error, loading, model, isComplete } = useApp()
   return (
     <div>
-      <button onClick={() => explore(['test-org'])}>Explore</button>
+      <button onClick={() => explore(orgs)}>Explore</button>
       {loading && <span data-testid="loading">Loading...</span>}
       {error && <span data-testid="error-message">{error}</span>}
       {model && <span data-testid="model-loaded">Model Loaded</span>}
+      {isComplete && <span data-testid="is-complete">Complete</span>}
     </div>
   )
 }
@@ -167,5 +168,84 @@ describe('AppContext explore rate-limit and error handling', () => {
 
     expect(await screen.findByTestId('model-loaded')).toBeInTheDocument()
     expect(screen.queryByTestId('error-message')).not.toBeInTheDocument()
+  })
+
+  it('reports actionable error naming the organization when repository fetch fails with an unexpected error', async () => {
+    github.fetchOrg.mockResolvedValue({ login: 'AOSSIE-Org', public_repos: 5 })
+    github.fetchRepos.mockRejectedValue(new Error('HTTP_500'))
+
+    render(
+      <AppProvider>
+        <TestExplorer orgs={['AOSSIE-Org']} />
+      </AppProvider>
+    )
+
+    await act(async () => {
+      screen.getByText('Explore').click()
+    })
+
+    const errorEl = await screen.findByTestId('error-message')
+    expect(errorEl.textContent).toBe('Could not fetch repositories for AOSSIE-Org. Please try again.')
+    expect(screen.queryByTestId('model-loaded')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('is-complete')).not.toBeInTheDocument()
+  })
+
+  it('names only the failed organizations in a multi-org exploration', async () => {
+    github.fetchOrg.mockImplementation(async login => ({ login, public_repos: 1 }))
+    github.fetchRepos.mockImplementation(async login => {
+      if (login === 'org-b') throw new Error('Network error: connection reset')
+      return [{ name: 'repo-1', stargazers_count: 2, forks_count: 1, open_issues_count: 0 }]
+    })
+
+    render(
+      <AppProvider>
+        <TestExplorer orgs={['org-a', 'org-b']} />
+      </AppProvider>
+    )
+
+    await act(async () => {
+      screen.getByText('Explore').click()
+    })
+
+    const errorEl = await screen.findByTestId('error-message')
+    expect(errorEl.textContent).toBe('Could not fetch repositories for org-b. Please try again.')
+    expect(screen.queryByTestId('model-loaded')).not.toBeInTheDocument()
+  })
+
+  it('clears previous complete status when a subsequent exploration fails', async () => {
+    localStorage.setItem('oe_pat', 'test-pat-token')
+    github.fetchOrg.mockResolvedValue({ login: 'org-a', public_repos: 1 })
+    github.fetchRepos.mockResolvedValue([{ name: 'repo-1', stargazers_count: 2, forks_count: 1, open_issues_count: 0 }])
+    github.fetchContributors.mockResolvedValue([{ login: 'dev1', contributions: 5 }])
+
+    const { rerender } = render(
+      <AppProvider>
+        <TestExplorer orgs={['org-a']} />
+      </AppProvider>
+    )
+
+    await act(async () => {
+      screen.getByText('Explore').click()
+    })
+
+    expect(await screen.findByTestId('is-complete')).toBeInTheDocument()
+
+    // Second exploration fails
+    github.fetchOrg.mockResolvedValue({ login: 'org-b', public_repos: 1 })
+    github.fetchRepos.mockRejectedValue(new Error('HTTP_500'))
+
+    rerender(
+      <AppProvider>
+        <TestExplorer orgs={['org-b']} />
+      </AppProvider>
+    )
+
+    await act(async () => {
+      screen.getByText('Explore').click()
+    })
+
+    expect(await screen.findByTestId('error-message')).toBeInTheDocument()
+    expect(screen.queryByTestId('is-complete')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('model-loaded')).not.toBeInTheDocument()
   })
 })
