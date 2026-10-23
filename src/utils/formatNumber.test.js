@@ -18,4 +18,10 @@ describe("formatNumber", () => {
     it("handles exactly 1000", () => {
         expect(formatNumber(1000)).toBe("1.0K");
     });
+
+    it("returns '0' for null, undefined, and NaN", () => {
+        expect(formatNumber(null)).toBe("0");
+        expect(formatNumber(undefined)).toBe("0");
+        expect(formatNumber(NaN)).toBe("0");
+    });
 })
