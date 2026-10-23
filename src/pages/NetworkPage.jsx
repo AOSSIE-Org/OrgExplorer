@@ -42,10 +42,10 @@ export default function NetworkPage() {
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
-  
+
   useEffect(() => {
     if (eligibleReposCount) {
-      setRepoLimit(Math.min(30, eligibleReposCount))     
+      setRepoLimit(Math.min(30, eligibleReposCount))
     }
   }, [eligibleReposCount])
 
@@ -274,11 +274,11 @@ export default function NetworkPage() {
               style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}
             >
               <button
-                onClick={() => setOpenInfo(!openInfo)}  
+                onClick={() => setOpenInfo(!openInfo)}
                 onMouseEnter={() => setOpenInfo(true)}
                 onMouseLeave={() => setOpenInfo(false)}
-                aria-label="Repository limit information"       
-                aria-expanded={openInfo} 
+                aria-label="Repository limit information"
+                aria-expanded={openInfo}
                 style={{
                   background: 'none',
                   border: 'none',
@@ -318,7 +318,7 @@ export default function NetworkPage() {
               min={Math.min(5, eligibleReposCount)}
               max={eligibleReposCount}
               step="1"
-              value={Math.min(repoLimit, eligibleReposCount)} 
+              value={Math.min(repoLimit, eligibleReposCount)}
               onChange={(e) => setRepoLimit(Number(e.target.value))}
               style={{ flex: 1, maxWidth: 300, cursor: 'pointer', accentColor: 'var(--accent)' }}
               aria-label="Adjust number of repositories included in the network graph"
