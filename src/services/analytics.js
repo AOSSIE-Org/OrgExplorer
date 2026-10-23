@@ -79,8 +79,10 @@ export function buildAnalyticalModel(orgs, reposPerOrg, contribsPerRepo, totalRe
         entry.totalContribs += c.contributions
         entry.repos.push({ name: repo.name, org: org.login, count: c.contributions })
         entry.orgs.add(org.login)
-        if (!entry.lastActive || repo.pushed_at > entry.lastActive) {
-          entry.lastActive = repo.pushed_at
+        // Keep the contributor's most recent contribution across every repo/org
+        // they appear in, rather than letting the last-processed repo win.
+        if (c.lastActive && (!entry.lastActive || c.lastActive > entry.lastActive)) {
+          entry.lastActive = c.lastActive
         }
       })
     })
