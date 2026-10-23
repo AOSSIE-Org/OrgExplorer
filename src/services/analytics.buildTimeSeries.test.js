@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, afterEach } from 'vitest'
 import { buildTimeSeries } from './analytics'
 
 describe('buildTimeSeries', () => {
@@ -130,5 +130,42 @@ describe('buildTimeSeries', () => {
   it('ignores an item with no created_at and no closed_at', () => {
     const result = buildTimeSeries([{ created_at: null }], 'monthly')
     expect(result).toEqual([])
+  })
+
+  describe('viewer timezone independence', () => {
+    const originalTZ = process.env.TZ
+
+    afterEach(() => {
+      if (originalTZ === undefined) {
+        delete process.env.TZ
+      }
+      else {
+        process.env.TZ = originalTZ
+      }
+    })
+
+    it('buckets a UTC timestamp into its UTC month regardless of the viewer timezone', () => {
+      process.env.TZ = 'America/Los_Angeles'
+      const result = buildTimeSeries([{ created_at: '2026-11-01T00:30:00Z' }], 'monthly')
+
+      expect(result.map(bucket => bucket.date)).toEqual(['2026-11'])
+    })
+
+    it('keeps timestamps from the same UTC day in the same week', () => {
+      const result = buildTimeSeries([
+        { created_at: '2026-01-03T00:00:00Z' },
+        { created_at: '2026-01-03T00:30:00Z' },
+      ], 'weekly')
+
+      expect(result).toHaveLength(1)
+      expect(result[0].date).toBe('2026-W01')
+    })
+
+    it('buckets a UTC timestamp into its UTC week regardless of the viewer timezone', () => {
+      process.env.TZ = 'America/Los_Angeles'
+      const result = buildTimeSeries([{ created_at: '2026-01-03T00:30:00Z' }], 'weekly')
+
+      expect(result.map(bucket => bucket.date)).toEqual(['2026-W01'])
+    })
   })
 })
