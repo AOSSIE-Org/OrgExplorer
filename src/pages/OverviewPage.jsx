@@ -9,6 +9,7 @@ import AnalysisBanner from '../components/AnalysisBanner'
 import { OverviewSkeleton } from '../components/Orgexplorerskeletons'
 import { formatNumber } from '../utils/formatNumber'
 import { useTheme } from '../context/ThemeContext'
+import RepositoryCreationTimeline from '../components/RepositoryCreationTimeline'
 
 const LANG_COLORS = ['#22c55e', '#f5c518', '#3b82f6', '#ef4444', '#a855f7', '#f97316', '#06b6d4']
 const fmt = n => n > 999 ? (n / 1000).toFixed(1) + 'k' : String(n)
@@ -230,6 +231,8 @@ export default function OverviewPage() {
           })()}% of total`}
         />
       </div>
+
+      <RepositoryCreationTimeline repos={filteredRepos} />
 
       {/* Language + top repos */}
       <div className="overview-charts-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
