@@ -1,13 +1,13 @@
 //  Repo Health Indicator
 // Activity (40%) + Issue Health (30%) + Diversity (30%)
-export function computeHealthScore(repo, contributorCount, pat = null) {
+export function computeHealthScore(repo, contributorCount) {
   const pushedAtMs = Date.parse(repo.pushed_at)
   const daysSince = Number.isFinite(pushedAtMs) ? (Date.now() - pushedAtMs) / 86_400_000 : Infinity
   const activity = Math.max(0, 100 - daysSince)
   const total = (Number(repo.open_issues_count) || 0) + 10
   const issueHealth = Math.max(0, 100 - ((Number(repo.open_issues_count) || 0) / total) * 100)
-   // If no PAT & contributor data unavaible, repo health is based on activity + issue health.
-  if (!pat && contributorCount === null) {
+  // If contributor data is unavailable, calculate health from available metrics.
+  if (contributorCount === null) {
     return Math.round((activity * 0.4 + issueHealth * 0.3) / 0.7)
   }
   const diversity = Math.min(100, (Number(contributorCount) || 0) * 10)
@@ -44,7 +44,7 @@ export function computeBusFactor(contributors = []) {
 // Unified Analytical Data Model
 // Merges multiple orgs into one normalized graph:
 // Organization → Repositories → Contributors → Issues/PRs
-export function buildAnalyticalModel(orgs, reposPerOrg, contribsPerRepo, totalReposPerOrg, pat) {
+export function buildAnalyticalModel(orgs, reposPerOrg, contribsPerRepo, totalReposPerOrg) {
   const allRepos = []
   const contributorMap = {}
   const totalRepos = [];
@@ -57,7 +57,7 @@ export function buildAnalyticalModel(orgs, reposPerOrg, contribsPerRepo, totalRe
       const key = `${org.login}/${repo.name}`
        const hasContributorData = Object.hasOwn(contribsPerRepo, key)
       const contribs = contribsPerRepo[key] || []
-      const health = computeHealthScore(repo, hasContributorData ? contribs.length : null, pat)
+      const health = computeHealthScore(repo, hasContributorData ? contribs.length : null)
       const activityClassification = computeActivityClassification(repo)
       const bf = computeBusFactor(contribs)
       totalRepos.push({ ...repo, orgLogin: org.login, contributors: contribs, healthScore: health, activityClassification: activityClassification, busFactor: bf })

@@ -240,7 +240,7 @@ export function AppProvider({ children }) {
       }
 
       setLoadMsg('Building analytical data model...')
-      const builtModel = buildAnalyticalModel(validOrgs, reposPerOrg, contribsPerRepo, totalReposPerOrg, pat)
+      const builtModel = buildAnalyticalModel(validOrgs, reposPerOrg, contribsPerRepo, totalReposPerOrg)
       setModel(builtModel)
 
       setIsComplete(!!pat)
