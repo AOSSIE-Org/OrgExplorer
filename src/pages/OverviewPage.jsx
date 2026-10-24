@@ -64,7 +64,13 @@ export default function OverviewPage() {
   const langs = Object.entries(langMap).sort((a, b) => b[1] - a[1]).slice(0, 7)
   const langTotal = langs.reduce((s, [, c]) => s + c, 0)
 
-  const topRepos = [...filteredRepos].sort((a, b) => b.healthScore - a.healthScore).slice(0, 5)
+  const [repoSearch, setRepoSearch] = useState('')
+  const topRepos = repoSearch.trim()
+    ? filteredRepos
+        .filter(r => r.name.toLowerCase().includes(repoSearch.trim().toLowerCase()))
+        .sort((a, b) => b.healthScore - a.healthScore)
+        .slice(0, 10)
+    : [...filteredRepos].sort((a, b) => b.healthScore - a.healthScore).slice(0, 5)
 
 
 
@@ -306,16 +312,31 @@ export default function OverviewPage() {
               </p>
             </div>
           )}
-          <div style={{ ...C.label, marginBottom: 16 }}>By Composite Health Score</div>
+          <div style={{ ...C.label, marginBottom: 12 }}>By Composite Health Score</div>
+          <input
+            value={repoSearch}
+            onChange={e => setRepoSearch(e.target.value)}
+            placeholder="Search repositories..."
+            style={{ ...C.input, marginBottom: 12, width: '100%' }}
+          />
+          {repoSearch.trim() && (
+            <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 8 }}>
+              {topRepos.length} of {filteredRepos.length} repos
+            </div>
+          )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {topRepos.map(r => (
+            {topRepos.length > 0 ? topRepos.map(r => (
               <div key={r.id}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                   <span style={{ fontSize: 12, fontWeight: 500 }}>{r.name}</span>
                 </div>
                 <HealthBar score={r.healthScore} />
               </div>
-            ))}
+            )) : (
+              <div style={{ fontSize: 12, color: 'var(--text2)', padding: '8px 0' }}>
+                No repositories match &quot;{repoSearch.trim()}&quot;.
+              </div>
+            )}
           </div>
         </div>
       </div>
