@@ -1,5 +1,12 @@
+import { computeOpenCounts, OPEN_BACKLOG_LABEL } from './issueMetrics'
+
 //  Repo Health Indicator
 // Activity (40%) + Issue Health (30%) + Diversity (30%)
+//
+// The Issue Health term reads GitHub's `open_issues_count`, which is open
+// issues AND open pull requests combined — on GitHub a pull request is also an
+// issue. The term therefore measures the combined open backlog. See
+// `services/issueMetrics.js` for how the two are told apart.
 export function computeHealthScore(repo, contributorCount = 0) {
   const pushedAtMs = Date.parse(repo.pushed_at)
   const daysSince = Number.isFinite(pushedAtMs) ? (Date.now() - pushedAtMs) / 86_400_000 : Infinity
@@ -163,10 +170,29 @@ function download(content, filename, type = 'text/csv') {
   URL.revokeObjectURL(url)
 }
 
-export function exportReposCSV(repos) {
-  const header = ['Repository', 'Org', 'Stars', 'Forks', 'Open Issues', 'Health Score', 'Activity Classification', 'Language', 'Last Active']
-  const rows = repos.map(r => [r.name, r.orgLogin, r.stargazers_count, r.forks_count, r.open_issues_count, r.healthScore, r.activityClassification, r.language || 'N/A', r.pushed_at?.slice(0, 10)])
-  download([header, ...rows].map(r => r.join(',')).join('\n'), 'orgexplorer-repos.csv')
+export function buildReposCSV(repos, issuesData) {
+  const header = ['Repository', 'Org', 'Stars', 'Forks', OPEN_BACKLOG_LABEL, 'Open Issues', 'Open PRs', 'Health Score', 'Activity Classification', 'Language', 'Last Active']
+  const rows = repos.map(r => {
+    const counts = computeOpenCounts(r, issuesData?.[`${r.orgLogin}/${r.name}`])
+    return [
+      r.name,
+      r.orgLogin,
+      r.stargazers_count,
+      r.forks_count,
+      counts.combined,
+      counts.openIssues ?? '',
+      counts.openPulls ?? '',
+      r.healthScore,
+      r.activityClassification,
+      r.language || 'N/A',
+      r.pushed_at?.slice(0, 10),
+    ]
+  })
+  return [header, ...rows].map(r => r.join(',')).join('\n')
+}
+
+export function exportReposCSV(repos, issuesData) {
+  download(buildReposCSV(repos, issuesData), 'orgexplorer-repos.csv')
 }
 
 export function exportContributorsCSV(contributors) {
