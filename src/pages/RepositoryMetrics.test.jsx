@@ -32,8 +32,8 @@ beforeEach(() => {
       ],
     },
     issuesData: {
-      'first-org/docs': [{ id: 1, state: 'closed', created_at: '2026-01-01T00:00:00Z' }],
-      'second-org/docs': [{ id: 2, state: 'open', created_at: '2026-02-01T00:00:00Z' }],
+      'first-org/docs': [{ id: 1, state: 'closed', created_at: '2026-01-01T12:00:00Z' }],
+      'second-org/docs': [{ id: 2, state: 'open', created_at: '2026-02-01T12:00:00Z' }],
     },
     pullsData: {
       'first-org/docs': [{ state: 'closed', created_at: '2026-01-01T00:00:00Z', merged_at: '2026-01-03T00:00:00Z' }],
