@@ -823,6 +823,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   }
 
   .site-footer-divider {
+    display: none;
     width: 100% !important;
     height: 0 !important;
     margin: 22px 0 0;
