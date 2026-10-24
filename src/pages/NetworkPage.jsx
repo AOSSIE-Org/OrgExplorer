@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState , useMemo } from 'react'
+import React, { useEffect, useRef, useState, useMemo } from 'react'
 import * as d3 from 'd3'
 import { useApp } from '../context/AppContext'
 import { C, PageTitle } from '../components/UI'
@@ -17,8 +17,20 @@ export default function NetworkPage() {
   const [showRepos, setShowRepos] = useState(true)
   const [showContribs, setShowContribs] = useState(true)
   const [repoLimit, setRepoLimit] = useState(30)
+  const [selectedOrg, setSelectedOrg] = useState('all')
   const [openInfo, setOpenInfo] = useState(false)
   const infoRef = useRef(null)
+
+  // Organizations that actually have repositories in the graph data
+  const networkOrgs = useMemo(
+    () => Array.from(new Set((model?.allRepos ?? []).map(r => r.orgLogin))),
+    [model]
+  )
+
+  // Reset the org filter whenever a new analysis replaces the model
+  useEffect(() => {
+    setSelectedOrg('all')
+  }, [model])
 
   const eligibleReposCount = useMemo(() => {
     if (!model?.allRepos) return 0
@@ -29,9 +41,10 @@ export default function NetworkPage() {
       })
     })
     return model.allRepos.filter(r =>
+      (selectedOrg === 'all' || r.orgLogin === selectedOrg) &&
       relevantRepoKeys.has(`${r.orgLogin}/${r.name}`)
     ).length
-  }, [model])
+  }, [model, selectedOrg])
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -78,6 +91,7 @@ export default function NetworkPage() {
     })
 
     const eligibleRepos = model.allRepos.filter(r =>
+      (selectedOrg === 'all' || r.orgLogin === selectedOrg) &&
       relevantRepoKeys.has(`${r.orgLogin}/${r.name}`)
     )
 
@@ -227,7 +241,7 @@ export default function NetworkPage() {
     })
 
     return () => sim.stop()
-  }, [model, showRepos, showContribs, repoLimit])
+  }, [model, showRepos, showContribs, repoLimit, selectedOrg])
 
   const navigate = useNavigate()
   if (loading) return <NetworkSkeleton />
@@ -256,6 +270,19 @@ export default function NetworkPage() {
             </button>
           ))}
         </div>
+        {networkOrgs.length > 1 && (
+          <select
+            value={selectedOrg}
+            onChange={e => setSelectedOrg(e.target.value)}
+            style={C.select}
+            aria-label="Filter network graph by organization"
+          >
+            <option value="all">All Organizations</option>
+            {networkOrgs.map(org => (
+              <option key={org} value={org}>{org}</option>
+            ))}
+          </select>
+        )}
         <div style={{ display: 'flex', gap: 20, fontSize: 12, color: 'var(--text2)', flexWrap: 'wrap' }}>
           <span>Square = Repository node (color = health score)</span>
           <span>Circle yellow = Cross-repo connector</span>
@@ -265,7 +292,7 @@ export default function NetworkPage() {
       </div>
 
       {/* Repo limit slider — matches the style shared by the mentor */}
-      {model?.allRepos?.length > 0 && (
+      {eligibleReposCount > 0 && (
         <div style={{ marginBottom: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
             <span style={{ ...C.label, margin: 0 }}>Repositories to include</span>
@@ -341,6 +368,15 @@ export default function NetworkPage() {
         <>
           <div style={{ ...C.card, padding: 0, overflow: 'hidden', position: 'relative' }}>
             <svg ref={svgRef} style={{ width: '100%', height: 580, display: 'block', background: 'var(--bg)' }} />
+
+            {eligibleReposCount === 0 && (
+              <div style={{
+                position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                padding: 24, textAlign: 'center', fontSize: 13, color: 'var(--text2)', pointerEvents: 'none',
+              }}>
+                No contributor-connected repositories{selectedOrg !== 'all' ? ` for ${selectedOrg}` : ''} to display.
+              </div>
+            )}
 
             {tooltip && (
               <div style={{

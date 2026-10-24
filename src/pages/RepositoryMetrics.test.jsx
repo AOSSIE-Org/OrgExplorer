@@ -87,6 +87,45 @@ describe('repository metrics across organizations', () => {
       .toBeInTheDocument()
   })
 
+  it('preserves organization filtering and resets repository selections when the organization changes', async () => {
+    const user = userEvent.setup()
+    render(<AnalyticsPage />)
+    const [activityOrganization, advancedOrganization] = screen.getAllByRole('combobox', { name: 'Filter stats by organization' })
+    const activity = screen.getByRole('combobox', { name: 'Filter activity trends by repository' })
+    const advanced = screen.getByRole('combobox', { name: 'Filter advanced metrics by repository' })
+
+    await user.selectOptions(activity, 'first-org/docs')
+    await user.selectOptions(advanced, 'first-org/docs')
+    await user.selectOptions(activityOrganization, 'second-org')
+    expect(activityOrganization).toHaveValue(advancedOrganization.value)
+    expect(activity).toHaveValue('All')
+    expect(advanced).toHaveValue('All Repositories')
+    expect(within(activity).getAllByRole('option').map(option => option.value))
+      .toEqual(['All', 'second-org/docs'])
+    expect(within(advanced).getAllByRole('option').map(option => option.value))
+      .toEqual(['All Repositories', 'second-org/docs'])
+    expect(JSON.parse(screen.getAllByTestId('trend-series')[0].textContent))
+      .toEqual([expect.objectContaining({ date: '2026-02', issues_created: 1 })])
+    expect(screen.getByText('Based on', { exact: false })).toHaveTextContent('0 merged pull requests')
+
+    await user.selectOptions(activity, 'second-org/docs')
+    await user.selectOptions(advanced, 'second-org/docs')
+    await user.selectOptions(advancedOrganization, 'first-org')
+    expect(activityOrganization).toHaveValue(advancedOrganization.value)
+    expect(activity).toHaveValue('All')
+    expect(advanced).toHaveValue('All Repositories')
+    expect(JSON.parse(screen.getAllByTestId('trend-series')[0].textContent))
+      .toEqual([expect.objectContaining({ date: '2026-01', issues_created: 1 })])
+    expect(screen.getByText('Based on', { exact: false })).toHaveTextContent('1 merged pull requests')
+
+    await user.selectOptions(activityOrganization, 'All Organizations')
+    expect(within(activity).getAllByRole('option')).toHaveLength(3)
+    expect(within(advanced).getAllByRole('option')).toHaveLength(3)
+    expect(JSON.parse(screen.getAllByTestId('trend-series')[0].textContent)).toHaveLength(2)
+    expect(screen.getByText((_, element) => element?.textContent === '1 merged · 1 rejected'))
+      .toBeInTheDocument()
+  })
+
   it('keeps resolution rates and missing audit data scoped to their organization', () => {
     render(<GovernancePage />)
 

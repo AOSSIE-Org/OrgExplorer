@@ -23,6 +23,7 @@ export default function Navbar() {
   const navbarRef = useRef(null)
   const linksRef = useRef(null)
   const menuToggleRef = useRef(null)
+  const mobileMenuRef = useRef(null)
   const lowLimit = rateLimit && rateLimit.remaining < 15
   const showOrgLinks = pathname !== '/'
 
@@ -63,11 +64,18 @@ export default function Navbar() {
     const body = document.body
     const originalDocumentOverflow = documentElement.style.overflow
     const originalBodyOverflow = body.style.overflow
+    const handlePointerDown = event => {
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target)) {
+        setMobileMenuOpen(false)
+      }
+    }
 
     documentElement.style.overflow = 'hidden'
     body.style.overflow = 'hidden'
+    document.addEventListener('pointerdown', handlePointerDown)
 
     return () => {
+      document.removeEventListener('pointerdown', handlePointerDown)
       documentElement.style.overflow = originalDocumentOverflow
       body.style.overflow = originalBodyOverflow
     }
@@ -153,8 +161,12 @@ export default function Navbar() {
 
       {mobileMenuOpen && (
         <div
+          ref={mobileMenuRef}
           id="mobile-navigation"
           className={`mobile-nav-menu mobile-nav-menu-visible${showOrgLinks ? '' : ' mobile-nav-menu-landing'}`}
+          onClick={event => {
+            if (event.target === event.currentTarget) setMobileMenuOpen(false)
+          }}
         >
           <div className="mobile-nav-header">
             <button

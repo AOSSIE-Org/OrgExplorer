@@ -28,17 +28,33 @@ export default function AnalyticsPage() {
   const [granularity,   setGranularity]   = useState('monthly')
   const [selectedRepo, setSelectedRepo] = useState('All')
   const [selectedRepoForAM, setSelectedRepoForAM] = useState("All Repositories");
-
+  const [orgFilter, setOrgFilter] = useState('All Organizations')
+  const allOrgs = issuesData?[...new Set((Object.keys(issuesData)).map(k=>k.split('/')[0]))]:[...new Set((Object.keys(pullsData)).map(k=>k.split('/')[0]))];//array of all orgs
+  const handleOrgChange = e => {
+    setOrgFilter(e.target.value)
+    setSelectedRepoForAM("All Repositories");
+    setSelectedRepo("All");
+  }
   const allIssues = useMemo(() => {
     const arr = []
     Object.values(issuesData || {}).forEach(issues => arr.push(...issues))
     return arr
   }, [issuesData])
+  const allIssuesOfOrg = useMemo(() => {
+    const arr = []
+    Object.entries(issuesData).forEach(a=>a[0].split('/')[0]===orgFilter&&arr.push(...a[1]));
+    return arr
+  }, [issuesData,orgFilter])
+  const allPullsOfOrg = useMemo(() => {
+    const arr = []
+    Object.entries(pullsData).forEach(a=>a[0].split('/')[0]===orgFilter&&arr.push(...a[1]));
+    return arr.flat();
+  }, [pullsData,orgFilter])
 
   const filteredIssues = useMemo(() => {
-    if (selectedRepo === 'All') return allIssues
+    if (selectedRepo === 'All') return orgFilter === 'All Organizations' ? allIssues : allIssuesOfOrg
     return issuesData?.[selectedRepo] || []
-  }, [allIssues, selectedRepo, issuesData])
+  }, [allIssues, allIssuesOfOrg, selectedRepo, issuesData, orgFilter])
 
   const series = useMemo(() =>
     buildTimeSeries(filteredIssues, granularity),
@@ -46,9 +62,9 @@ export default function AnalyticsPage() {
   )
 
   const filteredPulls = useMemo(() => {
-    if (selectedRepoForAM === 'All Repositories') return Object.values(pullsData || {}).flat()
+    if (selectedRepoForAM === 'All Repositories') return orgFilter === 'All Organizations' ? Object.values(pullsData || {}).flat() : allPullsOfOrg
     return pullsData?.[selectedRepoForAM] || []
-  }, [pullsData, selectedRepoForAM])
+  }, [pullsData, allPullsOfOrg, selectedRepoForAM, orgFilter])
 
   const advancedMetrics = useAdvancedMetrics(filteredPulls)
 
@@ -66,8 +82,8 @@ export default function AnalyticsPage() {
     }
   ]
 
-  const repoNames = ['All', ...Object.keys(issuesData || {})]
-  const allRepoNames = ['All Repositories', ...Object.keys(pullsData || {})]
+  const repoNames = ['All', ...Object.keys(issuesData || {}).filter(key => orgFilter === 'All Organizations' || key.split('/')[0] === orgFilter)]
+  const allRepoNames = ['All Repositories', ...Object.keys(pullsData || {}).filter(key => orgFilter === 'All Organizations' || key.split('/')[0] === orgFilter)]
   const hasData = Object.keys(issuesData || {}).length > 0
   const hasPullsData = Object.keys(pullsData || {}).length > 0
   const hasSeries = series.length > 0
@@ -151,6 +167,15 @@ export default function AnalyticsPage() {
               : 'Load Issue and PR History'}
           </button>
         )}
+        <select
+          value={orgFilter}
+          onChange={handleOrgChange}
+          style={C.select}
+          aria-label="Filter stats by organization"
+        >
+          <option>All Organizations</option>
+          {allOrgs.map(o => <option key={o}>{o}</option>)}
+        </select>
       </div>
 
       {/* Empty state before audit runs */}
@@ -295,6 +320,15 @@ export default function AnalyticsPage() {
               : 'Collect Advanced Metrics'}
           </button>
         )}
+        <select
+          value={orgFilter}
+          onChange={handleOrgChange}
+          style={C.select}
+          aria-label="Filter stats by organization"
+        >
+          <option>All Organizations</option>
+          {allOrgs.map(o => <option key={o}>{o}</option>)}
+        </select>
       </div>
 
       {/* Empty state before audit runs */}
