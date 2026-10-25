@@ -1,6 +1,13 @@
 //  Repo Health Indicator
 // Activity (40%) + Issue Health (30%) + Diversity (30%)
 export function computeHealthScore(repo, contributorCount = 0) {
+  const pushedAtMs  = Date.parse(repo?.pushed_at)
+  const daysSince   = Number.isFinite(pushedAtMs) ? (Date.now() - pushedAtMs) / 86_400_000 : Infinity
+  const activity    = Math.max(0, 100 - daysSince)
+  const openIssues  = Math.max(0, Number(repo?.open_issues_count) || 0)
+  const total       = openIssues + 10
+  const issueHealth = Math.max(0, 100 - (openIssues / total) * 100)
+  const diversity   = Math.min(100, contributorCount * 10)
   const pushedAtMs = Date.parse(repo.pushed_at)
   const daysSince = Number.isFinite(pushedAtMs) ? (Date.now() - pushedAtMs) / 86_400_000 : Infinity
   const activity = Math.max(0, 100 - daysSince)
@@ -12,6 +19,10 @@ export function computeHealthScore(repo, contributorCount = 0) {
 
 // Repo Lifecycle — Thriving, Active, Dormant, Hibernating based on recency of last push
 export function computeActivityClassification(repo) {
+  const pushedAtMs = Date.parse(repo?.pushed_at)
+  const days = Number.isFinite(pushedAtMs) ? (Date.now() - pushedAtMs) / 86_400_000 : Infinity
+  if (days <= 30)  return 'Thriving'
+  if (days <= 90)  return 'Active'
   const pushedAtMs = Date.parse(repo.pushed_at)
   const days = Number.isFinite(pushedAtMs) ? (Date.now() - pushedAtMs) / 86_400_000 : Infinity
   if (days <= 30) return 'Thriving'
