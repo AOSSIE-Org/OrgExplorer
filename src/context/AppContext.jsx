@@ -51,6 +51,7 @@ export function AppProvider({ children }) {
   const restoredFromCache = useRef(false)
 
   const patRequestId = useRef(0)
+  const exploreRequestId = useRef(0)
   // Restore the last analysis on startup. The model is held in memory, so
   // without this a reload, bookmark or shared link loses it entirely.
   useEffect(() => {
@@ -174,6 +175,8 @@ export function AppProvider({ children }) {
       }
     }
     if (!names.length) return false
+    const requestId = ++exploreRequestId.current
+    const isCurrentRequest = () => requestId === exploreRequestId.current
     setLoading(true);
     setError('');
     setModel(null);
@@ -185,6 +188,7 @@ export function AppProvider({ children }) {
     try {
       setLoadMsg('Fetching organization metadata...')
       const orgRes = await Promise.allSettled(names.map(n => fetchOrg(n, pat)))
+      if (!isCurrentRequest()) return false
 
       const rateLimitError = orgRes.find(r => r.status === 'rejected' && r.reason?.message === 'RATE_LIMIT')
       if (rateLimitError) {
@@ -207,6 +211,7 @@ export function AppProvider({ children }) {
         reposPerOrg[org.login] = repos
         return repos
       }))
+      if (!isCurrentRequest()) return false
 
       const repoRateLimit = repoRes.find(r => r.status === 'rejected' && r.reason?.message === 'RATE_LIMIT')
       if (repoRateLimit) {
@@ -237,8 +242,10 @@ export function AppProvider({ children }) {
         if (contribRateLimit) {
           throw new Error('RATE_LIMIT')
         }
+        if (!isCurrentRequest()) return false
       }
 
+      if (!isCurrentRequest()) return false
       setLoadMsg('Building analytical data model...')
       const builtModel = buildAnalyticalModel(validOrgs, reposPerOrg, contribsPerRepo, totalReposPerOrg)
       setModel(builtModel)
@@ -255,6 +262,7 @@ export function AppProvider({ children }) {
       localStorage.setItem('oe_recent', JSON.stringify(next))
       return builtModel
     } catch (err) {
+      if (!isCurrentRequest()) return false
       setError(err.message === 'RATE_LIMIT'
         ? (pat
             ? 'GitHub API rate limit reached. Please wait for your quota to refresh.'
@@ -262,7 +270,9 @@ export function AppProvider({ children }) {
         : err.message)
       return false
     } finally {
-      setLoading(false); setLoadMsg('')
+      if (isCurrentRequest()) {
+        setLoading(false); setLoadMsg('')
+      }
     }
   }, [pat])
 
