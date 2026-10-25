@@ -125,6 +125,25 @@ Note: if additional metrics exist in the codebase beyond this list, add them
 here with their formula reference — don't let an agent infer meaning from
 variable names alone.
 
+### Health Score formula
+
+```
+score = round(activity * 0.4 + issueHealth * 0.3 + diversity * 0.3)
+```
+
+| Term | Weight | Source |
+|---|---|---|
+| Activity | 40% | `100 - days since pushed_at` |
+| Issue Health | 30% | `100 - (open / (open + 10)) * 100` |
+| Contributor Diversity | 30% | `min(100, contributorCount * 10)` |
+
+`open` is the repository's `open_issues_count`. That GitHub field is **not** an
+issue count — it is open issues *and* open pull requests combined, because on
+GitHub a pull request is also an issue. The Issue Health term therefore
+measures the repository's combined open backlog. The UI labels it
+"Open Issues & PRs" for exactly this reason, and `services/issueMetrics.js`
+splits the count exactly for repositories that have been audited.
+
 ## Stable Contracts
 
 Unless explicitly requested, do not change:

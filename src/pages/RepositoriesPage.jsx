@@ -5,6 +5,7 @@ import { useApp } from '../context/AppContext'
 import { C, Badge, HealthBar, SortTh, PageTitle, LoadMore } from '../components/UI'
 import { useSortedData } from '../hooks/useSortedData'
 import { exportReposCSV } from '../services/analytics'
+import { computeOpenCounts, describeOpenCounts, OPEN_BACKLOG_LABEL } from '../services/issueMetrics'
 import EmptyStateCard from '../components/EmptyStateCard'
 import { useNavigate } from 'react-router-dom'
 import AnalysisBanner from '../components/AnalysisBanner'
@@ -14,7 +15,7 @@ const ACTIVITY_CLASSIFICATIONS = ['All', 'Thriving', 'Active', 'Dormant', 'Hiber
 const ACTIVITY_COLORS = { Thriving: 'var(--green)', Active: 'var(--blue)', Dormant: 'var(--amber)', Hibernating: 'var(--red)' }
 
 export default function RepositoriesPage() {
-  const { model, isComplete, loading, runFullExplore } = useApp()
+  const { model, isComplete, loading, runFullExplore, issuesData } = useApp()
   const [search, setSearch] = useState('')
   const [activityClassification, setActivityClassification] = useState('All')
   const [lang, setLang] = useState('All Languages')
@@ -55,6 +56,19 @@ export default function RepositoriesPage() {
     ['All Organizations', ...new Set(allRepos.map(r => r.orgLogin).filter(Boolean))],
     [allRepos])
 
+  // GitHub's `open_issues_count` is open issues + open pull requests. The
+  // exact split is only known for repositories the governance audit has
+  // already fetched, so it is computed once per repository here rather than
+  // re-derived on every render of every row.
+  const openCountsByRepo = useMemo(() => {
+    const counts = {}
+    for (const repo of model?.totalRepos ?? []) {
+      const key = `${repo.orgLogin}/${repo.name}`
+      counts[key] = computeOpenCounts(repo, issuesData?.[key])
+    }
+    return counts
+  }, [model, issuesData])
+
   useEffect(() => {
     setOrgFilter('All Organizations')
     setShown(20)
@@ -78,7 +92,7 @@ export default function RepositoriesPage() {
     ['name', 'Repository'],
     ['stargazers_count', 'Stars'],
     ['forks_count', 'Forks'],
-    ['open_issues_count', 'Open Issues'],
+    ['open_issues_count', OPEN_BACKLOG_LABEL],
     ['healthScore', 'Health'],
     ['language', 'Language'],
     ['pushed_at', 'Repository Activity'],
@@ -159,6 +173,13 @@ export default function RepositoriesPage() {
                 <li>Contributor Diversity → 30%</li>
               </ul>
 
+              <p style={{ marginTop: 8, marginBottom: 12 }}>
+                GitHub counts a pull request as an issue, so <strong>{OPEN_BACKLOG_LABEL}</strong>{' '}
+                is one combined number. Issue Health measures that combined open
+                backlog — hover a value to see the split once the governance audit
+                has run.
+              </p>
+
               <strong>Activity Classification</strong>
               <ul style={{ marginLeft: 18 }}>
                 <li>🟢 Thriving → Updated within 30 days</li>
@@ -171,7 +192,7 @@ export default function RepositoriesPage() {
               <ul style={{ marginLeft: 18 }}>
                 <li>Stars → Community interest</li>
                 <li>Forks → Adoption & contributions</li>
-                <li>Issues → Current maintenance workload</li>
+                <li>{OPEN_BACKLOG_LABEL} → Combined review backlog</li>
               </ul>
             </div>
           </div>
@@ -199,7 +220,7 @@ export default function RepositoriesPage() {
           <select value={lang} onChange={e => setLang(e.target.value)} style={C.select}>
             {langs.map(l => <option key={l}>{l}</option>)}
           </select>
-          <button onClick={() => exportReposCSV(sorted)} style={{ ...C.btn('ghost'), padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 5, fontSize: 12 }}>
+          <button onClick={() => exportReposCSV(sorted, issuesData)} style={{ ...C.btn('ghost'), padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 5, fontSize: 12 }}>
             <FiDownload size={13} /> CSV
           </button>
         </div>
@@ -255,8 +276,10 @@ export default function RepositoriesPage() {
               </tr>
             </thead>
             <tbody>
-              {visible.map((r, i) => (
-                <tr key={r.id} style={{ borderBottom: '1px solid var(--border)', background: i % 2 ? 'var(--surface2)' : 'transparent' }}>
+              {visible.map((r, i) => {
+                const openCounts = openCountsByRepo[`${r.orgLogin}/${r.name}`]
+                return (
+                  <tr key={r.id} style={{ borderBottom: '1px solid var(--border)', background: i % 2 ? 'var(--surface2)' : 'transparent' }}>
                  <td style={{ padding: '10px 14px' }}>
   <a
     href={`${r.html_url}`}
@@ -273,7 +296,17 @@ export default function RepositoriesPage() {
 </td>
                   <td style={{ padding: '10px 14px', fontSize: 13, color: 'var(--text2)' }}>{r.stargazers_count.toLocaleString()}</td>
                   <td style={{ padding: '10px 14px', fontSize: 13, color: 'var(--text2)' }}>{r.forks_count.toLocaleString()}</td>
-                  <td style={{ padding: '10px 14px', fontSize: 13, color: r.open_issues_count > 30 ? 'var(--red)' : 'var(--text2)' }}>{r.open_issues_count}</td>
+                  <td
+                    title={describeOpenCounts(openCounts)}
+                    style={{ padding: '10px 14px', fontSize: 13, color: r.open_issues_count > 30 ? 'var(--red)' : 'var(--text2)', whiteSpace: 'nowrap' }}
+                  >
+                    <div>{r.open_issues_count}</div>
+                    {openCounts?.exact && (
+                      <div style={{ fontSize: 11, color: 'var(--text2)' }}>
+                        {openCounts.openIssues} issues · {openCounts.openPulls} PRs
+                      </div>
+                    )}
+                  </td>
                   <td style={{ padding: '10px 14px', minWidth: 130 }}><HealthBar score={r.healthScore} /></td>
                   <td style={{ padding: '10px 14px', fontSize: 13, color: 'var(--text2)' }}>{r.language || 'N/A'}</td>
                   <td style={{ padding: '10px 14px' }}>
@@ -283,8 +316,9 @@ export default function RepositoriesPage() {
                       </span>
                     </div>
                   </td>
-                </tr>
-              ))}
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
           <LoadMore shown={shown} total={sorted.length} onLoad={() => setShown(s => s + 20)} />
