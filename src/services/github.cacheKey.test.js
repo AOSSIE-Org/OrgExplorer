@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { normalizeCacheKey, fetchOrg, fetchRepos, fetchContributors } from './github'
+import { normalizeCacheKey, fetchOrg, fetchRepos, fetchContributors, cacheGet, cacheSet, cacheClear } from './github'
 
 /** Minimal in-memory stand-in for the IndexedDB API surface used by github.js. */
 function installFakeIndexedDB() {
   const tables = new Map()
   const db = {
     createObjectStore() {},
-    close() {},
+    close: vi.fn(),
     transaction(storeName) {
       let table = tables.get(storeName)
       if (!table) {
@@ -21,25 +21,33 @@ function installFakeIndexedDB() {
           return {
             get(k) {
               const req = { result: table.has(k) ? table.get(k) : undefined }
-              queueMicrotask(() => req.onsuccess && req.onsuccess())
+              queueMicrotask(() => {
+                if (req.onsuccess) req.onsuccess()
+                queueMicrotask(() => tx.oncomplete && tx.oncomplete())
+              })
               return req
             },
             put(record) {
               table.set(record.k, record)
               const req = {}
-              queueMicrotask(() => req.onsuccess && req.onsuccess())
+              queueMicrotask(() => {
+                if (req.onsuccess) req.onsuccess()
+                queueMicrotask(() => tx.oncomplete && tx.oncomplete())
+              })
               return req
             },
             clear() {
               table.clear()
               const req = {}
-              queueMicrotask(() => req.onsuccess && req.onsuccess())
+              queueMicrotask(() => {
+                if (req.onsuccess) req.onsuccess()
+                queueMicrotask(() => tx.oncomplete && tx.oncomplete())
+              })
               return req
             },
           }
         },
       }
-      queueMicrotask(() => tx.oncomplete && tx.oncomplete())
       return tx
     },
   }
@@ -53,6 +61,7 @@ function installFakeIndexedDB() {
       return req
     },
   })
+  return { db, tables }
 }
 
 /** Counting fetch stub. Handler maps a URL to { status, body }. */
@@ -236,3 +245,311 @@ describe('empty-repository responses', () => {
     await expect(fetchOrg('test-org', 'pat')).rejects.toThrow('HTTP_403')
   })
 })
+
+describe('IndexedDB connection lifecycle and resource cleanup', () => {
+  it('closes database connection after cacheGet', async () => {
+    const { db } = installFakeIndexedDB()
+    await cacheGet('https://api.github.com/orgs/AOSSIE-Org')
+    expect(db.close).toHaveBeenCalledTimes(1)
+  })
+
+  it('closes database connection after cacheSet', async () => {
+    const { db } = installFakeIndexedDB()
+    await cacheSet('https://api.github.com/orgs/AOSSIE-Org', { login: 'AOSSIE-Org' })
+    expect(db.close).toHaveBeenCalledTimes(1)
+  })
+
+  it('closes database connection after cacheClear', async () => {
+    const { db } = installFakeIndexedDB()
+    await cacheClear()
+    expect(db.close).toHaveBeenCalledTimes(1)
+  })
+
+  it('closes database connection on transaction error in cacheGet', async () => {
+    const closeSpy = vi.fn()
+    vi.stubGlobal('indexedDB', {
+      open() {
+        const req = {}
+        const db = {
+          close: closeSpy,
+          transaction() {
+            const tx = {
+              oncomplete: null,
+              onerror: null,
+              onabort: null,
+              objectStore() {
+                return {
+                  get() {
+                    const getReq = {}
+                    queueMicrotask(() => {
+                      if (tx.onerror) tx.onerror({ target: { error: new Error('Tx failed') } })
+                    })
+                    return getReq
+                  }
+                }
+              }
+            }
+            return tx
+          }
+        }
+        queueMicrotask(() => {
+          if (req.onsuccess) req.onsuccess({ target: { result: db } })
+        })
+        return req
+      }
+    })
+
+    const result = await cacheGet('https://api.github.com/orgs/AOSSIE-Org')
+    expect(result).toBeNull()
+    expect(closeSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it('closes database connection on transaction abort in cacheGet (even after request success)', async () => {
+    const closeSpy = vi.fn()
+    vi.stubGlobal('indexedDB', {
+      open() {
+        const req = {}
+        const db = {
+          close: closeSpy,
+          transaction() {
+            const tx = {
+              oncomplete: null,
+              onerror: null,
+              onabort: null,
+              error: new DOMException('Transaction aborted', 'AbortError'),
+              objectStore() {
+                return {
+                  get() {
+                    const getReq = {
+                      result: { k: 'https://api.github.com/orgs/AOSSIE-Org', v: { login: 'AOSSIE-Org' }, ts: Date.now() }
+                    }
+                    queueMicrotask(() => {
+                      if (getReq.onsuccess) getReq.onsuccess()
+                      queueMicrotask(() => {
+                        if (tx.onabort) tx.onabort({ target: tx })
+                      })
+                    })
+                    return getReq
+                  }
+                }
+              }
+            }
+            return tx
+          }
+        }
+        queueMicrotask(() => {
+          if (req.onsuccess) req.onsuccess({ target: { result: db } })
+        })
+        return req
+      }
+    })
+
+    const result = await cacheGet('https://api.github.com/orgs/AOSSIE-Org')
+    expect(result).toBeNull()
+    expect(closeSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it('closes database connection on transaction error in cacheSet', async () => {
+    const closeSpy = vi.fn()
+    vi.stubGlobal('indexedDB', {
+      open() {
+        const req = {}
+        const db = {
+          close: closeSpy,
+          transaction() {
+            const tx = {
+              oncomplete: null,
+              onerror: null,
+              onabort: null,
+              objectStore() {
+                return {
+                  put() {
+                    const putReq = {}
+                    queueMicrotask(() => {
+                      if (tx.onerror) tx.onerror({ target: { error: new Error('Put tx failed') } })
+                    })
+                    return putReq
+                  }
+                }
+              }
+            }
+            return tx
+          }
+        }
+        queueMicrotask(() => {
+          if (req.onsuccess) req.onsuccess({ target: { result: db } })
+        })
+        return req
+      }
+    })
+
+    const result = await cacheSet('https://api.github.com/orgs/AOSSIE-Org', { data: 1 })
+    expect(result).toBe(false)
+    expect(closeSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it('closes database connection on transaction abort in cacheSet', async () => {
+    const closeSpy = vi.fn()
+    vi.stubGlobal('indexedDB', {
+      open() {
+        const req = {}
+        const db = {
+          close: closeSpy,
+          transaction() {
+            const tx = {
+              oncomplete: null,
+              onerror: null,
+              onabort: null,
+              error: new DOMException('Put aborted', 'AbortError'),
+              objectStore() {
+                return {
+                  put() {
+                    const putReq = {}
+                    queueMicrotask(() => {
+                      if (tx.onabort) tx.onabort({ target: tx })
+                    })
+                    return putReq
+                  }
+                }
+              }
+            }
+            return tx
+          }
+        }
+        queueMicrotask(() => {
+          if (req.onsuccess) req.onsuccess({ target: { result: db } })
+        })
+        return req
+      }
+    })
+
+    const result = await cacheSet('https://api.github.com/orgs/AOSSIE-Org', { data: 1 })
+    expect(result).toBe(false)
+    expect(closeSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it('closes database connection on transaction error in cacheClear', async () => {
+    const closeSpy = vi.fn()
+    vi.stubGlobal('indexedDB', {
+      open() {
+        const req = {}
+        const db = {
+          close: closeSpy,
+          transaction() {
+            const tx = {
+              oncomplete: null,
+              onerror: null,
+              onabort: null,
+              objectStore() {
+                return {
+                  clear() {
+                    const clearReq = {}
+                    queueMicrotask(() => {
+                      if (tx.onerror) tx.onerror({ target: { error: new Error('Clear tx failed') } })
+                    })
+                    return clearReq
+                  }
+                }
+              }
+            }
+            return tx
+          }
+        }
+        queueMicrotask(() => {
+          if (req.onsuccess) req.onsuccess({ target: { result: db } })
+        })
+        return req
+      }
+    })
+
+    const result = await cacheClear()
+    expect(result).toBe(false)
+    expect(closeSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it('closes database connection on transaction abort in cacheClear', async () => {
+    const closeSpy = vi.fn()
+    vi.stubGlobal('indexedDB', {
+      open() {
+        const req = {}
+        const db = {
+          close: closeSpy,
+          transaction() {
+            const tx = {
+              oncomplete: null,
+              onerror: null,
+              onabort: null,
+              error: new DOMException('Clear aborted', 'AbortError'),
+              objectStore() {
+                return {
+                  clear() {
+                    const clearReq = {}
+                    queueMicrotask(() => {
+                      if (tx.onabort) tx.onabort({ target: tx })
+                    })
+                    return clearReq
+                  }
+                }
+              }
+            }
+            return tx
+          }
+        }
+        queueMicrotask(() => {
+          if (req.onsuccess) req.onsuccess({ target: { result: db } })
+        })
+        return req
+      }
+    })
+
+    const result = await cacheClear()
+    expect(result).toBe(false)
+    expect(closeSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it('closes database connection when transaction setup throws synchronously', async () => {
+    const closeSpy = vi.fn()
+    vi.stubGlobal('indexedDB', {
+      open() {
+        const req = {}
+        const db = {
+          close: closeSpy,
+          transaction() {
+            throw new Error('Store not found')
+          }
+        }
+        queueMicrotask(() => {
+          if (req.onsuccess) req.onsuccess({ target: { result: db } })
+        })
+        return req
+      }
+    })
+
+    expect(await cacheGet('https://api.github.com/orgs/test')).toBeNull()
+    expect(await cacheSet('https://api.github.com/orgs/test', {})).toBe(false)
+    expect(await cacheClear()).toBe(false)
+    expect(closeSpy).toHaveBeenCalledTimes(3)
+  })
+
+  it('closes a connection that opens after req.onblocked has already rejected', async () => {
+    let capturedReq
+    const closeSpy = vi.fn()
+    vi.stubGlobal('indexedDB', {
+      open() {
+        capturedReq = {}
+        queueMicrotask(() => {
+          if (capturedReq.onblocked) capturedReq.onblocked(new Event('blocked'))
+        })
+        return capturedReq
+      }
+    })
+
+    const result = await cacheGet('https://api.github.com/orgs/test')
+    expect(result).toBeNull()
+
+    // Simulate late onsuccess when the blocking connection eventually closes
+    capturedReq.onsuccess({ target: { result: { close: closeSpy } } })
+    expect(closeSpy).toHaveBeenCalledTimes(1)
+  })
+})
+
