@@ -179,8 +179,8 @@ export default function Footer() {
           {/* Separator */}
           <div className="site-footer-divider h-25 w-px bg-zinc-700 rotate-90 lg:rotate-180" />
 
-          <div className="site-footer-meta flex flex-col gap-2 items-end text-right">
-            <p className="flex items-center text-xs tracking-[0.2em]">
+          <div className="site-footer-meta flex flex-col gap-2 items-center text-center lg:items-end lg:text-right">
+            <p className="flex items-center justify-center lg:justify-end text-xs tracking-[0.2em]">
               © {new Date().getFullYear()}
               <span>
                 <Link to="/" aria-label="Go to home page">
