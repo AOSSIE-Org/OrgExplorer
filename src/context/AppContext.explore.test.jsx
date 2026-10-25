@@ -151,6 +151,7 @@ describe('AppContext explore rate-limit and error handling', () => {
   })
 
   it('successfully loads analytical model for a valid organization search', async () => {
+    localStorage.setItem('oe_recent', '{invalid json')
     github.fetchOrg.mockResolvedValue({ login: 'test-org', public_repos: 1 })
     github.fetchRepos.mockResolvedValue([{ name: 'test-repo', stargazers_count: 5, forks_count: 2, open_issues_count: 1 }])
     github.fetchContributors.mockResolvedValue([{ login: 'dev1', contributions: 10 }])
@@ -167,5 +168,74 @@ describe('AppContext explore rate-limit and error handling', () => {
 
     expect(await screen.findByTestId('model-loaded')).toBeInTheDocument()
     expect(screen.queryByTestId('error-message')).not.toBeInTheDocument()
+    expect(JSON.parse(localStorage.getItem('oe_recent'))).toEqual(['test-org'])
+  })
+
+  it('loads the model when saving recent searches to localStorage fails', async () => {
+    const originalSetItem = Storage.prototype.setItem
+    const setItemSpy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (key, value) {
+      if (key === 'oe_recent') {
+        throw new Error('Storage unavailable')
+      }
+      return originalSetItem.call(this, key, value)
+    })
+    github.fetchOrg.mockResolvedValue({ login: 'test-org', public_repos: 1 })
+    github.fetchRepos.mockResolvedValue([{ name: 'test-repo', stargazers_count: 5, forks_count: 2, open_issues_count: 1 }])
+    github.fetchContributors.mockResolvedValue([{ login: 'dev1', contributions: 10 }])
+
+    try {
+      localStorage.setItem('oe_other', 'value')
+      expect(localStorage.getItem('oe_other')).toBe('value')
+
+      render(
+        <AppProvider>
+          <TestExplorer />
+        </AppProvider>
+      )
+
+      await act(async () => {
+        screen.getByText('Explore').click()
+      })
+
+      expect(await screen.findByTestId('model-loaded')).toBeInTheDocument()
+      expect(screen.queryByTestId('error-message')).not.toBeInTheDocument()
+    } finally {
+      setItemSpy.mockRestore()
+    }
+  })
+
+  it('keeps valid recent searches ordered, deduplicated, and limited to six entries', async () => {
+    localStorage.setItem('oe_recent', JSON.stringify([
+      'older-one',
+      'TEST-ORG',
+      'older-two',
+      'older-three',
+      'older-four',
+      'older-five',
+      'older-six',
+    ]))
+    github.fetchOrg.mockResolvedValue({ login: 'test-org', public_repos: 0 })
+    github.fetchRepos.mockResolvedValue([])
+    github.fetchContributors.mockResolvedValue([])
+
+    render(
+      <AppProvider>
+        <TestExplorer />
+      </AppProvider>
+    )
+
+    await act(async () => {
+      screen.getByText('Explore').click()
+    })
+
+    expect(await screen.findByTestId('model-loaded')).toBeInTheDocument()
+    expect(JSON.parse(localStorage.getItem('oe_recent'))).toEqual([
+      'test-org',
+      'older-one',
+      'older-two',
+      'older-three',
+      'older-four',
+      'older-five',
+    ])
   })
 })
