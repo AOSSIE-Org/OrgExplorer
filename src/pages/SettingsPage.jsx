@@ -202,7 +202,7 @@ export default function SettingsPage() {
               </button>
               <button
                 onClick={handleDelete}
-                disabled={!draft.trim() || isValidating}
+                disabled={!pat || isValidating}
                 style={{ ...C.btn('danger'), display: 'flex', alignItems: 'center', gap: 5, fontSize: 13 }}
               >
                 <FiTrash2 size={13} /> Delete
