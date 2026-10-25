@@ -62,7 +62,7 @@ export default function OverviewPage() {
   const langMap = {}
   filteredRepos.forEach(r => { if (r.language) langMap[r.language] = (langMap[r.language] || 0) + 1 })
   const langs = Object.entries(langMap).sort((a, b) => b[1] - a[1]).slice(0, 7)
-  const langTotal = langs.reduce((s, [, c]) => s + c, 0)
+  const langTotal = filteredRepos.length;
 
   const topRepos = [...filteredRepos].sort((a, b) => b.healthScore - a.healthScore).slice(0, 5)
 
