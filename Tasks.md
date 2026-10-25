@@ -6,4 +6,4 @@
 - [x] Deploy OrgExplorer to GitHub pages. (Bruno)
 - [x] Add OrgExplorer to https://aossie.org. (Rahul or Ritik)
 - [x] Convert public/org-explorer-logo.png to svg. (open to any contributor)
-- [ ] Redesign OrgExplorer svg: src/assets/og-logo.svg. (open to any contributor)
+- [x] Redesign OrgExplorer svg: src/assets/og-logo.svg. (Dotify71)
