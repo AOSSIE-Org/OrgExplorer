@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { FiArrowLeft, FiDownload, FiExternalLink, FiCalendar, FiBriefcase, FiAlertTriangle } from 'react-icons/fi'
+import { FiArrowLeft, FiDownload, FiExternalLink, FiCalendar, FiBriefcase, FiAlertTriangle, FiCopy, FiCheck } from 'react-icons/fi'
 import { useApp } from '../context/AppContext'
 import { C, PageTitle, Spinner, StatCard } from '../components/UI'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { contributorProfileStrings } from '../i18n/contributorProfile'
+
 const ITEMS_PER_PAGE = 10
 
 // Reusable ContributionTable component
@@ -159,6 +161,18 @@ export default function ContributorProfilePage() {
   const [mergedPRKeys, setMergedPRKeys] = useState(new Set())
   const [tab, setTab] = useState('prs')
   const [selectedOrg, setSelectedOrg] = useState('all')
+  const [copied, setCopied] = useState(false)
+  const copyTimeoutRef = useRef(null)
+  const copyGenRef = useRef(0)
+
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current)
+      }
+    }
+  }, [])
+
   const [selectedRepo, setSelectedRepo] = useState('all')
   const [prsPage, setPrsPage] = useState(1)
   const [issuesPage, setIssuesPage] = useState(1)
@@ -305,6 +319,7 @@ export default function ContributorProfilePage() {
     }
   }
 
+
   const filteredContribs = useMemo(() => {
     return rawContributions.filter(item => {
 
@@ -450,8 +465,8 @@ export default function ContributorProfilePage() {
     return Object.values(monthlyBuckets).sort((a, b) => a.yyyymm.localeCompare(b.yyyymm))
   }, [filteredContribs])
 
-  // Export to Markdown Report with pipe & newline escaping
-  const exportMarkdown = () => {
+  // Generate Markdown report string
+  const generateMarkdown = () => {
     const dateStr = new Date().toLocaleDateString()
     const orgsStr = selectedOrg === 'all' ? searchOrgs.join(', ') : selectedOrg
     const dateRangeStr = (startDate || 'Beginning') + ' to ' + (endDate || 'Present')
@@ -502,7 +517,31 @@ export default function ContributorProfilePage() {
     md += `---\n`
     md += `*Report generated automatically by **OrgExplorer**.*\n`
 
-    // File download trigger (Hardened cleanup & revocation)
+    return md
+  }
+
+  // Copy Markdown to Clipboard
+  const copyMarkdown = async () => {
+    const gen = ++copyGenRef.current
+    try {
+      const md = generateMarkdown()
+      await navigator.clipboard.writeText(md)
+      if (gen !== copyGenRef.current) return
+      clearTimeout(copyTimeoutRef.current)
+      setCopied(true)
+      setError(prev => (prev === contributorProfileStrings.copyError ? '' : prev))
+      copyTimeoutRef.current = setTimeout(() => setCopied(false), 2000)
+    } catch (e) {
+      if (gen !== copyGenRef.current) return
+      console.error('Failed to copy to clipboard:', e)
+      setCopied(false)
+      setError(contributorProfileStrings.copyError)
+    }
+  }
+
+  // Export to Markdown Report file download
+  const exportMarkdown = () => {
+    const md = generateMarkdown()
     const blob = new Blob([md], { type: 'text/markdown' })
     const url = URL.createObjectURL(blob)
     const a = Object.assign(document.createElement('a'), {
@@ -564,18 +603,45 @@ export default function ContributorProfilePage() {
         }
         subtitle={`Analyzing contributions across ${searchOrgs.join(', ')}`}
         right={
-          <button
-            onClick={exportMarkdown}
-            disabled={!filteredContribs.length}
-            style={{ ...C.btn('primary'), display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}
-          >
-            <FiDownload size={13} /> Export Contribution Report (.md)
-          </button>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button
+              onClick={copyMarkdown}
+              disabled={!filteredContribs.length}
+              style={{ ...C.btn('ghost'), display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}
+              title={contributorProfileStrings.copyTitle}
+            >
+              {copied ? <FiCheck size={13} color="var(--green)" /> : <FiCopy size={13} />}
+              {copied ? contributorProfileStrings.copied : contributorProfileStrings.copyMarkdown}
+            </button>
+            <span
+              role="status"
+              aria-live="polite"
+              aria-atomic="true"
+              className="sr-only"
+            >
+              {copied
+                ? contributorProfileStrings.copied
+                : error === contributorProfileStrings.copyError
+                ? contributorProfileStrings.copyError
+                : ''}
+            </span>
+            <button
+              onClick={exportMarkdown}
+              disabled={!filteredContribs.length}
+              style={{ ...C.btn('primary'), display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}
+            >
+              <FiDownload size={13} /> Export Contribution Report (.md)
+            </button>
+          </div>
         }
       />
 
       {error && (
-        <div style={{ ...C.card, display: 'flex', alignItems: 'center', gap: 12, borderColor: 'var(--red)', background: 'rgba(239,68,68,.05)', marginBottom: 20 }}>
+        <div
+          role="alert"
+          aria-live="polite"
+          style={{ ...C.card, display: 'flex', alignItems: 'center', gap: 12, borderColor: 'var(--red)', background: 'rgba(239,68,68,.05)', marginBottom: 20 }}
+        >
           <FiAlertTriangle color="var(--red)" size={18} />
           <span style={{ fontSize: 13, color: 'var(--red)', fontWeight: 500 }}>{error}</span>
         </div>
