@@ -224,7 +224,7 @@ export default function PATModal({ open, onClose }) {
             <button
               type="button"
               onClick={handleDelete}
-              disabled={!draft.trim()}
+              disabled={!pat || isValidating}
               style={{
                 padding: "10px 18px",
                 borderRadius: 8,
@@ -235,6 +235,7 @@ export default function PATModal({ open, onClose }) {
                 display: "flex",
                 alignItems: "center",
                 gap: 8,
+                opacity: (!pat || isValidating) ? 0.5 : 1,
               }}
             >
               <FiTrash2 />
