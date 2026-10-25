@@ -52,10 +52,9 @@ export default function AnalyticsPage() {
   }, [pullsData,orgFilter])
 
   const filteredIssues = useMemo(() => {
-    if (selectedRepo === 'All') return orgFilter==="All Organizations"?allIssues:allIssuesOfOrg;
-    const key = Object.keys(issuesData || {}).find(k => k.split('/')[1] === selectedRepo)
-    return key ? (issuesData[key] || []) : []
-  }, [allIssues, selectedRepo, issuesData,orgFilter])
+    if (selectedRepo === 'All') return orgFilter === 'All Organizations' ? allIssues : allIssuesOfOrg
+    return issuesData?.[selectedRepo] || []
+  }, [allIssues, allIssuesOfOrg, selectedRepo, issuesData, orgFilter])
 
   const series = useMemo(() =>
     buildTimeSeries(filteredIssues, granularity),
@@ -63,10 +62,9 @@ export default function AnalyticsPage() {
   )
 
   const filteredPulls = useMemo(() => {
-    if (selectedRepoForAM === 'All Repositories') return orgFilter==="All Organizations"? Object.values(pullsData || {}).flat():allPullsOfOrg;
-    const key = Object.keys(pullsData || {}).find(k => k.split('/')[1] === selectedRepoForAM)
-    return key ? (pullsData[key] || []) : []
-  }, [pullsData, selectedRepoForAM,orgFilter])
+    if (selectedRepoForAM === 'All Repositories') return orgFilter === 'All Organizations' ? Object.values(pullsData || {}).flat() : allPullsOfOrg
+    return pullsData?.[selectedRepoForAM] || []
+  }, [pullsData, allPullsOfOrg, selectedRepoForAM, orgFilter])
 
   const advancedMetrics = useAdvancedMetrics(filteredPulls)
 
@@ -83,8 +81,9 @@ export default function AnalyticsPage() {
       value: advancedMetrics.rejected
     }
   ]
-  const repoNames = orgFilter==="All Organizations"?['All', ...Object.keys(issuesData || {}).map(k => k.split('/')[1])]:['All', ...Object.keys(issuesData || {}).filter(k => k.split('/')[0]===orgFilter).map(i => i.split('/')[1])];
-  const allRepoNames = orgFilter==="All Organizations"?['All Repositories', ...Object.keys(pullsData || {}).map(k => k.split('/')[1])]:['All Repositories', ...Object.keys(pullsData || {}).filter(k => k.split('/')[0]===orgFilter).map(i => i.split('/')[1])];
+
+  const repoNames = ['All', ...Object.keys(issuesData || {}).filter(key => orgFilter === 'All Organizations' || key.split('/')[0] === orgFilter)]
+  const allRepoNames = ['All Repositories', ...Object.keys(pullsData || {}).filter(key => orgFilter === 'All Organizations' || key.split('/')[0] === orgFilter)]
   const hasData = Object.keys(issuesData || {}).length > 0
   const hasPullsData = Object.keys(pullsData || {}).length > 0
   const hasSeries = series.length > 0
@@ -136,6 +135,7 @@ export default function AnalyticsPage() {
       {/* Controls */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 24, flexWrap: 'wrap', alignItems: 'center' }}>
         <select
+          aria-label="Filter activity trends by repository"
           value={selectedRepo}
           onChange={e => setSelectedRepo(e.target.value)}
           style={C.select}
@@ -280,6 +280,7 @@ export default function AnalyticsPage() {
           />
 
           <select
+            aria-label="Filter advanced metrics by repository"
             value={selectedRepoForAM}
             onChange={e => setSelectedRepoForAM(e.target.value)}
             style={{
