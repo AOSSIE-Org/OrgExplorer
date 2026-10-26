@@ -255,13 +255,22 @@ export function AppProvider({ children }) {
       localStorage.setItem('oe_recent', JSON.stringify(next))
       return builtModel
     } catch (err) {
-      setError(err.message === 'RATE_LIMIT'
-        ? (pat
-            ? 'GitHub API rate limit reached. Please wait for your quota to refresh.'
-            : 'GitHub API rate limit reached. Add a PAT in Settings for 5,000 req/hr.')
-        : err.message)
-      return false
-    } finally {
+        if (err.message === 'RATE_LIMIT') {
+          setError(
+            pat
+              ? 'GitHub API rate limit reached. Please wait for your quota to refresh.'
+              : 'GitHub API rate limit reached. Add a PAT in Settings for 5,000 req/hr.'
+          )
+        } else if (err.message === 'HTTP_401') {
+          setError(
+            'Your GitHub PAT may have expired or become invalid. Please check or replace it in Settings.'
+          )
+        } else {
+          setError(err.message)
+        }
+
+        return false
+      } finally {
       setLoading(false); setLoadMsg('')
     }
   }, [pat])
