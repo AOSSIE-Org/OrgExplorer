@@ -13,6 +13,35 @@ function makeRepo(name, overrides = {}) {
 }
 
 describe('buildAnalyticalModel', () => {
+  it.each(['constructor', 'toString', 'hasOwnProperty'])(
+    'aggregates contributor %s without treating inherited properties as records',
+    login => {
+      const orgs = [{ login: 'org-a' }, { login: 'org-b' }]
+      const reposPerOrg = {
+        'org-a': [makeRepo('repo-a')],
+        'org-b': [makeRepo('repo-b')],
+      }
+      const contribsPerRepo = {
+        'org-a/repo-a': [{ login, contributions: 10 }],
+        'org-b/repo-b': [{ login, contributions: 15 }],
+      }
+
+      const result = buildAnalyticalModel(orgs, reposPerOrg, contribsPerRepo, reposPerOrg)
+
+      expect(result.contributors).toHaveLength(1)
+      expect(result.contributors[0]).toMatchObject({
+        login,
+        totalContribs: 25,
+        orgs: ['org-a', 'org-b'],
+        isCrossOrg: true,
+      })
+      expect(result.contributors[0].repos).toEqual([
+        { name: 'repo-a', org: 'org-a', count: 10 },
+        { name: 'repo-b', org: 'org-b', count: 15 },
+      ])
+    },
+  )
+
   it('populates totalRepos from totalReposPerOrg, including repos with no contributor data', () => {
     const orgs = [{ login: 'org-a' }]
     const repoA = makeRepo('repo-a')

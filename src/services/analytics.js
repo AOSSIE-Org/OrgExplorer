@@ -42,7 +42,7 @@ export function computeBusFactor(contributors = []) {
 // Organization → Repositories → Contributors → Issues/PRs
 export function buildAnalyticalModel(orgs, reposPerOrg, contribsPerRepo, totalReposPerOrg) {
   const allRepos = []
-  const contributorMap = {}
+  const contributorMap = Object.create(null)
   const totalRepos = [];
 
   orgs.forEach(org => {
