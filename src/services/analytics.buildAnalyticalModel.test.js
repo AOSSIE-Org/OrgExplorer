@@ -13,7 +13,7 @@ function makeRepo(name, overrides = {}) {
 }
 
 describe('buildAnalyticalModel', () => {
-  it.each(['constructor', 'toString', 'hasOwnProperty'])(
+  it.each(['constructor', 'toString', 'hasOwnProperty', '__proto__'])(
     'aggregates contributor %s without treating inherited properties as records',
     login => {
       const orgs = [{ login: 'org-a' }, { login: 'org-b' }]
