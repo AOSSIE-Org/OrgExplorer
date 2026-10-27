@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef } from 'react'
-import { fetchOrg, fetchRepos, fetchContributors, fetchIssues, fetchRateLimit, fetchPulls } from '../services/github'
+import { fetchOrg, fetchRepos, fetchContributors, fetchIssues, fetchGovernanceIssues , fetchRateLimit, fetchPulls } from '../services/github'
 import { buildAnalyticalModel, getTopRepositories } from '../services/analytics'
 import { saveAnalysis, loadAnalysis } from '../services/cache'
 
@@ -291,10 +291,10 @@ export function AppProvider({ children }) {
     for (let i = 0; i < repos.length; i += 5) {
       const batch = repos.slice(i, i + 5)
       await Promise.allSettled(batch.map(async repo => {
-        map[`${repo.orgLogin}/${repo.name}`] = await fetchIssues(repo.orgLogin, repo.name, pat)
+        map[`${repo.orgLogin}/${repo.name}`] = await fetchGovernanceIssues(repo.orgLogin, repo.name, pat)
       }))
     }
-    return map
+    return maps
   }, [pat, selectAnalysisRepos])
 
   // Governance audit : used directly when repos are already complete
