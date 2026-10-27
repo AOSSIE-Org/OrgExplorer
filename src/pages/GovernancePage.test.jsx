@@ -1,4 +1,3 @@
-
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import GovernancePage from './GovernancePage'
@@ -24,6 +23,11 @@ vi.mock('../context/AppContext', () => ({
         { id: 2, state: 'open' },
         { id: 3, state: 'closed', pull_request: { url: 'pr/3' } },
         { id: 4, state: 'closed', pull_request: { url: 'pr/4' } }
+      ],
+
+      // Added to verify organization-specific filtering
+      'other-org/test-repo': [
+        { id: 5, state: 'closed' }
       ]
     },
     runAudit: vi.fn(),
@@ -36,7 +40,7 @@ vi.mock('../context/AppContext', () => ({
 }))
 
 describe('GovernancePage - Issue Resolution Rate', () => {
-  it('excludes pull requests when calculating the issue resolution rate', () => {
+  it('excludes pull requests and issues from other organizations', () => {
     render(<GovernancePage />)
 
     expect(screen.getByText('50%')).toBeInTheDocument()
