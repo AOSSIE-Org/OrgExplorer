@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, act } from '@testing-library/react'
+import { render, screen, act,waitFor} from '@testing-library/react'
 import React from 'react'
 import { AppProvider, useApp } from './AppContext'
 import * as github from '../services/github'
@@ -168,4 +168,109 @@ describe('AppContext explore rate-limit and error handling', () => {
     expect(await screen.findByTestId('model-loaded')).toBeInTheDocument()
     expect(screen.queryByTestId('error-message')).not.toBeInTheDocument()
   })
+
+  it('limits contributor concurrency to five and waits for each batch to settle', async () => {
+    localStorage.setItem('oe_pat', 'test-pat-token');
+
+    const repos = Array.from({ length: 12 }, (_, i) => ({
+      name: `test-repo-${i + 1}`,
+      stargazers_count: 5,
+      forks_count: 2,
+      open_issues_count: 1,
+    }));
+
+    github.fetchOrg.mockResolvedValue({
+      login: 'test-org',
+      public_repos: repos.length,
+    });
+    github.fetchRepos.mockResolvedValue(repos);
+
+    let activeRequests = 0;
+    let maxConcurrentRequests = 0;
+    let nextBatchStartedTooEarly = false;
+    const pendingRequests = [];
+
+    github.fetchContributors.mockImplementation(() => {
+      const requestNumber = pendingRequests.length;
+
+      // The second batch must not start while the first batch is active.
+      if (requestNumber === 5 && activeRequests !== 0) {
+        nextBatchStartedTooEarly = true;
+      }
+
+      activeRequests += 1;
+      maxConcurrentRequests = Math.max(
+        maxConcurrentRequests,
+        activeRequests
+      );
+
+      return new Promise(resolve => {
+        pendingRequests.push({
+          resolve: contributors => {
+            activeRequests -= 1;
+            resolve(contributors);
+          },
+        });
+      });
+    });
+
+    render(
+      <AppProvider>
+        <TestExplorer />
+      </AppProvider>
+    );
+
+    await act(async () => {
+      screen.getByText('Explore').click();
+    });
+
+    // The first batch should contain exactly five requests.
+    await waitFor(() => {
+      expect(github.fetchContributors).toHaveBeenCalledTimes(5);
+    });
+
+    expect(activeRequests).toBe(5);
+
+    // Complete the first batch, allowing the second batch to begin.
+    await act(async () => {
+      pendingRequests.slice(0, 5).forEach(request => {
+        request.resolve([]);
+      });
+    });
+
+    await waitFor(() => {
+      expect(github.fetchContributors).toHaveBeenCalledTimes(10);
+    });
+
+    expect(nextBatchStartedTooEarly).toBe(false);
+    expect(activeRequests).toBe(5);
+
+    // Complete the second batch, allowing the final two requests to begin.
+    await act(async () => {
+      pendingRequests.slice(5, 10).forEach(request => {
+        request.resolve([]);
+      });
+    });
+
+    await waitFor(() => {
+      expect(github.fetchContributors).toHaveBeenCalledTimes(12);
+    });
+
+    expect(nextBatchStartedTooEarly).toBe(false);
+    expect(activeRequests).toBe(2);
+
+    // Complete the final batch.
+    await act(async () => {
+      pendingRequests.slice(10, 12).forEach(request => {
+        request.resolve([]);
+      });
+    });
+
+    expect(await screen.findByTestId('model-loaded')).toBeInTheDocument();
+    expect(github.fetchContributors).toHaveBeenCalledTimes(12);
+    expect(maxConcurrentRequests).toBe(5);
+    expect(activeRequests).toBe(0);
+    expect(nextBatchStartedTooEarly).toBe(false);
+  });
+
 })
