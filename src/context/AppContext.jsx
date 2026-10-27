@@ -227,15 +227,24 @@ export function AppProvider({ children }) {
         const top = pat ? (reposPerOrg[org.login] || []) : getTopRepositories(reposPerOrg[org.login] || [], 10);
         reposPerOrg[org.login] = top;
 
-        const contribRes = await Promise.allSettled(top.map(async repo => {
-          const contribs = await fetchContributors(org.login, repo.name, pat)
-          contribsPerRepo[`${org.login}/${repo.name}`] = contribs
-          return contribs
-        }))
+        for (let i = 0; i < top.length; i += 5) {
+          const batch = top.slice(i, i + 5)
 
-        const contribRateLimit = contribRes.find(r => r.status === 'rejected' && r.reason?.message === 'RATE_LIMIT')
-        if (contribRateLimit) {
-          throw new Error('RATE_LIMIT')
+          const contribRes = await Promise.allSettled(
+            batch.map(async repo => {
+              const contribs = await fetchContributors(org.login, repo.name, pat)
+              contribsPerRepo[`${org.login}/${repo.name}`] = contribs
+              return contribs
+            })
+          )
+
+          const contribRateLimit = contribRes.find(
+            r => r.status === 'rejected' && r.reason?.message === 'RATE_LIMIT'
+          )
+
+          if (contribRateLimit) {
+            throw new Error('RATE_LIMIT')
+          }
         }
       }
 
