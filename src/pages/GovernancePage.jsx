@@ -336,7 +336,11 @@ export default function GovernancePage() {
         <div style={{ fontWeight: 600, marginBottom: 4 }}>Issue Resolution Rate</div>
         <div style={{ ...C.label, marginBottom: 16 }}>Resolution velocity across key repositories</div>
         {topRepos.map(r => {
-          const repoIssues = allIssues.filter(i => i.repoName === r.name)
+          const repoIssues = allIssues.filter(i =>
+            i.repoName === r.name &&
+            i.orgName === r.orgLogin &&
+            !i.pull_request
+          )
           const closed = repoIssues.filter(i => i.state === 'closed').length
           const total = repoIssues.length
           const rate = total ? Math.round(closed / total * 100) : null
