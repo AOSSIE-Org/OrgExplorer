@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef } from 'react'
-import { fetchOrg, fetchRepos, fetchContributors, fetchIssues, fetchRateLimit, fetchPulls } from '../services/github'
+import { fetchOrg, fetchRepos, fetchContributors, fetchIssues, fetchGovernanceIssues , fetchRateLimit, fetchPulls } from '../services/github'
 import { buildAnalyticalModel, getTopRepositories } from '../services/analytics'
 import { saveAnalysis, loadAnalysis } from '../services/cache'
 
@@ -297,11 +297,28 @@ export function AppProvider({ children }) {
     return map
   }, [pat, selectAnalysisRepos])
 
+  const fetchGovernanceRepos = useCallback(async (allRepos) => {
+  const repos = selectAnalysisRepos(allRepos)
+
+  const map = {}
+  for (let i = 0; i < repos.length; i += 5) {
+    const batch = repos.slice(i, i + 5)
+    await Promise.allSettled(batch.map(async repo => {
+      map[`${repo.orgLogin}/${repo.name}`] = await fetchGovernanceIssues(
+        repo.orgLogin,
+        repo.name,
+        pat
+      )
+    }))
+  }
+  return map
+}, [pat, selectAnalysisRepos])
+
   // Governance audit : used directly when repos are already complete
   const runAudit = useCallback(async () => {
     if (!model || govLoading) return
     setGovLoading(true)
-    const map = await auditRepos(model.allRepos)
+    const map = await fetchGovernanceRepos(model.allRepos)
     setIssuesData(map)
     setGovLoading(false)
     setAuditComplete(!!pat)
@@ -327,7 +344,7 @@ export function AppProvider({ children }) {
     if (!currentModel) return
 
     setGovLoading(true)
-    const map = await auditRepos(currentModel.allRepos)
+    const map = await fetchGovernanceRepos(currentModel.allRepos)
     setIssuesData(map)
     setGovLoading(false)
     setAuditComplete(!!pat)

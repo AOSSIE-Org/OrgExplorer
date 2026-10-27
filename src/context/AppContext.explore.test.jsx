@@ -14,6 +14,7 @@ vi.mock('../services/github', () => ({
   fetchRepos: vi.fn(),
   fetchContributors: vi.fn(),
   fetchIssues: vi.fn(),
+  fetchGovernanceIssues: vi.fn(),
   fetchRateLimit: vi.fn(),
   fetchPulls: vi.fn(),
 }))

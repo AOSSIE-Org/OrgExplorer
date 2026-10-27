@@ -180,6 +180,25 @@ export async function fetchIssues(org, repo, pat) {
   return all
 }
 
+
+export async function fetchGovernanceIssues(org, repo, pat) {
+  const all = []
+  const maxPages = pat ? 10 : 1
+
+  for (let page = 1; page <= maxPages; page++) {
+    const url =
+      `https://api.github.com/repos/${org}/${repo}/issues?state=open&sort=created&direction=asc&per_page=100&page=${page}`
+
+    const data = await fetchWithCache(url, pat)
+    all.push(...data)
+
+    if (data.length < 100) break
+  }
+
+  return all
+}
+
+
 export async function fetchPulls(org, repo, pat) {
   const all = []
   const maxPages = pat ? 10 : 1
