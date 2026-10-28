@@ -119,20 +119,32 @@ export function Spinner({ size = 28 }) {
 export function SortTh({ label, sortKey, sortConfig, onSort }) {
   const active = sortConfig.key === sortKey
   const Icon = !active ? FiChevronsUpDown : sortConfig.dir === 'desc' ? FiChevronDown : FiChevronUp
+  const ariaSort = !active ? 'none' : sortConfig.dir === 'desc' ? 'descending' : 'ascending'
   return (
     <th
-      onClick={() => onSort(sortKey)}
+      aria-sort={ariaSort}
       style={{
-        padding: '10px 14px', textAlign: 'left', cursor: 'pointer',
+        padding: 0, textAlign: 'left',
         userSelect: 'none', whiteSpace: 'nowrap', fontSize: 11,
         fontWeight: 600, letterSpacing: '.06em',
         background: 'var(--surface2)', borderBottom: '1px solid var(--border)',
         color: active ? 'var(--accent)' : 'var(--text2)',
       }}
     >
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-        {label} <Icon size={12} />
-      </span>
+      {/* Padding lives on the button so the whole cell stays clickable. */}
+      <button
+        type="button"
+        onClick={() => onSort(sortKey)}
+        style={{
+          display: 'inline-flex', alignItems: 'center', gap: 4,
+          width: '100%', padding: '10px 14px',
+          background: 'none', border: 'none', color: 'inherit',
+          font: 'inherit', letterSpacing: 'inherit', textAlign: 'inherit',
+          whiteSpace: 'inherit', cursor: 'pointer',
+        }}
+      >
+        {label} <Icon size={12} aria-hidden="true" />
+      </button>
     </th>
   )
 }
