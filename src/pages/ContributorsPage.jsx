@@ -16,7 +16,7 @@ export default function ContributorsPage() {
   const [shown, setShown] = useState(20)
   const [openInfo, setOpenInfo] = useState(null)
   const [selectedOrg, setSelectedOrg] = useState('all')
- const busFactorRef = useRef(null)
+  const busFactorRef = useRef(null)
   const freshnessRef = useRef(null)
   const signalRef = useRef(null)
 
@@ -54,7 +54,7 @@ export default function ContributorsPage() {
   }, [orgs])
 
 
-  
+
 
   const scopedContributors = useMemo(() => {
     if (selectedOrg === 'all') {
@@ -65,7 +65,7 @@ export default function ContributorsPage() {
       contributor.orgs.includes(selectedOrg)
     )
   }, [contributors, selectedOrg])
-  
+
   const busFactor = useMemo(
     () => computeBusFactor(scopedContributors),
     [scopedContributors]
@@ -84,8 +84,9 @@ export default function ContributorsPage() {
 
   const { sorted, sortConfig, onSort } = useSortedData(filtered, 'totalContribs', 'desc')
   const visible = sorted.slice(0, shown)
+  const showNoSearchResults = search.trim() && filtered.length === 0
 
-  if(loading) return <ContributorSkeleton />
+  if (loading) return <ContributorSkeleton />
   if (!model) return null
 
   const topActive = scopedContributors
@@ -123,14 +124,14 @@ export default function ContributorsPage() {
         title="Contributor Intelligence"
         subtitle="Analyzing contribution patterns, coverage risk, and organizational health"
         right={
-          <button onClick={() => exportContributorsCSV(filtered)} style={{ ...C.btn('ghost'), fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}>
+          <button onClick={() => exportContributorsCSV(sorted)} style={{ ...C.btn('ghost'), fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}>
             <FiDownload size={13} /> Export CSV
           </button>
         }
       />
 
       {/* Signal panels */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
+      <div className="contributors-signal-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
 
         {/* Bus Factor */}
         <div style={{
@@ -152,7 +153,7 @@ export default function ContributorsPage() {
             </button>
 
             {openInfo === 'busfactor' && (
-              <div style={{ ...C.card, position: 'absolute', top: '120%', right: 0, width: '320px', zIndex: 100 }}>
+              <div className="info-popover" style={{ ...C.card, position: 'absolute', top: '120%', right: 0, width: '320px', zIndex: 100 }}>
                 <div className='text-xs text-(--text)'>
                   <h4 style={{ marginBottom: 8 }} className='text-(--accent)'>Bus Factor</h4>
 
@@ -222,7 +223,7 @@ export default function ContributorsPage() {
                   width: '320px',
                   zIndex: 100,
                 }}
-                className='text-xs'
+                className='text-xs info-popover'
               >
                 <div className="text-(--text) text-xs">
                   <h4 className='text-(--accent)'>Freshness Index</h4>
@@ -299,7 +300,7 @@ export default function ContributorsPage() {
               }}
               aria-label="Filter contributors by organization"
             >
-              <option value="all">All Contributors</option>
+              <option value="all">All Organizations</option>
 
               {organizationOptions.map(org => (
                 <option key={org} value={org}>
@@ -350,6 +351,7 @@ export default function ContributorsPage() {
                             width: '320px',
                             zIndex: 100,
                           }}
+                          className="info-popover"
                         >
                           <h4 className='mb-2 text-(--accent)'>Contributor Signals</h4>
 
@@ -424,7 +426,7 @@ export default function ContributorsPage() {
                       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                         {c.isConnector && <span style={C.pill('var(--accent)', 'rgba(245,197,24,.12)')}>CONNECTOR</span>}
                         {c.isCrossOrg && <span style={C.pill('var(--purple)', 'rgba(168,85,247,.12)')}>CROSS-ORG</span>}
-                        {c.freshness > 70 && <span style={C.pill('var(--green)', 'rgba(34,197,94,.12)')}>ACTIVE</span>}
+                        {c.freshness > 70 ? <span style={C.pill('var(--green)', 'rgba(34,197,94,.12)')}>ACTIVE</span>:<span style={C.pill('var(--red)', 'rgba(239, 68, 68, 0.12)')}>INACTIVE</span>}
                       </div>
                     </td>
                   </tr>

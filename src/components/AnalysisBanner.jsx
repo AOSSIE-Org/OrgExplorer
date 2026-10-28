@@ -16,6 +16,7 @@ export default function AnalysisBanner({ page, description, onRun, loading = fal
   return (
     <>
       <div
+        className="analysis-banner"
         style={{
           marginBottom: 24,
 
@@ -37,6 +38,7 @@ export default function AnalysisBanner({ page, description, onRun, loading = fal
         {/* Left */}
 
         <div
+          className="analysis-banner-content"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -102,6 +104,7 @@ export default function AnalysisBanner({ page, description, onRun, loading = fal
         {/* Right */}
 
         <div
+          className="analysis-banner-actions"
           style={{
             display: 'flex',
             alignItems: 'center',
