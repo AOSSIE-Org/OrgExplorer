@@ -5,8 +5,7 @@ on:
     branches:
       - main
       - master
-  pull_request:
-    types: [closed]
+
 
 permissions:
   contents: write
