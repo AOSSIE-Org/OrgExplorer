@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { FiBarChart2, FiBook, FiChevronRight, FiExternalLink, FiHeart, FiHome, FiMenu, FiSettings, FiShare2, FiShield, FiSun, FiUsers, FiZap, FiX } from 'react-icons/fi'
+import { FiAlertCircle, FiBarChart2, FiBook, FiChevronRight, FiExternalLink, FiHeart, FiHome, FiMenu, FiSettings, FiShare2, FiShield, FiSun, FiUsers, FiZap, FiX } from 'react-icons/fi'
 import { useApp } from '../context/AppContext'
 import ThemeToggle from './ThemeToggle'
 import Logo from "../assets/og-logo.svg?react";
@@ -9,6 +9,7 @@ const LINKS = [
   { to: '/overview', label: 'Overview', icon: FiHome },
   { to: '/repositories', label: 'Repositories', icon: FiBook },
   { to: '/contributors', label: 'Contributors', icon: FiUsers },
+  { to: '/issues', label: 'Issues', icon: FiAlertCircle },
   { to: '/network', label: 'Network', icon: FiShare2 },
   { to: '/analytics', label: 'Analytics', icon: FiBarChart2 },
   { to: '/governance', label: 'Governance', icon: FiShield },
