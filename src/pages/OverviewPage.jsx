@@ -25,7 +25,7 @@ export default function OverviewPage() {
   const location = useLocation();
   const chips = location.state?.chips || [];
   const verifiedOrgs = orgs.map(o => o.login);
-  const notVerifiedOrgs = chips.filter(c => !verifiedOrgs.some(org => c.trim() === org));
+  const notVerifiedOrgs = chips.filter(c => !verifiedOrgs.some(org => c.trim().toLowerCase() === org.toLowerCase()));
 
   useEffect(() => {
     function handleClickOutside(event) {
