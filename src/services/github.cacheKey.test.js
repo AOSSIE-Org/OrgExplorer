@@ -195,4 +195,44 @@ describe('empty-repository responses', () => {
     await expect(fetchOrg('missing-org', 'pat')).rejects.toThrow('NOT_FOUND')
     await expect(fetchContributors('AOSSIE-Org', 'repo-a', 'pat')).rejects.toThrow('RATE_LIMIT')
   })
+
+  it('throws RATE_LIMIT on HTTP 429', async () => {
+    installFakeIndexedDB()
+    vi.stubGlobal('fetch', async () => ({
+      status: 429,
+      ok: false,
+      headers: { get: () => null },
+      json: async () => ({ message: 'Too Many Requests' })
+    }))
+
+    await expect(fetchOrg('test-org', 'pat')).rejects.toThrow('RATE_LIMIT')
+  })
+
+  it('throws RATE_LIMIT on HTTP 403 with remaining 0 or secondary rate limit message', async () => {
+    installFakeIndexedDB()
+    vi.stubGlobal('fetch', async () => ({
+      status: 403,
+      ok: false,
+      headers: {
+        get: (h) => (h === 'x-ratelimit-remaining' ? '0' : null)
+      },
+      json: async () => ({ message: 'API rate limit exceeded' })
+    }))
+
+    await expect(fetchOrg('test-org', 'pat')).rejects.toThrow('RATE_LIMIT')
+  })
+
+  it('throws HTTP_403 on HTTP 403 when not rate-limited (e.g. authorization error)', async () => {
+    installFakeIndexedDB()
+    vi.stubGlobal('fetch', async () => ({
+      status: 403,
+      ok: false,
+      headers: {
+        get: (h) => (h === 'x-ratelimit-remaining' ? '4999' : null)
+      },
+      json: async () => ({ message: 'Resource not accessible by integration' })
+    }))
+
+    await expect(fetchOrg('test-org', 'pat')).rejects.toThrow('HTTP_403')
+  })
 })

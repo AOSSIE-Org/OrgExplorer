@@ -1,5 +1,5 @@
 import React, { Suspense, Component, useEffect } from 'react'
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { Routes, Route, useLocation } from 'react-router-dom'
 import { AppProvider } from './context/AppContext'
 import { ThemeProvider } from './context/ThemeContext'
 import Navbar          from './components/Navbar'
@@ -18,6 +18,7 @@ const AnalyticsPage          = React.lazy(() => import('./pages/AnalyticsPage'))
 const GovernancePage         = React.lazy(() => import('./pages/GovernancePage'))
 const SettingsPage           = React.lazy(() => import('./pages/SettingsPage'))
 const Support                = React.lazy(() => import('./pages/Support'))
+const NotFoundPage           = React.lazy(() => import('./pages/NotFoundPage'))
 
 const ROUTE_STRINGS = {
   ERROR_TITLE: 'Unable to load page',
@@ -102,7 +103,7 @@ function AppContent() {
             <Route path="/governance"   element={<RequireAnalysis><GovernancePage /></RequireAnalysis>} />
             <Route path="/settings"     element={<SettingsPage />} />
             <Route path="/support-us"   element={<Support />} />
-            <Route path="*"             element={<Navigate to="/" replace />} />
+            <Route path="*"             element={<NotFoundPage />} />
           </Routes>
         </Suspense>
       </ErrorBoundary>

@@ -26,7 +26,7 @@ export function useAdvancedMetrics(pulls = []) {
   return useMemo(() => {
     if (!pulls || !pulls.length) {
       return {
-        avgMergeDays: 0,
+        avgMergeHours: 0,
         acceptanceRate: 0,
         merged: 0,
         rejected: 0
@@ -44,10 +44,10 @@ export function useAdvancedMetrics(pulls = []) {
       return Number.isFinite(duration) && duration >= 0 ? sum + duration : sum
     }, 0)
 
-    const avgMergeDays =
+    const avgMergeHours =
       mergedPRs.length === 0
         ? 0
-        : (totalMergeTime / mergedPRs.length / (1000 * 60 * 60 * 24)) || 0
+        : (totalMergeTime / mergedPRs.length / (1000 * 60 * 60)) || 0
 
     const acceptanceRate =
       mergedPRs.length + rejectedPRs.length === 0
@@ -57,7 +57,7 @@ export function useAdvancedMetrics(pulls = []) {
           100
 
     return {
-      avgMergeDays,
+      avgMergeHours,
       acceptanceRate,
       merged: mergedPRs.length,
       rejected: rejectedPRs.length
