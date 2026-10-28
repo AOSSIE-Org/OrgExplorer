@@ -2,7 +2,7 @@
 
 <div align="center" style="display: flex; align-items: center; justify-content: center; gap: 16px;">
   <img alt="AOSSIE" src="public/aossie-logo.svg" width="175">
-  <img src="public/org-explorer-logo.png" width="175" />
+  <img src="public/org-explorer-logo.svg" width="175" />
 </div>
 
 <div align="center">
@@ -15,6 +15,16 @@
 
 </div>
 
+---
+
+## 🚀 Latest Release
+
+**OrgExplorer v1.0.0 is here!**
+
+Explore GitHub organizations, analyze repositories, visualize contributor networks,
+and discover organization insights.
+
+[View Release Notes](https://github.com/AOSSIE-Org/OrgExplorer/releases/tag/v1.0.0)
 ---
 
 **OrgExplorer** transforms GitHub organizations into interactive, visual intelligence dashboards. Explore repository relationships, contributor networks, activity trends, risk metrics, and organizational health—all without leaving your browser.
@@ -34,6 +44,9 @@
 - **Fully Browser-Based** — Runs entirely in the browser with GitHub's REST API. No backend server required.
 
 - **Organization Dashboard** — Overview of repositories, stars, contributors, creation timeline, tech stack, and activity metrics.
+  The creation timeline groups loaded repositories by UTC month or year, follows the organization filter,
+  and shows period counts and cumulative totals on hover. These totals cover loaded repositories;
+  deleted repositories and complete historical totals are not represented.
 
 - **Repository Analytics** — Deep insights into repository health, commit frequency, contributor density, issue trends, and language composition.
 

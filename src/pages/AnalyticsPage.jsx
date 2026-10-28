@@ -28,18 +28,34 @@ export default function AnalyticsPage() {
   const [granularity,   setGranularity]   = useState('monthly')
   const [selectedRepo, setSelectedRepo] = useState('All')
   const [selectedRepoForAM, setSelectedRepoForAM] = useState("All Repositories");
-
+  const [orgFilter, setOrgFilter] = useState('All Organizations')
+  const allOrgs = issuesData?[...new Set((Object.keys(issuesData)).map(k=>k.split('/')[0]))]:[...new Set((Object.keys(pullsData)).map(k=>k.split('/')[0]))];//array of all orgs
+  const handleOrgChange = e => {
+    setOrgFilter(e.target.value)
+    setSelectedRepoForAM("All Repositories");
+    setSelectedRepo("All");
+  }
   const allIssues = useMemo(() => {
     const arr = []
     Object.values(issuesData || {}).forEach(issues => arr.push(...issues))
     return arr
   }, [issuesData])
+  const allIssuesOfOrg = useMemo(() => {
+    const arr = []
+    Object.entries(issuesData).forEach(a=>a[0].split('/')[0]===orgFilter&&arr.push(...a[1]));
+    return arr
+  }, [issuesData,orgFilter])
+  const allPullsOfOrg = useMemo(() => {
+    const arr = []
+    Object.entries(pullsData).forEach(a=>a[0].split('/')[0]===orgFilter&&arr.push(...a[1]));
+    return arr.flat();
+  }, [pullsData,orgFilter])
 
   const filteredIssues = useMemo(() => {
-    if (selectedRepo === 'All') return allIssues
+    if (selectedRepo === 'All') return orgFilter==="All Organizations"?allIssues:allIssuesOfOrg;
     const key = Object.keys(issuesData || {}).find(k => k.split('/')[1] === selectedRepo)
     return key ? (issuesData[key] || []) : []
-  }, [allIssues, selectedRepo, issuesData])
+  }, [allIssues, selectedRepo, issuesData,orgFilter])
 
   const series = useMemo(() =>
     buildTimeSeries(filteredIssues, granularity),
@@ -47,10 +63,10 @@ export default function AnalyticsPage() {
   )
 
   const filteredPulls = useMemo(() => {
-    if (selectedRepoForAM === 'All Repositories') return Object.values(pullsData || {}).flat()
+    if (selectedRepoForAM === 'All Repositories') return orgFilter==="All Organizations"? Object.values(pullsData || {}).flat():allPullsOfOrg;
     const key = Object.keys(pullsData || {}).find(k => k.split('/')[1] === selectedRepoForAM)
     return key ? (pullsData[key] || []) : []
-  }, [pullsData, selectedRepoForAM])
+  }, [pullsData, selectedRepoForAM,orgFilter])
 
   const advancedMetrics = useAdvancedMetrics(filteredPulls)
 
@@ -67,9 +83,8 @@ export default function AnalyticsPage() {
       value: advancedMetrics.rejected
     }
   ]
-  
-  const repoNames = ['All', ...Object.keys(issuesData || {}).map(k => k.split('/')[1])]
-  const allRepoNames = ['All Repositories', ...Object.keys(pullsData || {}).map(k => k.split('/')[1])]
+  const repoNames = orgFilter==="All Organizations"?['All', ...Object.keys(issuesData || {}).map(k => k.split('/')[1])]:['All', ...Object.keys(issuesData || {}).filter(k => k.split('/')[0]===orgFilter).map(i => i.split('/')[1])];
+  const allRepoNames = orgFilter==="All Organizations"?['All Repositories', ...Object.keys(pullsData || {}).map(k => k.split('/')[1])]:['All Repositories', ...Object.keys(pullsData || {}).filter(k => k.split('/')[0]===orgFilter).map(i => i.split('/')[1])];
   const hasData = Object.keys(issuesData || {}).length > 0
   const hasPullsData = Object.keys(pullsData || {}).length > 0
   const hasSeries = series.length > 0
@@ -79,20 +94,20 @@ export default function AnalyticsPage() {
   const mergeGauge = [
     {
       value: Math.min(
-        (advancedMetrics.avgMergeDays / MAX_DAYS) * 100,
+        ((advancedMetrics.avgMergeHours/24) / MAX_DAYS) * 100,
         100
       )
     }
   ]
 
-  const getMergeColor = days => {
-    if (days <= 5) return 'var(--green)'
-    if (days <= 10) return 'var(--accent)'
-    if (days <= 15) return 'var(--amber)'
+  const getMergeColor = hours => {
+    if (hours <= 120) return 'var(--green)'//5 days
+    if (hours <= 240) return 'var(--accent)'//10 days
+    if (hours <= 360) return 'var(--amber)'//15 days
     return 'var(--red)'
   }
   const analyticsComplete = auditComplete && advanceAnalyticsComplete
-  
+
   return (
     <>
     <div style={{ padding: '32px 24px', maxWidth: 1100, margin: '0 auto' }} className="fade-up">
@@ -152,6 +167,15 @@ export default function AnalyticsPage() {
               : 'Load Issue and PR History'}
           </button>
         )}
+        <select
+          value={orgFilter}
+          onChange={handleOrgChange}
+          style={C.select}
+          aria-label="Filter stats by organization"
+        >
+          <option>All Organizations</option>
+          {allOrgs.map(o => <option key={o}>{o}</option>)}
+        </select>
       </div>
 
       {/* Empty state before audit runs */}
@@ -228,13 +252,13 @@ export default function AnalyticsPage() {
         </InfoBox>
       )}
     </div>
-      
+
     <div style={{ padding: '32px 24px', maxWidth: 1100, margin: '0 auto' }} className="fade-up">
       <PageTitle
         title="Advanced Analytics"
         subtitle="Key metrics and trends for your organization, including PR acceptance rate and PR average merge time, and more."
       />
-        
+
       {/* Controls */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 24, flexWrap: 'wrap', alignItems: 'center' }}>
         {/* Repository Selection */}
@@ -282,7 +306,7 @@ export default function AnalyticsPage() {
             }}
           />
         </div>
-          
+
         {!hasPullsData && (
           <button
             onClick={() => pat ? runFullAnalytics() : runAdvanceAnalytics()}
@@ -295,6 +319,15 @@ export default function AnalyticsPage() {
               : 'Collect Advanced Metrics'}
           </button>
         )}
+        <select
+          value={orgFilter}
+          onChange={handleOrgChange}
+          style={C.select}
+          aria-label="Filter stats by organization"
+        >
+          <option>All Organizations</option>
+          {allOrgs.map(o => <option key={o}>{o}</option>)}
+        </select>
       </div>
 
       {/* Empty state before audit runs */}
@@ -370,14 +403,14 @@ export default function AnalyticsPage() {
                 style={{
                   fontSize: 34,
                   fontWeight: 700,
-                  color: getMergeColor(advancedMetrics.avgMergeDays),
+                  color: getMergeColor(advancedMetrics.avgMergeHours),
                   lineHeight: 1,
                 }}
-                className={`${getMergeColor(advancedMetrics.avgMergeDays)}`}>
-                {advancedMetrics.avgMergeDays.toFixed(1)}
+                className={`${getMergeColor(advancedMetrics.avgMergeHours)}`}>
+                {advancedMetrics.avgMergeHours.toFixed(1)>=24?`${((advancedMetrics.avgMergeHours)/24).toFixed(1)}`:`${advancedMetrics.avgMergeHours.toFixed(1)}`}
               </span>
               <span style={{ color: 'var(--text2)', fontSize: 14 }}>
-              &nbsp;Days
+              &nbsp;{`${advancedMetrics.avgMergeHours.toFixed(1)>=24?`Days`:'Hours'}`}
               </span>
             </div>
             </div>
@@ -403,7 +436,7 @@ export default function AnalyticsPage() {
                   clockWise
                   dataKey="value"
                   cornerRadius={12}
-                  fill={getMergeColor(advancedMetrics.avgMergeDays)}
+                  fill={getMergeColor(advancedMetrics.avgMergeHours)}
                 />
               </RadialBarChart>
             </ResponsiveContainer>
@@ -423,7 +456,7 @@ export default function AnalyticsPage() {
                   fontWeight: 700
                 }}
               >
-                {advancedMetrics.avgMergeDays.toFixed(1)}
+                {advancedMetrics.avgMergeHours.toFixed(1)>=24?`${((advancedMetrics.avgMergeHours)/24).toFixed(1)}`:`${advancedMetrics.avgMergeHours.toFixed(1)}`}
               </div>
 
               <div
@@ -432,27 +465,27 @@ export default function AnalyticsPage() {
                   fontSize: 14
                 }}
               >
-                Days
+                {`${advancedMetrics.avgMergeHours.toFixed(1)>=24?`${((advancedMetrics.avgMergeHours)/24).toFixed(1)} Days`:`${advancedMetrics.avgMergeHours.toFixed(1)} Hours`}`}
               </div>
 
               <div
                 style={{
                   marginTop: 8,
                   fontSize: 13,
-                  color: getMergeColor(advancedMetrics.avgMergeDays),
+                  color: getMergeColor(advancedMetrics.avgMergeHours),
                   fontWeight: 600
                 }}
               >
-                {advancedMetrics.avgMergeDays <= 2
+                {advancedMetrics.avgMergeHours <= 48 // 2days or 48 hrs
                   ? 'Excellent'
-                  : advancedMetrics.avgMergeDays <= 5
+                  : advancedMetrics.avgMergeHours <= 120 //5 days or 120 hrs
                   ? 'Good'
-                  : advancedMetrics.avgMergeDays <= 10
+                  : advancedMetrics.avgMergeHours <= 240 //10 days or 240 hrs
                   ? 'Slow'
                   : 'Very Slow'}
               </div>
             </div>
-            
+
             <div
               style={{
                   marginTop: -20,
@@ -496,7 +529,7 @@ export default function AnalyticsPage() {
                 </div>
 
                 <div>
-                  <span 
+                  <span
                   style={{
                     fontSize: 34,
                     fontWeight: 700,
@@ -556,7 +589,7 @@ export default function AnalyticsPage() {
           </div>
         </div>
       )}
-      
+
     </div>
   </>
   )
