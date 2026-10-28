@@ -11,13 +11,13 @@ vi.mock('./context/AppContext', () => ({
 }))
 
 describe('App routing', () => {
-  it('renders the Not Found page for an unknown route', () => {
+  it('renders the Not Found page for an unknown route', async () => {
     render(
       <MemoryRouter initialEntries={['/this-route-does-not-exist']}>
         <App />
       </MemoryRouter>
     )
 
-    expect(screen.getByRole('heading', { name: /page not found/i })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: /page not found/i })).toBeInTheDocument()
   })
 })

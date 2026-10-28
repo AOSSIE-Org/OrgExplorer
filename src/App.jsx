@@ -87,10 +87,12 @@ function ScrollToTop() {
 }
 
 function AppContent() {
+  const { pathname } = useLocation()
+
   return (
     <Layout>
       <ScrollToTop />
-      <ErrorBoundary>
+      <ErrorBoundary key={pathname}>
         <Suspense fallback={<PageLoader />}>
           <Routes>
             <Route path="/"             element={<HomePage />} />
