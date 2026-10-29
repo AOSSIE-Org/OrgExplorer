@@ -23,6 +23,14 @@ const KEY = 'latest'
 /** Matches the "1HR intelligent cache" the landing page advertises. */
 export const CACHE_TTL_MS = 60 * 60 * 1000
 
+/**
+ * Bump whenever the analytical model's shape or semantics change.
+ * Records written before versioning have no `version` field, so bumping
+ * this invalidates models that predate bot filtering instead of restoring
+ * contributor data that still contains bots.
+ */
+export const ANALYSIS_CACHE_VERSION = 2
+
 function openDb() {
   return new Promise((resolve, reject) => {
     if (typeof indexedDB === 'undefined') {
@@ -60,7 +68,11 @@ function withStore(mode, run) {
 /** Persist the current analysis. Never throws. */
 export async function saveAnalysis(payload) {
   try {
-    await withStore('readwrite', store => store.put({ ...payload, savedAt: Date.now() }, KEY))
+    await withStore('readwrite', store => store.put({
+      ...payload,
+      savedAt: Date.now(),
+      version: ANALYSIS_CACHE_VERSION,
+    }, KEY))
   } catch {
     // Best effort — a full or unavailable store must not break analysis.
   }
@@ -72,6 +84,13 @@ export async function loadAnalysis() {
     const record = await withStore('readonly', store => store.get(KEY))
 
     if (!record?.model) return null
+
+    // Reject models built before the current analytics semantics. This is
+    // what prevents a pre-bot-filter model from being restored after deploy.
+    if (record.version !== ANALYSIS_CACHE_VERSION) {
+      await clearAnalysis()
+      return null
+    }
 
     if (Date.now() - record.savedAt > CACHE_TTL_MS) {
       await clearAnalysis()

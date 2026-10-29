@@ -20,6 +20,21 @@ export function computeActivityClassification(repo) {
   return 'Hibernating'
 }
 
+// Bot detection for human-focused contributor analytics.
+// GitHub marks app bots with `type: "Bot"` and a login ending in `[bot]`.
+// Either signal is enough; the suffix fallback covers responses that omit
+// `type`. Regular automation accounts such as `renovate-bot` with
+// `type: "User"` are intentionally not filtered until an allowlist exists.
+export function isBotContributor(contributor) {
+  if (!contributor) return false
+
+  const type = String(contributor.type || '').toLowerCase()
+  if (type === 'bot') return true
+
+  const login = String(contributor.login || '').trim().toLowerCase()
+  return login.endsWith('[bot]')
+}
+
 //  Bus Factor
 export function computeBusFactor(contributors = []) {
   if (!contributors.length) return { factor: 0, risk: 'unknown' }
@@ -45,13 +60,22 @@ export function buildAnalyticalModel(orgs, reposPerOrg, contribsPerRepo, totalRe
   const contributorMap = {}
   const totalRepos = [];
 
+  // Filter once so repository-level metrics (health diversity, bus factor) and
+  // the organization-level contributor graph consume the same human-only data.
+  const humanContribsPerRepo = Object.fromEntries(
+    Object.entries(contribsPerRepo || {}).map(([key, contributors]) => [
+      key,
+      (contributors || []).filter(contributor => !isBotContributor(contributor)),
+    ])
+  )
+
   orgs.forEach(org => {
     const repos = reposPerOrg[org.login] || []
     const total = totalReposPerOrg[org.login] || [];
 
     total.forEach(repo => {
       const key = `${org.login}/${repo.name}`
-      const contribs = contribsPerRepo[key] || []
+      const contribs = humanContribsPerRepo[key] || []
       const health = computeHealthScore(repo, contribs.length)
       const activityClassification = computeActivityClassification(repo)
       const bf = computeBusFactor(contribs)
@@ -60,7 +84,7 @@ export function buildAnalyticalModel(orgs, reposPerOrg, contribsPerRepo, totalRe
 
     repos.forEach(repo => {
       const key = `${org.login}/${repo.name}`
-      const contribs = contribsPerRepo[key] || []
+      const contribs = humanContribsPerRepo[key] || []
       allRepos.push({ ...repo, orgLogin: org.login });
 
       // Build contributor map — deduplicated by login across orgs
