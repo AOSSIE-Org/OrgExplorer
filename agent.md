@@ -125,6 +125,20 @@ Note: if additional metrics exist in the codebase beyond this list, add them
 here with their formula reference — don't let an agent infer meaning from
 variable names alone.
 
+## Bot filtering
+
+`isBotContributor()` in `services/analytics.js` excludes accounts that GitHub
+marks as `type: "Bot"` or whose login ends in `[bot]`. The filter runs once at
+the start of `buildAnalyticalModel()`, before both the `totalRepos` and
+`allRepos` loops, so repository health diversity, bus factor, connector
+signals, contributor tables/CSV, and the contributor network graph all consume
+the same human-only contributor set.
+
+Regular automation accounts that GitHub marks as `type: "User"` (for example
+`renovate-bot`) are intentionally not filtered. Supporting those requires a
+maintainer-approved allow/deny list, which is out of scope for the initial
+filtering change.
+
 ## Stable Contracts
 
 Unless explicitly requested, do not change:
