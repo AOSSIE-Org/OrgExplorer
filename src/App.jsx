@@ -1,5 +1,6 @@
 import React from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, useLocation } from 'react-router-dom'
+import { useEffect } from 'react'
 import { AppProvider } from './context/AppContext'
 import { ThemeProvider } from './context/ThemeContext'
 import Navbar          from './components/Navbar'
@@ -15,6 +16,8 @@ import GovernancePage  from './pages/GovernancePage'
 import SettingsPage    from './pages/SettingsPage'
 import Footer from './components/layout/Footer'
 import Support from './pages/Support'
+import RequireAnalysis from './components/RequireAnalysis'
+import NotFoundPage from './pages/NotFoundPage'
 
 function Layout({ children }) {
   return (
@@ -27,21 +30,32 @@ function Layout({ children }) {
   )
 }
 
+function ScrollToTop() {
+  const { pathname, search } = useLocation()
+
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [pathname, search])
+
+  return null
+}
+
 function AppContent() {
   return (
     <Layout>
+      <ScrollToTop />
       <Routes>
         <Route path="/"             element={<HomePage />} />
-        <Route path="/overview"     element={<OverviewPage />} />
-        <Route path="/repositories" element={<RepositoriesPage />} />
-        <Route path="/contributors" element={<ContributorsPage />} />
-        <Route path="/contributors/:username" element={<ContributorProfilePage />} />
-        <Route path="/network"      element={<NetworkPage />} />
-        <Route path="/analytics"    element={<AnalyticsPage />} />
-        <Route path="/governance"   element={<GovernancePage />} />
+        <Route path="/overview"     element={<RequireAnalysis><OverviewPage /></RequireAnalysis>} />
+        <Route path="/repositories" element={<RequireAnalysis><RepositoriesPage /></RequireAnalysis>} />
+        <Route path="/contributors" element={<RequireAnalysis><ContributorsPage /></RequireAnalysis>} />
+        <Route path="/contributors/:username" element={<RequireAnalysis><ContributorProfilePage /></RequireAnalysis>} />
+        <Route path="/network"      element={<RequireAnalysis><NetworkPage /></RequireAnalysis>} />
+        <Route path="/analytics"    element={<RequireAnalysis><AnalyticsPage /></RequireAnalysis>} />
+        <Route path="/governance"   element={<RequireAnalysis><GovernancePage /></RequireAnalysis>} />
         <Route path="/settings"     element={<SettingsPage />} />
         <Route path="/support-us"      element={<Support />} />
-        <Route path="*"             element={<Navigate to="/" replace />} />
+        <Route path="*"             element={<NotFoundPage />} />
       </Routes>
     </Layout>
   )

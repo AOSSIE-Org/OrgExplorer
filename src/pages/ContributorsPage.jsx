@@ -11,10 +11,11 @@ import AnalysisBanner from '../components/AnalysisBanner'
 import { ContributorSkeleton } from '../components/Orgexplorerskeletons'
 
 export default function ContributorsPage() {
-  const { model, isComplete, loading, runFullExplore } = useApp()
+  const { model, isComplete, loading, runFullExplore, orgs } = useApp()
   const [search, setSearch] = useState('')
   const [shown, setShown] = useState(20)
   const [openInfo, setOpenInfo] = useState(null)
+  const [selectedOrg, setSelectedOrg] = useState('all')
   const busFactorRef = useRef(null)
   const freshnessRef = useRef(null)
   const signalRef = useRef(null)
@@ -48,22 +49,62 @@ export default function ContributorsPage() {
   const navigate = useNavigate()
   const contributors = model?.contributors ?? []
 
-  const busFactor = useMemo(() => computeBusFactor(contributors), [contributors])
+  const organizationOptions = useMemo(() => {
+    return (orgs ?? []).map(org => org.login)
+  }, [orgs])
 
-  const filtered = useMemo(() =>
-    contributors.filter(c => !search || c.login.toLowerCase().includes(search.toLowerCase())),
-    [contributors, search])
+
+
+
+  const scopedContributors = useMemo(() => {
+    if (selectedOrg === 'all') {
+      return contributors
+    }
+
+    return contributors.filter(contributor =>
+      contributor.orgs.includes(selectedOrg)
+    )
+  }, [contributors, selectedOrg])
+
+  const busFactor = useMemo(
+    () => computeBusFactor(scopedContributors),
+    [scopedContributors]
+  )
+  const filtered = useMemo(() => {
+    const normalizedSearch = search.trim().toLowerCase()
+
+    if (!normalizedSearch) {
+      return scopedContributors
+    }
+
+    return scopedContributors.filter(contributor =>
+      contributor.login.toLowerCase().includes(normalizedSearch)
+    )
+  }, [scopedContributors, search])
 
   const { sorted, sortConfig, onSort } = useSortedData(filtered, 'totalContribs', 'desc')
   const visible = sorted.slice(0, shown)
+  const showNoSearchResults = search.trim() && filtered.length === 0
 
-  if(loading) return <ContributorSkeleton />
+  if (loading) return <ContributorSkeleton />
   if (!model) return null
 
-  const topActive = contributors.slice(0, 10).filter(c => c.freshness > 50).length
-  const freshPct = contributors.length ? Math.round(topActive / Math.min(10, contributors.length) * 100) : 0
-  const connectors = contributors.filter(c => c.isConnector)
-  const crossOrg = contributors.filter(c => c.isCrossOrg)
+  const topActive = scopedContributors
+    .slice(0, 10)
+    .filter(c => c.freshness > 50)
+    .length
+
+  const freshPct = scopedContributors.length
+    ? Math.round(
+      topActive / Math.min(10, scopedContributors.length) * 100
+    )
+    : 0
+
+  const connectors = scopedContributors.filter(
+    c => c.isConnector
+  )
+
+  const crossOrg = scopedContributors.filter(c => c.isCrossOrg)
 
   const riskColor = r => r === 'critical' ? 'var(--red)' : r === 'high' ? 'var(--amber)' : 'var(--green)'
   const riskBar = r => r === 'critical' ? '90%' : r === 'high' ? '60%' : '25%'
@@ -83,14 +124,14 @@ export default function ContributorsPage() {
         title="Contributor Intelligence"
         subtitle="Analyzing contribution patterns, coverage risk, and organizational health"
         right={
-          <button onClick={() => exportContributorsCSV(contributors)} style={{ ...C.btn('ghost'), fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}>
+          <button onClick={() => exportContributorsCSV(sorted)} style={{ ...C.btn('ghost'), fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}>
             <FiDownload size={13} /> Export CSV
           </button>
         }
       />
 
       {/* Signal panels */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
+      <div className="contributors-signal-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
 
         {/* Bus Factor */}
         <div style={{
@@ -112,7 +153,7 @@ export default function ContributorsPage() {
             </button>
 
             {openInfo === 'busfactor' && (
-              <div style={{ ...C.card, position: 'absolute', top: '120%', right: 0, width: '320px', zIndex: 100 }}>
+              <div className="info-popover" style={{ ...C.card, position: 'absolute', top: '120%', right: 0, width: '320px', zIndex: 100 }}>
                 <div className='text-xs text-(--text)'>
                   <h4 style={{ marginBottom: 8 }} className='text-(--accent)'>Bus Factor</h4>
 
@@ -182,7 +223,7 @@ export default function ContributorsPage() {
                   width: '320px',
                   zIndex: 100,
                 }}
-                className='text-xs'
+                className='text-xs info-popover'
               >
                 <div className="text-(--text) text-xs">
                   <h4 className='text-(--accent)'>Freshness Index</h4>
@@ -245,11 +286,34 @@ export default function ContributorsPage() {
             placeholder="Search by username..."
             style={{ ...C.input, width: 220 }}
           />
+          {organizationOptions.length > 0 && (
+            <select
+              value={selectedOrg}
+              onChange={e => {
+                setSelectedOrg(e.target.value)
+                setShown(20)
+              }}
+              style={{
+                ...C.input,
+                width: 220,
+                cursor: 'pointer',
+              }}
+              aria-label="Filter contributors by organization"
+            >
+              <option value="all">All Organizations</option>
+
+              {organizationOptions.map(org => (
+                <option key={org} value={org}>
+                  {org}
+                </option>
+              ))}
+            </select>
+          )}
           <span style={{ fontSize: 12, color: 'var(--text2)' }}>
             {filtered.length} contributors found
           </span>
         </div>
-        {contributors?.length ?
+        {filtered?.length ?
           (<>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
@@ -287,6 +351,7 @@ export default function ContributorsPage() {
                             width: '320px',
                             zIndex: 100,
                           }}
+                          className="info-popover"
                         >
                           <h4 className='mb-2 text-(--accent)'>Contributor Signals</h4>
 
@@ -361,7 +426,7 @@ export default function ContributorsPage() {
                       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                         {c.isConnector && <span style={C.pill('var(--accent)', 'rgba(245,197,24,.12)')}>CONNECTOR</span>}
                         {c.isCrossOrg && <span style={C.pill('var(--purple)', 'rgba(168,85,247,.12)')}>CROSS-ORG</span>}
-                        {c.freshness > 70 && <span style={C.pill('var(--green)', 'rgba(34,197,94,.12)')}>ACTIVE</span>}
+                        {c.freshness > 70 ? <span style={C.pill('var(--green)', 'rgba(34,197,94,.12)')}>ACTIVE</span>:<span style={C.pill('var(--red)', 'rgba(239, 68, 68, 0.12)')}>INACTIVE</span>}
                       </div>
                     </td>
                   </tr>
@@ -379,10 +444,15 @@ export default function ContributorsPage() {
             >
               <EmptyStateCard
                 SvgIcon={<FiDatabase size={36} color='var(--accent)' />}
-                title="No contributors found"
-                description="We couldn't find any contributor data for this organization. "
+                title={search.trim() ? 'No matching contributors' : 'No contributors found'}
+                description={
+                  search.trim()
+                    ? `No contributors match "${search}".`
+                    : "We couldn't find any contributor data for this organization."
+                }
                 buttonText="Go to Home"
-                onButtonClick={() => navigate('/')} />
+                onButtonClick={() => navigate('/')}
+              />
             </div>
           </>)}
       </div>
