@@ -4,6 +4,7 @@ import { FiArrowLeft, FiDownload, FiExternalLink, FiCalendar, FiBriefcase, FiAle
 import { useApp } from '../context/AppContext'
 import { C, PageTitle, Spinner, StatCard } from '../components/UI'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+const ITEMS_PER_PAGE = 10
 
 // Reusable ContributionTable component
 function ContributionTable({ items, dateHeader, resolveStatus }) {
@@ -58,6 +59,48 @@ function ContributionTable({ items, dateHeader, resolveStatus }) {
   )
 }
 
+// Reusable Pagination component
+function Pagination({ page, totalPages, onPrev, onNext }) {
+  if (totalPages <= 1) return null
+  return (
+    <div style={{
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginTop: 16,
+      padding: '0 14px 14px'
+    }}>
+      <button
+        onClick={onPrev}
+        disabled={page === 1}
+        style={{
+          ...C.btn('primary'),
+          padding: '8px 14px',
+          cursor: page === 1 ? 'not-allowed' : 'pointer',
+          opacity: page === 1 ? 0.5 : 1
+        }}
+      >
+        ← Previous
+      </button>
+      <span style={{ fontSize: 13, color: 'var(--text2)' }}>
+        Page {page} of {totalPages}
+      </span>
+      <button
+        onClick={onNext}
+        disabled={page === totalPages}
+        style={{
+          ...C.btn('primary'),
+          padding: '8px 14px',
+          cursor: page === totalPages ? 'not-allowed' : 'pointer',
+          opacity: page === totalPages ? 0.5 : 1
+        }}
+      >
+        Next →
+      </button>
+    </div>
+  )
+}
+
 // Pagination helper to fetch up to 10 pages (1,000 results maximum)
 async function fetchAllPages(initialUrl, headers, signal) {
   let items = []
@@ -99,16 +142,31 @@ const getFullRepoFromUrl = (url) => {
   return parts.slice(-2).join('/')
 }
 
+const getOrgFromRepoUrl = (url) => {
+  if (typeof url !== 'string') return ''
+  const match = url.match(/\/repos\/([^/]+)\/([^/]+)/)
+  return match ? match[1] : ''
+}
+
 export default function ContributorProfilePage() {
   const { username } = useParams()
   const navigate = useNavigate()
-  const { orgs, pat, pullsData } = useApp()
+  const { orgs, pat, pullsData, model } = useApp()
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [rawContributions, setRawContributions] = useState([])
   const [mergedPRKeys, setMergedPRKeys] = useState(new Set())
   const [tab, setTab] = useState('prs')
+  const [selectedOrg, setSelectedOrg] = useState('all')
+  const [selectedRepo, setSelectedRepo] = useState('all')
+  const [prsPage, setPrsPage] = useState(1)
+  const [issuesPage, setIssuesPage] = useState(1)
+
+  const contributor = useMemo(
+    () => model?.contributors?.find(c => c.login === username),
+    [model, username]
+  )
 
   // Date Range Filters (Defaults to Last 1 Year)
   const [startDate, setStartDate] = useState(() => {
@@ -147,6 +205,8 @@ export default function ContributorProfilePage() {
     // Reset data states to prevent rendering stale profile info
     setRawContributions([])
     setMergedPRKeys(new Set())
+    setSelectedOrg('all')
+    setSelectedRepo('all')
 
     if (!username) {
       setLoading(false)
@@ -245,21 +305,71 @@ export default function ContributorProfilePage() {
     }
   }
 
-  // Filter contributions by UTC date range limits
   const filteredContribs = useMemo(() => {
     return rawContributions.filter(item => {
+
+      // Organization filter
+      if (selectedOrg !== 'all') {
+        const organization = getOrgFromRepoUrl(item.repository_url)
+        if (organization !== selectedOrg) {
+          return false
+        }
+      }
+
+      // Repository filter (full "org/repo" key, so same-named repos in
+      // different orgs are never mixed up)
+      if (selectedRepo !== 'all' && getFullRepoFromUrl(item.repository_url) !== selectedRepo) {
+        return false
+      }
+
+      // Date filter
       const itemTime = new Date(item.created_at).getTime()
+
       if (startDate) {
         const startTime = Date.parse(startDate + 'T00:00:00.000Z')
-        if (isNaN(startTime) || itemTime < startTime) return false
+
+        if (isNaN(startTime) || itemTime < startTime) {
+          return false
+        }
       }
+
       if (endDate) {
         const endTime = Date.parse(endDate + 'T23:59:59.999Z')
-        if (isNaN(endTime) || itemTime > endTime) return false
+
+        if (isNaN(endTime) || itemTime > endTime) {
+          return false
+        }
       }
+
       return true
     })
-  }, [rawContributions, startDate, endDate])
+  }, [rawContributions, selectedOrg, selectedRepo, startDate, endDate])
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setPrsPage(1)
+    setIssuesPage(1)
+  }, [filteredContribs, selectedOrg, selectedRepo, startDate, endDate, username])
+
+  const contributorOrgs = useMemo(() => {
+    const orgSet = new Set()
+    rawContributions.forEach(item => {
+      const org = getOrgFromRepoUrl(item.repository_url)
+      if (org) orgSet.add(org)
+    })
+    return Array.from(orgSet)
+  }, [rawContributions])
+
+  // Repositories this contributor is active in (scoped to the selected org)
+  const contributorRepos = useMemo(() => {
+    const repoSet = new Set()
+    rawContributions.forEach(item => {
+      if (selectedOrg !== 'all' && getOrgFromRepoUrl(item.repository_url) !== selectedOrg) return
+      const fullRepo = getFullRepoFromUrl(item.repository_url)
+      if (fullRepo) repoSet.add(fullRepo)
+    })
+    return Array.from(repoSet).sort()
+  }, [rawContributions, selectedOrg])
 
   // Categorize contributions (Precomputes pulls calculations outside loop)
   const { prs, issues } = useMemo(() => {
@@ -302,21 +412,34 @@ export default function ContributorProfilePage() {
     return { prs: prList, issues: issueList }
   }, [filteredContribs, pullsData, mergedPRKeys])
 
+  // Pagination calculations
+  const prsTotalPages = Math.ceil(prs.length / ITEMS_PER_PAGE)
+  const paginatedPRs = prs.slice(
+    (prsPage - 1) * ITEMS_PER_PAGE,
+    prsPage * ITEMS_PER_PAGE
+  )
+
+  const issuesTotalPages = Math.ceil(issues.length / ITEMS_PER_PAGE)
+  const paginatedIssues = issues.slice(
+    (issuesPage - 1) * ITEMS_PER_PAGE,
+    issuesPage * ITEMS_PER_PAGE
+  )
+
   // Time-series charting data (Chronological sorting by YYYY-MM)
   const chartData = useMemo(() => {
     const monthlyBuckets = {}
-    
+
     filteredContribs.forEach(item => {
       const date = new Date(item.created_at)
       const year = date.getFullYear()
       const month = String(date.getMonth() + 1).padStart(2, '0')
       const yyyymm = `${year}-${month}`
       const displayName = date.toLocaleString('default', { month: 'short', year: '2-digit' }) // e.g. "May 26"
-      
+
       if (!monthlyBuckets[yyyymm]) {
         monthlyBuckets[yyyymm] = { yyyymm, name: displayName, PRs: 0, Issues: 0 }
       }
-      
+
       if (item.pull_request) {
         monthlyBuckets[yyyymm].PRs++
       } else {
@@ -330,12 +453,15 @@ export default function ContributorProfilePage() {
   // Export to Markdown Report with pipe & newline escaping
   const exportMarkdown = () => {
     const dateStr = new Date().toLocaleDateString()
-    const orgsStr = searchOrgs.join(', ')
+    const orgsStr = selectedOrg === 'all' ? searchOrgs.join(', ') : selectedOrg
     const dateRangeStr = (startDate || 'Beginning') + ' to ' + (endDate || 'Present')
 
     let md = `# Contribution Report: ${username}\n\n`
     md += `* **Generated on:** ${dateStr}\n`
     md += `* **Organizations explored:** ${orgsStr}\n`
+    if (selectedRepo !== 'all') {
+      md += `* **Repository:** ${selectedRepo}\n`
+    }
     md += `* **Reporting Period:** ${dateRangeStr}\n\n`
 
     md += `## 📊 Executive Summary\n\n`
@@ -407,18 +533,35 @@ export default function ContributorProfilePage() {
         <button
           onClick={() => navigate('/contributors')}
           style={{
-            background: 'none', border: 'none', color: 'var(--text2)',
-            display: 'flex', alignItems: 'center', gap: 6, fontSize: 13,
-            cursor: 'pointer', padding: '6px 0', marginBottom: 12
+            ...C.btn('primary'),
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            fontSize: 12,
           }}
-          className="hover:text-(--text) transition"
         >
           <FiArrowLeft size={14} /> Back to Contributor Intelligence
         </button>
       </div>
 
       <PageTitle
-        title={`Contributor Profile: @${username}`}
+        title={
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+            {contributor?.avatar_url && (
+              <img
+                src={contributor.avatar_url}
+                alt=""
+                style={{
+                  width: 50,
+                  height: 50,
+                  borderRadius: '50%',
+                  objectFit: 'cover',
+                }}
+              />
+            )}
+            <span>@{username}</span>
+          </span>
+        }
         subtitle={`Analyzing contributions across ${searchOrgs.join(', ')}`}
         right={
           <button
@@ -462,6 +605,48 @@ export default function ContributorProfilePage() {
         </div>
 
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+
+          {contributorOrgs.length > 1 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label htmlFor="organization-filter" style={{ fontSize: 11, color: 'var(--text2)', fontWeight: 500 }}>
+                ORGANIZATION
+              </label>
+              <select
+                id="organization-filter"
+                value={selectedOrg}
+                onChange={e => {
+                  setSelectedOrg(e.target.value)
+                  setSelectedRepo('all')
+                }}
+                style={C.input}
+              >
+                <option value="all">All Organizations</option>
+                {contributorOrgs.map(org => (
+                  <option key={org} value={org}>{org}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {contributorRepos.length > 1 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label htmlFor="repository-filter" style={{ fontSize: 11, color: 'var(--text2)', fontWeight: 500 }}>
+                REPOSITORY
+              </label>
+              <select
+                id="repository-filter"
+                value={selectedRepo}
+                onChange={e => setSelectedRepo(e.target.value)}
+                style={C.input}
+              >
+                <option value="all">All Repositories</option>
+                {contributorRepos.map(repo => (
+                  <option key={repo} value={repo}>{repo}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <label htmlFor="start-date-input" style={{ fontSize: 11, color: 'var(--text2)', fontWeight: 500 }}>START DATE</label>
             <input
@@ -491,9 +676,9 @@ export default function ContributorProfilePage() {
         <StatCard label="Total Contributions" value={filteredContribs.length} sub="Filtered timeframe" />
         <StatCard label="Pull Requests" value={prs.length} sub={`${prs.filter(p => p.isMerged).length} Merged`} accent="var(--blue)" />
         <StatCard label="Issues Opened" value={issues.length} sub={`${issues.filter(i => i.state === 'closed').length} Closed`} accent="var(--amber)" />
-        <StatCard 
-          label="Active Repositories" 
-          value={new Set(filteredContribs.map(i => i.repository_url?.split('/').pop())).size} 
+        <StatCard
+          label="Active Repositories"
+          value={new Set(filteredContribs.map(i => i.repository_url?.split('/').pop())).size}
           sub="distinct repositories"
           accent="var(--green)"
         />
@@ -539,7 +724,10 @@ export default function ContributorProfilePage() {
       <div style={C.card}>
         <div style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: '1px solid var(--border)', paddingBottom: 12 }}>
           <button
-            onClick={() => setTab('prs')}
+            onClick={() => {
+              setTab('prs')
+              setPrsPage(1)
+            }}
             style={{
               background: 'none', border: 'none', cursor: 'pointer',
               color: tab === 'prs' ? 'var(--text)' : 'var(--text2)',
@@ -551,7 +739,10 @@ export default function ContributorProfilePage() {
             Pull Requests ({prs.length})
           </button>
           <button
-            onClick={() => setTab('issues')}
+            onClick={() => {
+              setTab('issues')
+              setIssuesPage(1)
+            }}
             style={{
               background: 'none', border: 'none', cursor: 'pointer',
               color: tab === 'issues' ? 'var(--text)' : 'var(--text2)',
@@ -565,27 +756,43 @@ export default function ContributorProfilePage() {
         </div>
 
         {tab === 'prs' ? (
-          <ContributionTable
-            items={prs}
-            dateHeader="SUBMITTED ON"
-            resolveStatus={(p) => {
-              const status = p.state === 'open' ? 'Open' : p.isMerged ? 'Merged' : 'Closed'
-              const color = status === 'Merged' ? 'var(--green)' : status === 'Open' ? 'var(--blue)' : 'var(--text2)'
-              const bg = status === 'Merged' ? 'rgba(34,197,94,.12)' : status === 'Open' ? 'rgba(59,130,246,.12)' : 'var(--surface2)'
-              return { status, color, bg }
-            }}
-          />
+          <>
+            <ContributionTable
+              items={paginatedPRs}
+              dateHeader="SUBMITTED ON"
+              resolveStatus={(p) => {
+                const status = p.state === 'open' ? 'Open' : p.isMerged ? 'Merged' : 'Closed'
+                const color = status === 'Merged' ? 'var(--green)' : status === 'Open' ? 'var(--blue)' : 'var(--text2)'
+                const bg = status === 'Merged' ? 'rgba(34,197,94,.12)' : status === 'Open' ? 'rgba(59,130,246,.12)' : 'var(--surface2)'
+                return { status, color, bg }
+              }}
+            />
+            <Pagination
+              page={prsPage}
+              totalPages={prsTotalPages}
+              onPrev={() => setPrsPage(p => p - 1)}
+              onNext={() => setPrsPage(p => p + 1)}
+            />
+          </>
         ) : (
-          <ContributionTable
-            items={issues}
-            dateHeader="CREATED ON"
-            resolveStatus={(i) => {
-              const status = i.state === 'open' ? 'Open' : 'Closed'
-              const color = status === 'Open' ? 'var(--blue)' : 'var(--text2)'
-              const bg = status === 'Open' ? 'rgba(59,130,246,.12)' : 'var(--surface2)'
-              return { status, color, bg }
-            }}
-          />
+          <>
+            <ContributionTable
+              items={paginatedIssues}
+              dateHeader="CREATED ON"
+              resolveStatus={(i) => {
+                const status = i.state === 'open' ? 'Open' : 'Closed'
+                const color = status === 'Open' ? 'var(--blue)' : 'var(--text2)'
+                const bg = status === 'Open' ? 'rgba(59,130,246,.12)' : 'var(--surface2)'
+                return { status, color, bg }
+              }}
+            />
+            <Pagination
+              page={issuesPage}
+              totalPages={issuesTotalPages}
+              onPrev={() => setIssuesPage(p => p - 1)}
+              onNext={() => setIssuesPage(p => p + 1)}
+            />
+          </>
         )}
       </div>
     </div>

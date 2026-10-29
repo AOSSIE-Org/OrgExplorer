@@ -1,17 +1,18 @@
-import React, { useState, useMemo } from 'react'
-import { FiRefreshCw, FiExternalLink } from 'react-icons/fi'
+import React, { useState, useMemo, useEffect } from 'react'
+import { FiRefreshCw, FiExternalLink, FiSearch } from 'react-icons/fi'
 import { useApp } from '../context/AppContext'
 import { C, PageTitle, EmptyOk } from '../components/UI'
+import EmptyStateCard from '../components/EmptyStateCard'
 import AnalysisBanner from '../components/AnalysisBanner'
 import { GovernanceSkeleton } from '../components/Orgexplorerskeletons'
 
 import HealthScorecard from '../components/HealthScorecard'
 
 const TABS = [
-  { key: 'dead',    label: 'Dead Issues' },
-  { key: 'zombie',  label: 'Zombie PRs'  },
-  { key: 'stale',   label: 'Stale Issues Ratio' },
-  { key: 'license', label: 'No License'  },
+  { key: 'dead', label: 'Dead Issues' },
+  { key: 'zombie', label: 'Zombie PRs' },
+  { key: 'stale', label: 'Stale Issues Ratio' },
+  { key: 'license', label: 'No License' },
 ]
 
 const getStatus = ratio => {
@@ -47,15 +48,54 @@ export default function GovernancePage() {
   const { model, issuesData, runAudit, govLoading, auditComplete, loading, runGovernanceAnalysis,staleRepoStats } = useApp()
   const [viewMode, setViewMode] = useState('scorecard') // 'scorecard' | 'audit'
   const [tab, setTab] = useState('dead')
+  const [orgFilter, setOrgFilter] = useState('All Organizations')
+  const [search, setSearch] = useState('')
 
   const ITEMS_PER_PAGE = 10
   const [stalePage, setStalePage] = useState(1)
-  const totalPages = Math.ceil(staleRepoStats.length / ITEMS_PER_PAGE)
+  const [deadPage, setDeadPage] = useState(1)
+  const [zombiePage, setZombiePage] = useState(1)
+
+  const query = search.trim().toLowerCase()
+
+  const handleSearchChange = e => {
+    setSearch(e.target.value)
+    setDeadPage(1)
+    setZombiePage(1)
+    setStalePage(1)
+  }
+
+  const handleOrgChange = e => {
+    setOrgFilter(e.target.value)
+    setDeadPage(1)
+    setZombiePage(1)
+    setStalePage(1)
+  }
+
+  useEffect(() => {
+    setDeadPage(1)
+    setZombiePage(1)
+    setStalePage(1)
+  }, [issuesData])
+
+  // Stale repos: org filter first, then search, then pagination
+  const staleReposForOrg = useMemo(() => {
+    if (orgFilter === 'All Organizations') return staleRepoStats
+    return staleRepoStats.filter(r => r.org === orgFilter)
+  }, [staleRepoStats, orgFilter])
+
+  const filteredStale = useMemo(() => {
+    if (!query) return staleReposForOrg
+    return staleReposForOrg.filter(r => `${r.org}/${r.repo}`.toLowerCase().includes(query))
+  }, [staleReposForOrg, query])
+
+  const totalPages = Math.ceil(filteredStale.length / ITEMS_PER_PAGE)
 
   const paginatedStaleRepos = useMemo(() => {
     const start = (stalePage - 1) * ITEMS_PER_PAGE
-    return staleRepoStats.slice(start, start + ITEMS_PER_PAGE)
-  }, [staleRepoStats, stalePage])
+    return filteredStale.slice(start, start + ITEMS_PER_PAGE)
+  }, [filteredStale, stalePage])
+
   // Flatten all issues and tag with repo/org
   const allIssues = useMemo(() => {
     const arr = []
@@ -66,32 +106,77 @@ export default function GovernancePage() {
     return arr
   }, [issuesData])
 
-  if(loading) return <GovernanceSkeleton />
+  if (loading) return <GovernanceSkeleton />
   if (!model) return null
 
   const hasAudit = Object.keys(issuesData || {}).length > 0
   const daysSince = d => Math.floor((Date.now() - new Date(d)) / 86_400_000)
+  const matchesQuery = text => !query || text.toLowerCase().includes(query)
+  const issuesOfOrg = orgFilter === 'All Organizations' ? allIssues : allIssues.filter(i => i.orgName === orgFilter)
 
   // Health check 1 — Dead Issues (>90 days open, not a PR)
   const deadIssues = allIssues
     .filter(i => !i.pull_request && i.state === 'open' && daysSince(i.created_at) >= 90)
     .sort((a, b) => daysSince(b.created_at) - daysSince(a.created_at))
 
+  const deadIssuesOfOrg = (org) => {
+    if (org === 'All Organizations') { return deadIssues }
+    return deadIssues.filter(issue => issue.orgName === org)
+  }
+
   // Health check 2 — Percentage of dead issues relative to all issues
-  const staleIssuesRatio = allIssues.length ? (deadIssues.length / allIssues.length) * 100 : 0;
+  const staleIssuesRatio = allIssues.length ? (deadIssues.length / allIssues.length) * 100 : 0
+  const staleIssuesRatioOfOrg = (org) => {
+    if (org === 'All Organizations') { return staleIssuesRatio }
+    const issueOfOrg = allIssues.filter(i => i.orgName === org)
+    return issueOfOrg.length ? (deadIssuesOfOrg(org).length / issueOfOrg.length) * 100 : 0
+  }
 
   // Health check 3 — Zombie PRs (>90 days open)
   const zombiePRs = allIssues
     .filter(i => i.pull_request && i.state === 'open' && daysSince(i.created_at) >= 90)
     .sort((a, b) => daysSince(b.created_at) - daysSince(a.created_at))
 
+  const zombiePRsOfOrg = (org) => {
+    if (org === 'All Organizations') { return zombiePRs }
+    return zombiePRs.filter(pr => pr.orgName === org)
+  }
+
   // Health check 4 — No license
   const noLicense = model.allRepos.filter(r => !r.license && !r.archived && !r.fork)
+
+  const noLicenseOfOrg = (org) => {
+    if (org === 'All Organizations') { return noLicense }
+    return noLicense.filter(r => r.orgLogin === org)
+  }
+
+  // Org-scoped lists (org filter applied first)
+  const scopedDead = deadIssuesOfOrg(orgFilter)
+  const scopedZombie = zombiePRsOfOrg(orgFilter)
+  const scopedLicense = noLicenseOfOrg(orgFilter)
+
+  // Search-filtered lists (client-side, uses already-fetched data)
+  const filteredDead = scopedDead.filter(i => matchesQuery(`${i.orgName}/${i.repoName}`))
+  const filteredZombie = scopedZombie.filter(i => matchesQuery(`${i.orgName}/${i.repoName}`))
+  const filteredLicense = scopedLicense.filter(r => matchesQuery(`${r.orgLogin}/${r.name}`))
+
+  const deadTotalPages = Math.ceil(filteredDead.length / ITEMS_PER_PAGE)
+  const paginatedDeadIssues = filteredDead.slice((deadPage - 1) * ITEMS_PER_PAGE, deadPage * ITEMS_PER_PAGE)
+  const zombieTotalPages = Math.ceil(filteredZombie.length / ITEMS_PER_PAGE)
+  const paginatedZombiePRs = filteredZombie.slice((zombiePage - 1) * ITEMS_PER_PAGE, zombiePage * ITEMS_PER_PAGE)
 
   // Issue resolution rate per repo
   const topRepos = model.allRepos.slice(0, 8)
 
-  const counts = { dead: deadIssues.length, zombie: zombiePRs.length, license: noLicense.length, stale: staleIssuesRatio.toFixed(2) }
+  const counts = {
+    dead: scopedDead.length,
+    zombie: scopedZombie.length,
+    license: scopedLicense.length,
+    stale: staleIssuesRatioOfOrg(orgFilter).toFixed(2)
+  }
+
+  const tabTotals = { dead: scopedDead.length, zombie: scopedZombie.length, stale: staleReposForOrg.length, license: scopedLicense.length }
+  const tabMatches = { dead: filteredDead.length, zombie: filteredZombie.length, stale: filteredStale.length, license: filteredLicense.length }
 
   // Stat card
   const StatBox = ({ label, value, sub, color }) => (
@@ -136,6 +221,41 @@ export default function GovernancePage() {
         ))}
       </tr>
     </thead>
+  )
+
+  const Pagination = ({ page, totalPages, onPrev, onNext }) => {
+    if (totalPages <= 1) return null
+    return (
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 16 }}>
+        <button
+          onClick={onPrev}
+          disabled={page === 1}
+          style={{ ...C.btn('primary'), padding: '8px 14px', cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.5 : 1 }}
+        >
+          ← Previous
+        </button>
+        <span style={{ fontSize: 13, color: 'var(--text2)' }}>Page {page} of {totalPages}</span>
+        <button
+          onClick={onNext}
+          disabled={page === totalPages}
+          style={{ ...C.btn('primary'), padding: '8px 14px', cursor: page === totalPages ? 'not-allowed' : 'pointer', opacity: page === totalPages ? 0.5 : 1 }}
+        >
+          Next →
+        </button>
+      </div>
+    )
+  }
+
+  const noMatch = (
+    <div style={{ padding: '32px 24px', maxWidth: 900, margin: '0 auto' }}>
+      <EmptyStateCard
+        SvgIcon={<FiSearch size={36} color="var(--accent)" />}
+        title="No matching repositories"
+        description={`No results match "${search.trim()}" in this tab. Try a different repository or organization name.`}
+        buttonText="Clear Search"
+        onButtonClick={() => setSearch('')}
+      />
+    </div>
   )
 
   return (
@@ -210,10 +330,10 @@ export default function GovernancePage() {
         <div style={{ ...C.label, marginBottom: 16 }}>Resolution velocity across key repositories</div>
         {topRepos.map(r => {
           const repoIssues = allIssues.filter(i => i.repoName === r.name)
-          const closed     = repoIssues.filter(i => i.state === 'closed').length
-          const total      = repoIssues.length
-          const rate       = total ? Math.round(closed / total * 100) : null
-          const color      = rate === null ? 'var(--text3)' : rate >= 70 ? 'var(--green)' : rate >= 30 ? 'var(--amber)' : 'var(--red)'
+          const closed = repoIssues.filter(i => i.state === 'closed').length
+          const total = repoIssues.length
+          const rate = total ? Math.round(closed / total * 100) : null
+          const color = rate === null ? 'var(--text3)' : rate >= 70 ? 'var(--green)' : rate >= 30 ? 'var(--amber)' : 'var(--red)'
 
           return (
             <div key={r.id} style={{ marginBottom: 12 }}>
@@ -243,54 +363,103 @@ export default function GovernancePage() {
 
       {/* Tabbed detail view */}
       <div style={C.card}>
-        <div style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: '1px solid var(--border)', paddingBottom: 12, overflowX: 'auto' }}>
-          {TABS.map(t => (
-            <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
-              style={{
-                background: 'none', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
-                color: tab === t.key ? 'var(--text)' : 'var(--text2)',
-                fontWeight: tab === t.key ? 600 : 400,
-                fontSize: 13, padding: '6px 12px',
-                borderBottom: tab === t.key ? '2px solid var(--accent)' : '2px solid transparent',
-              }}
+        <div style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: '1px solid var(--border)', paddingBottom: 12, overflowX: 'auto', justifyContent: 'space-between' }}>
+          <div className="tabs">
+            {TABS.map(t => (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
+                  color: tab === t.key ? 'var(--text)' : 'var(--text2)',
+                  fontWeight: tab === t.key ? 600 : 400,
+                  fontSize: 13, padding: '6px 12px',
+                  borderBottom: tab === t.key ? '2px solid var(--accent)' : '2px solid transparent',
+                }}
+              >
+                {t.label}{' '}
+                <span style={{ color: counts[t.key] > 40 ? 'var(--red)' : 'var(--green)', marginLeft: 4 }}>
+                  {counts[t.key]}
+                </span>
+              </button>
+            ))}
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <select
+              value={orgFilter}
+              onChange={handleOrgChange}
+              style={C.select}
+              aria-label="Filter stats by organization"
             >
-              {t.label}{' '}
-              <span style={{ color: counts[t.key] > 40 ? 'var(--red)' : 'var(--green)', marginLeft: 4 }}>
-                {counts[t.key]}
-              </span>
-            </button>
-          ))}
+              <option>All Organizations</option>
+              {orgs.map(o => <option key={o.login}>{o.login}</option>)}
+            </select>
+          </div>
         </div>
+
+        {/* Repository search */}
+        {tabTotals[tab] > 0 && (
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginBottom: 16 }}>
+            <input
+              value={search}
+              onChange={handleSearchChange}
+              placeholder="Search by repository or organization..."
+              aria-label="Search repositories in governance results"
+              style={{ ...C.input, width: 280 }}
+            />
+            {query && (
+              <span style={{ fontSize: 12, color: 'var(--text2)' }}>
+                {tabMatches[tab]} of {tabTotals[tab]} matching
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Dead Issues */}
         {tab === 'dead' && (
-          deadIssues.length ? (
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <TableHead />
-                <tbody>{deadIssues.slice(0, 25).map((item, i) => <IssueRow key={item.id} item={item} i={i} />)}</tbody>
-              </table>
-            </div>
-          ) : <EmptyOk msg="No dead issues found" sub="This org actively maintains its open items." />
+          scopedDead.length === 0 ? (
+            <EmptyOk msg="No dead issues found" sub="This org actively maintains its open items." />
+          ) : filteredDead.length === 0 ? (
+            noMatch
+          ) : (
+            <>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <TableHead />
+                  <tbody>{paginatedDeadIssues.map((item, i) => <IssueRow key={item.id} item={item} i={i} />)}</tbody>
+                </table>
+              </div>
+              <Pagination page={deadPage} totalPages={deadTotalPages} onPrev={() => setDeadPage(p => p - 1)} onNext={() => setDeadPage(p => p + 1)} />
+            </>
+          )
         )}
 
         {/* Zombie PRs */}
         {tab === 'zombie' && (
-          zombiePRs.length ? (
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <TableHead />
-                <tbody>{zombiePRs.slice(0, 25).map((item, i) => <IssueRow key={item.id} item={item} i={i} />)}</tbody>
-              </table>
-            </div>
-          ) : <EmptyOk msg="No zombie PRs found" sub="This org reviews and closes contributions actively." />
+          scopedZombie.length === 0 ? (
+            <EmptyOk msg="No zombie PRs found" sub="This org reviews and closes contributions actively." />
+          ) : filteredZombie.length === 0 ? (
+            noMatch
+          ) : (
+            <>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <TableHead />
+                  <tbody>{paginatedZombiePRs.map((item, i) => <IssueRow key={item.id} item={item} i={i} />)}</tbody>
+                </table>
+              </div>
+              <Pagination page={zombiePage} totalPages={zombieTotalPages} onPrev={() => setZombiePage(p => p - 1)} onNext={() => setZombiePage(p => p + 1)} />
+            </>
+          )
         )}
 
         {/* Stale Issues */}
         {tab === 'stale' && (
-          staleRepoStats.length ? (
+          staleReposForOrg.length === 0 ? (
+            <EmptyOk msg="No stale issues found" sub="All repositories have active open issues." />
+          ) : filteredStale.length === 0 ? (
+            noMatch
+          ) : (
             <>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {paginatedStaleRepos.map(repo => {
@@ -312,26 +481,13 @@ export default function GovernancePage() {
                         <div style={{ fontWeight: 600 }}>
                           {repo.repo}
                         </div>
-
-                        <div
-                          style={{
-                            marginTop: 4,
-                            fontSize: 12,
-                            color: 'var(--text2)'
-                          }}
-                        >
+                        <div style={{ marginTop: 4, fontSize: 12, color: 'var(--text2)' }}>
                           {repo.staleCount} stale issues out of{' '}
                           {repo.openCount} open issues ({repo.ratio}%)
                         </div>
                       </div>
 
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 30
-                        }}
-                      >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 30 }}>
                         <span style={C.pill(status.color, status.bg)}>
                           {status.label}
                         </span>
@@ -344,59 +500,20 @@ export default function GovernancePage() {
                   )
                 })}
               </div>
-
-              {totalPages > 1 && (
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    marginTop: 16
-                  }}
-                >
-                  <button
-                    onClick={() => setStalePage(p => p - 1)}
-                    disabled={stalePage === 1}
-                    style={{
-                      padding: '8px 14px',
-                      cursor: stalePage === 1 ? 'not-allowed' : 'pointer',
-                      opacity: stalePage === 1 ? 0.5 : 1
-                    }}
-                  >
-                    ← Previous
-                  </button>
-
-                  <span style={{ fontSize: 13, color: 'var(--text2)' }}>
-                    Page {stalePage} of {totalPages}
-                  </span>
-
-                  <button
-                    onClick={() => setStalePage(p => p + 1)}
-                    disabled={stalePage === totalPages}
-                    style={{
-                      padding: '8px 14px',
-                      cursor: stalePage === totalPages ? 'not-allowed' : 'pointer',
-                      opacity: stalePage === totalPages ? 0.5 : 1
-                    }}
-                  >
-                    Next →
-                  </button>
-                </div>
-              )}
+              <Pagination page={stalePage} totalPages={totalPages} onPrev={() => setStalePage(p => p - 1)} onNext={() => setStalePage(p => p + 1)} />
             </>
-          ) : (
-            <EmptyOk
-              msg="No stale issues found"
-              sub="All repositories have active open issues."
-            />
           )
         )}
 
         {/* No License */}
         {tab === 'license' && (
-          noLicense.length ? (
+          scopedLicense.length === 0 ? (
+            <EmptyOk msg="All repos have licenses" sub="Good compliance across the portfolio." />
+          ) : filteredLicense.length === 0 ? (
+            noMatch
+          ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {noLicense.map(r => (
+              {filteredLicense.map(r => (
                 <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'var(--surface2)', borderRadius: 6 }}>
                   <div>
                     <div style={{ fontWeight: 500, fontSize: 13 }}>{r.name}</div>
@@ -406,7 +523,7 @@ export default function GovernancePage() {
                 </div>
               ))}
             </div>
-          ) : <EmptyOk msg="All repos have licenses" sub="Good compliance across the portfolio." />
+          )
         )}
       </div>
         </>
