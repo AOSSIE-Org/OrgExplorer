@@ -236,3 +236,42 @@ describe('empty-repository responses', () => {
     await expect(fetchOrg('test-org', 'pat')).rejects.toThrow('HTTP_403')
   })
 })
+
+describe('abort signal propagation', () => {
+  it('rejects before touching the network when the signal is already aborted', async () => {
+    const controller = new AbortController()
+    controller.abort()
+    const fetchSpy = vi.fn()
+
+    vi.stubGlobal('fetch', fetchSpy)
+
+    await expect(fetchOrg('test-org', 'pat', controller.signal)).rejects.toMatchObject({
+      name: 'AbortError'
+    })
+    expect(fetchSpy).not.toHaveBeenCalled()
+  })
+
+  it('forwards the signal to fetch and stops before requesting the next page', async () => {
+    installFakeIndexedDB()
+    const controller = new AbortController()
+    const calls = []
+
+    vi.stubGlobal('fetch', vi.fn(async (url, init) => {
+      calls.push({ url, init })
+      controller.abort()
+      return {
+        status: 200,
+        ok: true,
+        headers: { get: () => '5000' },
+        json: async () => Array.from({ length: 100 }, (_, i) => ({ name: `repo-${i}` }))
+      }
+    }))
+
+    await expect(fetchRepos('org', 500, 'pat', controller.signal)).rejects.toMatchObject({
+      name: 'AbortError'
+    })
+
+    expect(calls).toHaveLength(1)
+    expect(calls[0].init.signal).toBe(controller.signal)
+  })
+})
