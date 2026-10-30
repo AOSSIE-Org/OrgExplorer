@@ -1,3 +1,5 @@
+import { throwIfAborted } from './abort'
+
 // IndexedDB Cache (L2)
 const DB_NAME = 'orgexplorer_cache'
 const STORE = 'cache'
@@ -76,15 +78,20 @@ export async function cacheClear() {
 }
 
 // Core fetchWithCache
-async function fetchWithCache(url, pat) {
+async function fetchWithCache(url, pat, signal) {
+  throwIfAborted(signal)
+
   // L2 check
   const cached = await cacheGet(url)
+  throwIfAborted(signal)
   if (cached) return cached
 
   const headers = { Accept: 'application/vnd.github.v3+json' }
   if (pat) headers.Authorization = `token ${pat}`
 
-  const res = await fetch(url, { headers })
+  // Passing the signal into the native fetch is what actually stops an
+  // abandoned pipeline from draining the GitHub quota.
+  const res = await fetch(url, { headers, signal })
 
   window.dispatchEvent(
     new CustomEvent('rate-limit-update', {
@@ -141,51 +148,55 @@ async function fetchWithCache(url, pat) {
 }
 
 // Public service functions
-export const fetchOrg = (org, pat) =>
-  fetchWithCache(`https://api.github.com/orgs/${org}`, pat)
+export const fetchOrg = (org, pat, signal) =>
+  fetchWithCache(`https://api.github.com/orgs/${org}`, pat, signal)
 
-export async function fetchRepos(org, repoCount, pat) {
+export async function fetchRepos(org, repoCount, pat, signal) {
   const all = []
   const maxPages = pat ? Math.ceil(repoCount / 100) : 5
   for (let page = 1; page <= maxPages; page++) {
+    throwIfAborted(signal)
     const url = `https://api.github.com/orgs/${org}/repos?per_page=100&page=${page}&sort=updated`
-    const data = await fetchWithCache(url, pat)
+    const data = await fetchWithCache(url, pat, signal)
     all.push(...data)
     if (data.length < 100) break
   }
   return all
 }
 
-export async function fetchContributors(org, repo, pat) {
+export async function fetchContributors(org, repo, pat, signal) {
   const all = []
   const maxPages = pat ? 10 : 1
   for(let page = 1; page<=maxPages ; page++) {
+    throwIfAborted(signal)
     const url = `https://api.github.com/repos/${org}/${repo}/contributors?per_page=100&page=${page}`
-    const data = await fetchWithCache(url, pat)
+    const data = await fetchWithCache(url, pat, signal)
     all.push(...data)
     if(data.length < 100) break
   }
   return all
 }
 
-export async function fetchIssues(org, repo, pat) {
+export async function fetchIssues(org, repo, pat, signal) {
   const all = []
   const maxPages = pat ? 10 : 1
   for(let page = 1; page<=maxPages ; page++) {
+    throwIfAborted(signal)
     const url = `https://api.github.com/repos/${org}/${repo}/issues?state=all&per_page=100&page=${page}`
-    const data = await fetchWithCache(url, pat)
+    const data = await fetchWithCache(url, pat, signal)
     all.push(...data)
     if(data.length < 100) break
   }
   return all
 }
 
-export async function fetchPulls(org, repo, pat) {
+export async function fetchPulls(org, repo, pat, signal) {
   const all = []
   const maxPages = pat ? 10 : 1
   for(let page = 1; page<=maxPages ; page++) {
+    throwIfAborted(signal)
     const url = `https://api.github.com/repos/${org}/${repo}/pulls?state=all&per_page=100&page=${page}`
-    const data = await fetchWithCache(url, pat)
+    const data = await fetchWithCache(url, pat, signal)
     all.push(...data)
     if(data.length < 100) break
   }

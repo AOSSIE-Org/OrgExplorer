@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useCallback, useEffect, useMemo, u
 import { fetchOrg, fetchRepos, fetchContributors, fetchIssues, fetchRateLimit, fetchPulls } from '../services/github'
 import { buildAnalyticalModel, getTopRepositories } from '../services/analytics'
 import { saveAnalysis, loadAnalysis } from '../services/cache'
+import { createAbortError, isAbortError } from '../services/abort'
 
 const Ctx = createContext(null)
 
@@ -51,6 +52,15 @@ export function AppProvider({ children }) {
   const restoredFromCache = useRef(false)
 
   const patRequestId = useRef(0)
+  // The active data pipeline. `id` identifies its generation and `controller`
+  // aborts its in-flight network requests when a newer pipeline supersedes it.
+  const pipelineRef = useRef({ id: 0, controller: null })
+
+  // An unmount must not leave a pipeline streaming requests in the background.
+  useEffect(() => () => {
+    pipelineRef.current.controller?.abort()
+  }, [])
+
   // Restore the last analysis on startup. The model is held in memory, so
   // without this a reload, bookmark or shared link loses it entirely.
   useEffect(() => {
@@ -58,7 +68,9 @@ export function AppProvider({ children }) {
 
     loadAnalysis()
       .then(cached => {
-        if (cancelled || !cached) return
+        // A search started while IndexedDB was still being read. Its result is
+        // newer than the restored snapshot, so leave the active state alone.
+        if (cancelled || !cached || pipelineRef.current.id !== 0) return
 
         restoredFromCache.current = true
 
@@ -159,32 +171,86 @@ export function AppProvider({ children }) {
     }
   }, [])
 
-  // Multi-org explore
-  const explore = useCallback(async orgNames => {
-    // Trim and dedupe case-insensitively: `AOSSIE-Org` and `aossie-org`
-    // are the same org on GitHub and must not trigger duplicate fetches.
-    const seen = new Set()
-    const names = []
-    for (const n of orgNames) {
-      const trimmed = String(n).trim()
-      const key = trimmed.toLowerCase()
-      if (trimmed && !seen.has(key)) {
-        seen.add(key)
-        names.push(trimmed)
-      }
+  /**
+   * Start a new pipeline generation and abort the previous one.
+   *
+   * The new id is published *before* aborting so cleanup handlers belonging to
+   * the old run can immediately see that they are stale and must not write to
+   * shared state.
+   */
+  const beginPipeline = useCallback(() => {
+    const previous = pipelineRef.current
+    const session = {
+      id: previous.id + 1,
+      controller: new AbortController()
     }
+    pipelineRef.current = session
+    previous.controller?.abort()
+    return session
+  }, [])
+
+  const isPipelineCurrent = useCallback(session =>
+    !!session &&
+    session.id === pipelineRef.current.id &&
+    !session.controller.signal.aborted,
+  [])
+
+  /** Throws an AbortError as soon as this run is no longer the active one. */
+  const ensurePipelineCurrent = useCallback(session => {
+    if (!isPipelineCurrent(session)) throw createAbortError()
+  }, [isPipelineCurrent])
+
+  /**
+   * Clear transient UI flags owned by every kind of pipeline. A new run must
+   * reset flags belonging to the operation it superseded, otherwise an old
+   * aborted run's guarded `finally` can leave a loading loop behind.
+   */
+  const resetPipelineUi = useCallback(() => {
+    setLoading(false)
+    setLoadMsg('')
+    setGovLoading(false)
+    setAdvanceAnalyticsLoading(false)
+    setError('')
+  }, [])
+
+  /**
+   * A new search replaces every piece of state derived from the previous
+   * portfolio. Leaving issues, pulls or totals behind is what produced a
+   * mixed model when a slow request from the old search resolved late.
+   */
+  const resetExploreState = useCallback((session, names) => {
+    if (!isPipelineCurrent(session)) return
+
+    setLoading(true)
+    setError('')
+    setModel(null)
+    setOrgs([])
+    setIssuesData({})
+    setPullsData({})
+    setTotalRepo(0)
+    setIsComplete(false)
+    setLastOrgNames(names)
+    setAuditComplete(false)
+    setAdvanceAnalyticsComplete(false)
+    setLoadMsg('Fetching organization metadata...')
+  }, [isPipelineCurrent])
+
+  /**
+   * Explore using an existing session. Public entry points call this so a
+   * composite run (full analytics -> explore -> audit) keeps one generation
+   * instead of aborting itself when it reaches the explore step.
+   */
+  const exploreCore = useCallback(async (session, names) => {
     if (!names.length) return false
-    setLoading(true);
-    setError('');
-    setModel(null);
-    setOrgs([]);
-    setIssuesData({});
-    setLastOrgNames(names);
-    setAuditComplete(false);
-    setAdvanceAnalyticsComplete(false);
+
+    const signal = session.controller.signal
+
     try {
-      setLoadMsg('Fetching organization metadata...')
-      const orgRes = await Promise.allSettled(names.map(n => fetchOrg(n, pat)))
+      ensurePipelineCurrent(session)
+      resetExploreState(session, names)
+
+      const orgRes = await Promise.allSettled(names.map(n => fetchOrg(n, pat, signal)))
+      ensurePipelineCurrent(session)
 
       const rateLimitError = orgRes.find(r => r.status === 'rejected' && r.reason?.message === 'RATE_LIMIT')
       if (rateLimitError) {
@@ -198,15 +264,17 @@ export function AppProvider({ children }) {
 
       const validOrgs = orgRes.filter(r => r.status === 'fulfilled').map(r => r.value)
       if (!validOrgs.length) throw new Error('No valid organizations found. Check the names and try again.')
+      ensurePipelineCurrent(session)
       setOrgs(validOrgs)
 
       setLoadMsg('Fetching repositories...')
       const reposPerOrg = {}
       const repoRes = await Promise.allSettled(validOrgs.map(async org => {
-        const repos = await fetchRepos(org.login, org.public_repos, pat)
+        const repos = await fetchRepos(org.login, org.public_repos, pat, signal)
         reposPerOrg[org.login] = repos
         return repos
       }))
+      ensurePipelineCurrent(session)
 
       const repoRateLimit = repoRes.find(r => r.status === 'rejected' && r.reason?.message === 'RATE_LIMIT')
       if (repoRateLimit) {
@@ -223,15 +291,17 @@ export function AppProvider({ children }) {
       setLoadMsg('Fetching contributor data for top repositories...')
       const contribsPerRepo = {}
       for (const org of validOrgs) {
+        ensurePipelineCurrent(session)
 
         const top = pat ? (reposPerOrg[org.login] || []) : getTopRepositories(reposPerOrg[org.login] || [], 10);
         reposPerOrg[org.login] = top;
 
         const contribRes = await Promise.allSettled(top.map(async repo => {
-          const contribs = await fetchContributors(org.login, repo.name, pat)
+          const contribs = await fetchContributors(org.login, repo.name, pat, signal)
           contribsPerRepo[`${org.login}/${repo.name}`] = contribs
           return contribs
         }))
+        ensurePipelineCurrent(session)
 
         const contribRateLimit = contribRes.find(r => r.status === 'rejected' && r.reason?.message === 'RATE_LIMIT')
         if (contribRateLimit) {
@@ -241,6 +311,7 @@ export function AppProvider({ children }) {
 
       setLoadMsg('Building analytical data model...')
       const builtModel = buildAnalyticalModel(validOrgs, reposPerOrg, contribsPerRepo, totalReposPerOrg)
+      ensurePipelineCurrent(session)
       setModel(builtModel)
 
       setIsComplete(!!pat)
@@ -255,16 +326,44 @@ export function AppProvider({ children }) {
       localStorage.setItem('oe_recent', JSON.stringify(next))
       return builtModel
     } catch (err) {
-      setError(err.message === 'RATE_LIMIT'
+      // An aborted or superseded run is expected and must never surface an
+      // error or touch state owned by the newer session.
+      if (isAbortError(err) || !isPipelineCurrent(session)) return false
+
+      setError(err?.message === 'RATE_LIMIT'
         ? (pat
             ? 'GitHub API rate limit reached. Please wait for your quota to refresh.'
             : 'GitHub API rate limit reached. Add a PAT in Settings for 5,000 req/hr.')
-        : err.message)
+        : (err?.message || 'Failed to fetch organization data.'))
       return false
     } finally {
-      setLoading(false); setLoadMsg('')
+      if (isPipelineCurrent(session)) {
+        setLoading(false)
+        setLoadMsg('')
+      }
     }
-  }, [pat])
+  }, [pat, ensurePipelineCurrent, isPipelineCurrent, resetExploreState])
+
+  // Multi-org explore
+  const explore = useCallback(async orgNames => {
+    // Trim and dedupe case-insensitively: `AOSSIE-Org` and `aossie-org`
+    // are the same org on GitHub and must not trigger duplicate fetches.
+    const seen = new Set()
+    const names = []
+    for (const n of orgNames) {
+      const trimmed = String(n).trim()
+      const key = trimmed.toLowerCase()
+      if (trimmed && !seen.has(key)) {
+        seen.add(key)
+        names.push(trimmed)
+      }
+    }
+    if (!names.length) return false
+
+    const session = beginPipeline()
+    resetPipelineUi()
+    return exploreCore(session, names)
+  }, [beginPipeline, resetPipelineUi, exploreCore])
 
   // re-run explore for the same orgs: used by the banner on
   // Overview / Contributors / Repositories / Network
@@ -284,28 +383,63 @@ export function AppProvider({ children }) {
   }, [pat])
 
   // Shared issue-fetch logic: same repo-selection rule as contributors
-  const auditRepos = useCallback(async (allRepos) => {
+  const auditRepos = useCallback(async (session, allRepos) => {
+    const signal = session.controller.signal
     const repos = selectAnalysisRepos(allRepos)
 
     const map = {}
     for (let i = 0; i < repos.length; i += 5) {
+      ensurePipelineCurrent(session)
       const batch = repos.slice(i, i + 5)
       await Promise.allSettled(batch.map(async repo => {
-        map[`${repo.orgLogin}/${repo.name}`] = await fetchIssues(repo.orgLogin, repo.name, pat)
+        map[`${repo.orgLogin}/${repo.name}`] = await fetchIssues(repo.orgLogin, repo.name, pat, signal)
       }))
+      // allSettled hides abort rejections, so check the session explicitly
+      // before moving on to the next batch.
+      ensurePipelineCurrent(session)
     }
     return map
-  }, [pat, selectAnalysisRepos])
+  }, [pat, selectAnalysisRepos, ensurePipelineCurrent])
+
+  // Shared pull-fetch logic used by advanced analytics and the combined run
+  const pullsRepos = useCallback(async (session, allRepos) => {
+    const signal = session.controller.signal
+    const repos = selectAnalysisRepos(allRepos)
+
+    const map = {}
+    for (let i = 0; i < repos.length; i += 5) {
+      ensurePipelineCurrent(session)
+      const batch = repos.slice(i, i + 5)
+      await Promise.allSettled(batch.map(async repo => {
+        map[`${repo.orgLogin}/${repo.name}`] = await fetchPulls(repo.orgLogin, repo.name, pat, signal)
+      }))
+      ensurePipelineCurrent(session)
+    }
+    return map
+  }, [pat, selectAnalysisRepos, ensurePipelineCurrent])
 
   // Governance audit : used directly when repos are already complete
   const runAudit = useCallback(async () => {
-    if (!model || govLoading) return
+    if (!model || govLoading) return false
+
+    const session = beginPipeline()
+    resetPipelineUi()
     setGovLoading(true)
-    const map = await auditRepos(model.allRepos)
-    setIssuesData(map)
-    setGovLoading(false)
-    setAuditComplete(!!pat)
-  }, [model, pat, govLoading, auditRepos])
+
+    try {
+      const map = await auditRepos(session, model.allRepos)
+      ensurePipelineCurrent(session)
+      setIssuesData(map)
+      setAuditComplete(!!pat)
+      return true
+    } catch (err) {
+      if (isAbortError(err) || !isPipelineCurrent(session)) return false
+      setError(err?.message || 'Failed to run governance audit.')
+      return false
+    } finally {
+      if (isPipelineCurrent(session)) setGovLoading(false)
+    }
+  }, [model, pat, govLoading, beginPipeline, resetPipelineUi, auditRepos, ensurePipelineCurrent, isPipelineCurrent])
 
   // Entry point for Governance / Analytics "Run Complete Analysis"
   // - If repos/contributors aren't complete yet -> fetch them first (explore),
@@ -313,25 +447,38 @@ export function AppProvider({ children }) {
   // - If already complete -> skip repo fetching (cache/state already has it),
   //   just fetch issues.
   const runGovernanceAnalysis = useCallback(async () => {
-    if (govLoading) return
+    if (govLoading) return false
 
-    let currentModel = model
-    if (!isComplete) {
-      setGovLoading(true) // reflect "working" immediately, explore() also sets its own loading
-      const freshModel = await runFullExplore()
-      setGovLoading(false)
-      if (!freshModel) return
-      currentModel = freshModel
-    }
-
-    if (!currentModel) return
-
+    const session = beginPipeline()
+    resetPipelineUi()
     setGovLoading(true)
-    const map = await auditRepos(currentModel.allRepos)
-    setIssuesData(map)
-    setGovLoading(false)
-    setAuditComplete(!!pat)
-  }, [isComplete, model, runFullExplore, auditRepos, pat, govLoading])
+
+    try {
+      let currentModel = model
+      if (!isComplete) {
+        currentModel = await exploreCore(session, lastOrgNames)
+        ensurePipelineCurrent(session)
+        if (!currentModel) return false
+      }
+
+      if (!currentModel) return false
+
+      const map = await auditRepos(session, currentModel.allRepos)
+      ensurePipelineCurrent(session)
+      setIssuesData(map)
+      setAuditComplete(!!pat)
+      return true
+    } catch (err) {
+      if (isAbortError(err) || !isPipelineCurrent(session)) return false
+      setError(err?.message || 'Failed to run governance analysis.')
+      return false
+    } finally {
+      if (isPipelineCurrent(session)) setGovLoading(false)
+    }
+  }, [
+    isComplete, model, lastOrgNames, pat, govLoading, beginPipeline,
+    resetPipelineUi, exploreCore, auditRepos, ensurePipelineCurrent, isPipelineCurrent
+  ])
 
   // Advanced analytics — parallel batches of 5 (Section 3.2.5)
   // Entry point for Analytics "Run Complete Analysis"
@@ -339,77 +486,85 @@ export function AppProvider({ children }) {
   //   then fetch pulls using the freshly-returned model (avoids stale closure).
   // - If already complete -> skip repo fetching, just fetch pulls.
   const runAdvanceAnalytics = useCallback(async () => {
-    if (advanceAnalyticsLoading) return
+    if (advanceAnalyticsLoading) return false
 
-    let currentModel = model
-    if (!isComplete) {
-      setAdvanceAnalyticsLoading(true) // reflect "working" immediately
-      const freshModel = await runFullExplore()
-      setAdvanceAnalyticsLoading(false)
-      if (!freshModel) return
-      currentModel = freshModel
-    }
-
-    if (!currentModel) return
-
+    const session = beginPipeline()
+    resetPipelineUi()
     setAdvanceAnalyticsLoading(true)
-    const map = {}
-    const repos = selectAnalysisRepos(currentModel.totalRepos)
 
-    for (let i = 0; i < repos.length; i += 5) {
-      const batch = repos.slice(i, i + 5)
-      await Promise.allSettled(batch.map(async repo => {
-        map[`${repo.orgLogin}/${repo.name}`] = await fetchPulls(repo.orgLogin, repo.name, pat)
-      }))
+    try {
+      let currentModel = model
+      if (!isComplete) {
+        currentModel = await exploreCore(session, lastOrgNames)
+        ensurePipelineCurrent(session)
+        if (!currentModel) return false
+      }
+
+      if (!currentModel) return false
+
+      const map = await pullsRepos(session, currentModel.totalRepos)
+      ensurePipelineCurrent(session)
+      setPullsData(map)
+      setAdvanceAnalyticsComplete(!!pat)
+      return true
+    } catch (err) {
+      if (isAbortError(err) || !isPipelineCurrent(session)) return false
+      setError(err?.message || 'Failed to run advanced analytics.')
+      return false
+    } finally {
+      if (isPipelineCurrent(session)) setAdvanceAnalyticsLoading(false)
     }
-    setPullsData(map)
-    setAdvanceAnalyticsLoading(false)
-    setAdvanceAnalyticsComplete(!!pat)
-  }, [isComplete, model, runFullExplore, selectAnalysisRepos, pat, advanceAnalyticsLoading])
+  }, [
+    isComplete, model, lastOrgNames, pat, advanceAnalyticsLoading, beginPipeline,
+    resetPipelineUi, exploreCore, pullsRepos, ensurePipelineCurrent, isPipelineCurrent
+  ])
 
   // Combined entry point for the whole Analytics page banner
   // Runs explore() once if needed, then fetches issues + pulls in parallel
   const runFullAnalytics = useCallback(async () => {
-    if (govLoading || advanceAnalyticsLoading) return
+    if (govLoading || advanceAnalyticsLoading) return false
 
-    let currentModel = model
-    if (!isComplete) {
-      setGovLoading(true)
-      setAdvanceAnalyticsLoading(true)
-      const freshModel = await runFullExplore()
-      setGovLoading(false)
-      setAdvanceAnalyticsLoading(false)
-      if (!freshModel) return
-      currentModel = freshModel
-    }
-
-    if (!currentModel) return
-
+    const session = beginPipeline()
+    resetPipelineUi()
     setGovLoading(true)
     setAdvanceAnalyticsLoading(true)
 
-    const [issuesMap, pullsMap] = await Promise.all([
-      auditRepos(currentModel.allRepos),
-      (async () => {
-        const repos = selectAnalysisRepos(currentModel.totalRepos)
-        const map = {}
-        for (let i = 0; i < repos.length; i += 5) {
-          const batch = repos.slice(i, i + 5)
-          await Promise.allSettled(batch.map(async repo => {
-            map[`${repo.orgLogin}/${repo.name}`] = await fetchPulls(repo.orgLogin, repo.name, pat)
-          }))
-        }
-        return map
-      })()
-    ])
+    try {
+      let currentModel = model
+      if (!isComplete) {
+        currentModel = await exploreCore(session, lastOrgNames)
+        ensurePipelineCurrent(session)
+        if (!currentModel) return false
+      }
 
-    setIssuesData(issuesMap)
-    setPullsData(pullsMap)
-    setGovLoading(false)
-    setAdvanceAnalyticsLoading(false)
-    setAuditComplete(!!pat)
-    setAdvanceAnalyticsComplete(!!pat)
-  }, [model, isComplete, runFullExplore, auditRepos, selectAnalysisRepos, pat, govLoading, advanceAnalyticsLoading])
+      if (!currentModel) return false
+
+      const [issuesMap, pullsMap] = await Promise.all([
+        auditRepos(session, currentModel.allRepos),
+        pullsRepos(session, currentModel.totalRepos)
+      ])
+      ensurePipelineCurrent(session)
+
+      setIssuesData(issuesMap)
+      setPullsData(pullsMap)
+      setAuditComplete(!!pat)
+      setAdvanceAnalyticsComplete(!!pat)
+      return true
+    } catch (err) {
+      if (isAbortError(err) || !isPipelineCurrent(session)) return false
+      setError(err?.message || 'Failed to run the complete analysis.')
+      return false
+    } finally {
+      if (isPipelineCurrent(session)) {
+        setGovLoading(false)
+        setAdvanceAnalyticsLoading(false)
+      }
+    }
+  }, [
+    model, isComplete, lastOrgNames, pat, govLoading, advanceAnalyticsLoading,
+    beginPipeline, resetPipelineUi, exploreCore, auditRepos, pullsRepos,
+    ensurePipelineCurrent, isPipelineCurrent
+  ])
 
   const STALE_DAYS = 90
 
