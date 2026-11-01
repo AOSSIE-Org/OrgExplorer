@@ -6,7 +6,7 @@
 - [ ] The dropdown boxes to filter by team should also allow us to select "no team" to show only things that relate to contributors that belong to no team.
 - [ ] Let's have a new "Pull Requests" page, which should show all open PRs and should allow to filter by repo and by team, and to group by contributor.
 - [ ] Let's have a new "Issues" page, which should show all open issues and should allow to filter by repo and by team, and to group by contributor.
-- [ ] OrgExplorer could have a profile page for every contributor, showing in summarized and detailed ways,
+- [x] OrgExplorer could have a profile page for every contributor, showing in summarized and detailed ways,
       the activity of that contributor in a specified period of time. Then we could specify, for instance,
       a time period going from the beginning of the coding period to the end of the coding period, to see all the contributor's activity during
       GSoC. This profile should be exportable as a markdown file. Contributors could then use this markdown file as a
