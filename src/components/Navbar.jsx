@@ -36,8 +36,9 @@ export default function Navbar() {
       const wasOverflowing = links.classList.contains('navbar-links-overflowing')
       links.classList.remove('navbar-links-overflowing')
       menuToggle.classList.remove('navbar-menu-toggle-visible')
-      const nextOverflowing = (!showOrgLinks && navbar.clientWidth <= 600)
-        || links.scrollWidth > links.clientWidth
+      const nextOverflowing = window.innerWidth < 1020
+        && ((!showOrgLinks && navbar.clientWidth <= 600)
+          || links.scrollWidth > links.clientWidth)
       if (wasOverflowing) {
         links.classList.add('navbar-links-overflowing')
         menuToggle.classList.add('navbar-menu-toggle-visible')
@@ -74,7 +75,7 @@ export default function Navbar() {
   }, [mobileMenuOpen])
 
   return (
-    <nav ref={navbarRef} className={`app-navbar${mobileMenuOpen ? ' app-navbar-menu-open' : ''}`} style={{
+    <nav ref={navbarRef} className={`app-navbar${rateLimit ? ' app-navbar-has-rate-limit' : ''}${mobileMenuOpen ? ' app-navbar-menu-open' : ''}`} style={{
       position: 'sticky', top: 0, zIndex: 100,
       background: 'var(--bg)',
       backdropFilter: 'blur(10px)',
