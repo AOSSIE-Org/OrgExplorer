@@ -1,9 +1,18 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import {
   computeHealthScore,
   computeActivityClassification,
   computeBusFactor,
 } from './analytics'
+
+beforeEach(() => {
+  vi.useFakeTimers()
+  vi.setSystemTime(new Date('2026-10-23T00:00:00.000Z'))
+})
+
+afterEach(() => {
+  vi.useRealTimers()
+})
 
 function daysAgoISO(days) {
   return new Date(Date.now() - days * 86_400_000).toISOString()
