@@ -224,17 +224,18 @@ export default function PATModal({ open, onClose }) {
             <button
               type="button"
               onClick={handleDelete}
-              disabled={!draft.trim()}
+              disabled={!pat}
               style={{
                 padding: "10px 18px",
                 borderRadius: 8,
                 border: "1px solid var(--border)",
                 background: "transparent",
                 color: "var(--text)",
-                cursor: "pointer",
+                cursor: !pat ? "not-allowed" : "pointer",
                 display: "flex",
                 alignItems: "center",
                 gap: 8,
+                opacity: !pat ? 0.5 : 1,
               }}
             >
               <FiTrash2 />
