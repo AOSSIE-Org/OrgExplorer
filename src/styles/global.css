@@ -464,6 +464,21 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   color: var(--text2);
 }
 
+@media (min-width: 1020px) and (max-width: 1099px) {
+  .app-navbar-has-rate-limit {
+    gap: 8px !important;
+  }
+
+  .app-navbar-has-rate-limit .navbar-links .navbar-link {
+    padding-left: 5px !important;
+    padding-right: 5px !important;
+  }
+
+  .app-navbar-has-rate-limit .navbar-controls {
+    gap: 10px !important;
+  }
+}
+
 .navbar-close-icon {
   display: none;
 }
