@@ -263,16 +263,20 @@ Handling of the GitHub PAT:
 
 - Never log the PAT, in console output, error messages, or analytics.
 - Never send the PAT anywhere except directly to `api.github.com`.
-- Never persist the PAT outside `localStorage` (no cookies, no query
-  params, no external storage).
+- Never persist the PAT in plaintext (no cookies, no query params, no
+  external storage).
+- Persist it only through `services/patStorage.js`, which encrypts it with
+  AES-GCM and keeps a non-extractable key in IndexedDB.
 - Never expose the PAT in a URL, including in `Link` headers or debug
   output.
 
-Note: the PAT is currently stored as plaintext in `localStorage`
-(`oe_pat`), which is readable by any script able to execute in this origin.
-This is a known, accepted trade-off for a backend-less app — do not "fix"
-it by adding a server or remote storage without discussing it first, since
-that would violate the no-backend requirement.
+Note: encryption at rest hides the token from casual `localStorage`
+inspection, but the key lives in the same browser profile. It is **not** a
+defence against XSS or someone with full profile access — they can ask the
+browser to decrypt it. Do not "fix" this by adding a server or remote storage
+without discussing it first, since that would violate the no-backend
+requirement. Keep the Settings disclosure and `privacy-policy.md` honest
+about this limitation.
 
 ## Caching
 

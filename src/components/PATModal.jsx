@@ -3,7 +3,7 @@ import { FiEye, FiEyeOff, FiSave, FiTrash2, FiX } from "react-icons/fi";
 import { useApp } from "../context/AppContext";
 
 export default function PATModal({ open, onClose }) {
-  const { pat, savePat } = useApp();
+  const { pat, savePat, patHydrating, patStorageWarning } = useApp();
 
   const [draft, setDraft] = useState(pat);
   const [show, setShow] = useState(false);
@@ -42,8 +42,9 @@ export default function PATModal({ open, onClose }) {
 
   if (!open) return null;
 
-  const handleSave = () => {
-    savePat(draft.trim());
+  const handleSave = async () => {
+    if (patHydrating) return;
+    await savePat(draft.trim());
   };
 
   const handleDelete = () => {
@@ -111,7 +112,7 @@ export default function PATModal({ open, onClose }) {
                 marginTop: 4,
               }}
             >
-              Stored locally in your browser. Never sent anywhere except GitHub.
+              Encrypted in this browser. Never sent anywhere except GitHub.
             </div>
           </div>
 
@@ -165,8 +166,9 @@ export default function PATModal({ open, onClose }) {
             <input
               type={show ? "text" : "password"}
               value={draft}
+              disabled={patHydrating}
               onChange={(e) => setDraft(e.target.value)}
-              placeholder="ghp_xxxxxxxxxxxxxxxxx"
+              placeholder={patHydrating ? "Loading saved token..." : "ghp_xxxxxxxxxxxxxxxxx"}
               style={{
                 flex: 1,
                 padding: "10px 12px",
@@ -203,7 +205,7 @@ export default function PATModal({ open, onClose }) {
             <button
               type="button"
               onClick={handleSave}
-              disabled={!draft.trim()}
+              disabled={!draft.trim() || patHydrating}
               style={{
                 padding: "10px 18px",
                 border: "none",
@@ -224,7 +226,7 @@ export default function PATModal({ open, onClose }) {
             <button
               type="button"
               onClick={handleDelete}
-              disabled={!pat}
+              disabled={!pat || patHydrating}
               style={{
                 padding: "10px 18px",
                 borderRadius: 8,
@@ -242,6 +244,21 @@ export default function PATModal({ open, onClose }) {
               Delete
             </button>
           </div>
+
+          {patStorageWarning && (
+            <div
+              role="status"
+              style={{
+                color: "var(--amber)",
+                fontSize: 12,
+                lineHeight: 1.5,
+                marginTop: -18,
+                marginBottom: 24,
+              }}
+            >
+              {patStorageWarning}
+            </div>
+          )}
 
           <div
             style={{

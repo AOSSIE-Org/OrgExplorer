@@ -7,7 +7,7 @@ import LearnMoreModal from './LearnModeModal'
 
 
 export default function AnalysisBanner({ page, description, onRun, loading = false, analysisStatus = 'sample', }) {
-  const { pat } = useApp()
+  const { pat, patHydrating } = useApp()
   const [open, setOpen] = useState(false)
   const [patModalOpen, setPatModalOpen] = useState(false)
 
@@ -150,8 +150,10 @@ export default function AnalysisBanner({ page, description, onRun, loading = fal
 
           <button
             type="button"
-            disabled={loading}
+            disabled={loading || patHydrating}
             onClick={() => {
+              if (patHydrating) return
+
               if (!pat) {
                 setPatModalOpen(true)
                 return
@@ -176,9 +178,9 @@ export default function AnalysisBanner({ page, description, onRun, loading = fal
               fontWeight: 600,
               fontSize: 13,
 
-              cursor: loading ? 'not-allowed' : 'pointer',
+              cursor: loading || patHydrating ? 'not-allowed' : 'pointer',
 
-              opacity: loading ? 0.65 : 1,
+              opacity: loading || patHydrating ? 0.65 : 1,
 
               boxShadow: '0 4px 14px rgba(245,197,24,.18)',
 
@@ -205,7 +207,7 @@ export default function AnalysisBanner({ page, description, onRun, loading = fal
             ) : (
               <>
                 <FiLock size={14} />
-                {pat ? 'Run Complete Analysis' : 'Connect PAT & Run'}
+                {patHydrating ? 'Loading token...' : pat ? 'Run Complete Analysis' : 'Connect PAT & Run'}
               </>
             )}
           </button>

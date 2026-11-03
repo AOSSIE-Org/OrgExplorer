@@ -9,6 +9,8 @@ vi.mock('../context/AppContext', () => ({
     savePat: vi.fn(),
     rateLimit: null,
     refreshRateLimit: vi.fn(),
+    patHydrating: false,
+    patStorageWarning: '',
   }),
 }))
 

@@ -7,7 +7,7 @@ import App from './App'
 // not IndexedDB hydration or GitHub API calls.
 vi.mock('./context/AppContext', () => ({
   AppProvider: ({ children }) => children,
-  useApp: () => ({ orgs: [], rateLimit: null, pat: '', model: null, loading: false, hydrating: false }),
+  useApp: () => ({ orgs: [], rateLimit: null, pat: '', model: null, loading: false, hydrating: false, patHydrating: false, patStorageWarning: '' }),
 }))
 
 describe('App routing', () => {

@@ -4,7 +4,7 @@ import { FiZap, FiAlertTriangle } from 'react-icons/fi'
 import { useApp } from '../context/AppContext'
 
 export default function RateLimitBanner() {
-  const { rateLimit, pat } = useApp()
+  const { rateLimit, pat, patHydrating } = useApp()
   const navigate = useNavigate()
   if (!rateLimit) return null
 
@@ -26,7 +26,7 @@ export default function RateLimitBanner() {
           <Icon size={13} color={crit ? 'var(--red)' : 'var(--accent)'} />
           API RATE LIMIT: <strong style={{ marginLeft: 2 }}>{rateLimit.remaining} / {rateLimit.limit}</strong> <span className="rate-limit-remaining-label">REQUESTS REMAINING</span>
         </span>
-        {!pat && (
+        {!pat && !patHydrating && (
           <button
             type="button"
             className="rate-limit-pat"
