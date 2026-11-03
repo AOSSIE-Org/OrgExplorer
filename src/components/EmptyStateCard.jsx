@@ -61,7 +61,7 @@ export default function EmptyStateCard({
         {/* Description */}
         <p
           style={{
-            color: "#D4C58A",
+            color: "var(--text2)",
             fontSize: "1rem",
             lineHeight: 1.7,
             maxWidth: "470px",
