@@ -6,8 +6,9 @@ import { cacheClear } from '../services/github'
 import { clearAnalysis } from '../services/cache'
 import { AiOutlineInfoCircle } from "react-icons/ai";
 export default function SettingsPage() {
-  const { pat, savePat, rateLimit, refreshRateLimit } = useApp()
+  const { pat, savePat, rateLimit, refreshRateLimit, patHydrating, patStorageWarning } = useApp()
   const [draft, setDraft] = useState(pat)
+  const [draftEdited, setDraftEdited] = useState(false)
   const [show, setShow] = useState(false)
   const isSaved = Boolean(pat && draft.trim() === pat)
   const [cleared, setCleared] = useState(false)
@@ -17,7 +18,16 @@ export default function SettingsPage() {
   const [isValidating, setIsValidating] = useState(false)
   const [tokenError, setTokenError] = useState('')
 
+  // Hydration is async (the stored token is decrypted with WebCrypto), so the
+  // initial draft is empty. Fill it once the restore finishes, unless the user
+  // has already started typing.
+  useEffect(() => {
+    if (!patHydrating && !draftEdited) setDraft(pat)
+  }, [pat, patHydrating, draftEdited])
+
   const handleSave = async () => {
+    if (patHydrating) return
+
     const token = draft.trim();
     if (!token) return;
 
@@ -39,6 +49,7 @@ export default function SettingsPage() {
       }
 
       savePat(token);
+      setDraftEdited(false);
     } catch (err) {
       setTokenError('Network error verifying token');
     } finally {
@@ -50,6 +61,7 @@ export default function SettingsPage() {
     if (!window.confirm('Delete your PAT? This cannot be undone.')) return
     savePat('')
     setDraft('')
+    setDraftEdited(false)
     setTokenError('')
   }
 
@@ -140,15 +152,19 @@ export default function SettingsPage() {
 
                       <div className="mb-4 color-(--text) text-xs">
                         <p>
-                          Your Personal Access Token (PAT) is stored locally on your device and is never sent to any server. OrgExplorer is a purely static page served to your browser via GitHub Pages and it has no servers.
+                          Your Personal Access Token (PAT) is encrypted in your browser before it is saved. The encryption key stays in this browser and is never sent to any server. OrgExplorer is a purely static page served to your browser via GitHub Pages and it has no servers.
                         </p>
 
                         <ul className="list-disc ml-5 text-(--text) mt-1 text-xs">
-                          <li>Stored only in your browser.</li>
+                          <li>Encrypted at rest in your browser.</li>
                           <li>Used exclusively for GitHub API authentication.</li>
                           <li>Never shared with third parties.</li>
                           <li>Can be removed at any time from Settings.</li>
                         </ul>
+
+                        <p className='text-(--text2) text-xs mt-2'>
+                          Encryption hides the token from casual storage inspection, but it cannot stop malicious scripts running on this page or someone with full access to your browser profile. Use a narrowly scoped token with an expiration.
+                        </p>
 
                         <p className='text-(--text2) text-xs mt-2'>
                           Using a PAT increases GitHub API limits and allows access to
@@ -172,11 +188,13 @@ export default function SettingsPage() {
               <input
                 type={show ? 'text' : 'password'}
                 value={draft}
+                disabled={patHydrating}
                 onChange={e => {
                   setDraft(e.target.value)
+                  setDraftEdited(true)
                   setTokenError('')
                 }}
-                placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+                placeholder={patHydrating ? 'Loading saved token...' : 'ghp_xxxxxxxxxxxxxxxxxxxx'}
                 style={{ ...C.input, flex: 1 }}
                 onKeyDown={e => e.key === 'Enter' && handleSave()}
               />
@@ -192,17 +210,22 @@ export default function SettingsPage() {
                 {tokenError}
               </div>
             )}
+            {patStorageWarning && (
+              <div role="status" style={{ color: 'var(--amber)', fontSize: 12, lineHeight: 1.5, marginBottom: 10 }}>
+                {patStorageWarning}
+              </div>
+            )}
             <div style={{ display: 'flex', gap: 8 }}>
               <button
                 onClick={handleSave}
-                disabled={!draft.trim() || isValidating}
+                disabled={!draft.trim() || isValidating || patHydrating}
                 style={{ ...C.btn('primary'), display: 'flex', alignItems: 'center', gap: 5, fontSize: 13 }}
               >
                 <FiSave size={13} /> {isValidating ? 'Validating...' : isSaved ? 'Saved' : 'Save'}
               </button>
               <button
                 onClick={handleDelete}
-                disabled={!pat || isValidating}
+                disabled={!pat || isValidating || patHydrating}
                 style={{ ...C.btn('danger'), display: 'flex', alignItems: 'center', gap: 5, fontSize: 13 }}
               >
                 <FiTrash2 size={13} /> Delete
@@ -261,7 +284,7 @@ export default function SettingsPage() {
               <div style={{ fontWeight: 600, fontSize: 15, letterSpacing: '.03em' }}>API Quota</div>
               <button
                 type="button"
-                disabled={isRefreshing}
+                disabled={isRefreshing || patHydrating}
                 onClick={async () => {
                   if (isRefreshing) return;
                   setIsRefreshing(true);

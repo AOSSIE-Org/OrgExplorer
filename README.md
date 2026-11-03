@@ -175,6 +175,7 @@ subgraph LOCAL_STORAGE["Local Storage Layer"]
         LS2[TTL]
         LS3[GitHub Rate Info]
         LS4[Known Present Flags]
+        LS5[Encrypted GitHub PAT]
     end
 
 end

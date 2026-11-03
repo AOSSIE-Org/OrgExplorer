@@ -9,6 +9,18 @@ vi.mock('../services/cache', () => ({
   saveAnalysis: vi.fn().mockResolvedValue(true),
 }))
 
+const { loadStoredPat, persistPat, clearStoredPat } = vi.hoisted(() => ({
+  loadStoredPat: vi.fn(),
+  persistPat: vi.fn(),
+  clearStoredPat: vi.fn(),
+}))
+
+vi.mock('../services/patStorage', () => ({
+  loadPat: loadStoredPat,
+  savePat: persistPat,
+  clearPat: clearStoredPat,
+}))
+
 vi.mock('../services/github', () => ({
   fetchOrg: vi.fn(),
   fetchRepos: vi.fn(),
@@ -19,10 +31,11 @@ vi.mock('../services/github', () => ({
 }))
 
 function TestExplorer() {
-  const { explore, error, loading, model } = useApp()
+  const { explore, error, loading, model, patHydrating } = useApp()
   return (
     <div>
       <button onClick={() => explore(['test-org'])}>Explore</button>
+      {!patHydrating && <span data-testid="pat-hydrated" />}
       {loading && <span data-testid="loading">Loading...</span>}
       {error && <span data-testid="error-message">{error}</span>}
       {model && <span data-testid="model-loaded">Model Loaded</span>}
@@ -34,6 +47,9 @@ describe('AppContext explore rate-limit and error handling', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     localStorage.clear()
+    loadStoredPat.mockResolvedValue({ token: '', status: 'empty' })
+    persistPat.mockResolvedValue({ persisted: true })
+    clearStoredPat.mockResolvedValue(undefined)
   })
 
   it('correctly reports rate limit error instead of "No valid organizations found" when fetchOrg hits rate limit', async () => {
@@ -56,7 +72,7 @@ describe('AppContext explore rate-limit and error handling', () => {
   })
 
   it('shows actionable refresh rate limit message when PAT is configured', async () => {
-    localStorage.setItem('oe_pat', 'test-pat-token')
+    loadStoredPat.mockResolvedValue({ token: 'test-pat-token', status: 'ok' })
     github.fetchOrg.mockRejectedValue(new Error('RATE_LIMIT'))
 
     render(
@@ -64,6 +80,8 @@ describe('AppContext explore rate-limit and error handling', () => {
         <TestExplorer />
       </AppProvider>
     )
+
+    await screen.findByTestId('pat-hydrated')
 
     await act(async () => {
       screen.getByText('Explore').click()

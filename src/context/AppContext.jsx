@@ -2,6 +2,11 @@ import { createContext, useContext, useState, useCallback, useEffect, useMemo, u
 import { fetchOrg, fetchRepos, fetchContributors, fetchIssues, fetchRateLimit, fetchPulls } from '../services/github'
 import { buildAnalyticalModel, getTopRepositories } from '../services/analytics'
 import { saveAnalysis, loadAnalysis } from '../services/cache'
+import {
+  loadPat as loadStoredPat,
+  savePat as persistPat,
+  clearPat as clearStoredPat
+} from '../services/patStorage'
 
 const Ctx = createContext(null)
 
@@ -26,7 +31,9 @@ function getStoredRateLimit() {
 }
 
 export function AppProvider({ children }) {
-  const [pat, setPat] = useState(() => localStorage.getItem('oe_pat') || '')
+  const [pat, setPat] = useState('')
+  const [patHydrating, setPatHydrating] = useState(true)
+  const [patStorageWarning, setPatStorageWarning] = useState('')
   const [orgs, setOrgs] = useState([])
   const [model, setModel] = useState(null)
   const [issuesData, setIssuesData] = useState({})
@@ -51,6 +58,45 @@ export function AppProvider({ children }) {
   const restoredFromCache = useRef(false)
 
   const patRequestId = useRef(0)
+  // Set as soon as the user saves or deletes a token, so a slow hydration
+  // cannot overwrite that action with the previously stored value.
+  const patTouched = useRef(false)
+
+  // Restore the encrypted PAT. Decryption is async, so pages must avoid
+  // treating the initial empty value as "no token" until patHydrating clears.
+  useEffect(() => {
+    let cancelled = false
+
+    loadStoredPat()
+      .then(({ token, status }) => {
+        if (cancelled || patTouched.current) return
+
+        if (token) setPat(token)
+
+        if (status === 'corrupt') {
+          setPatStorageWarning(
+            'Your saved GitHub token could not be decrypted. Please enter it again.'
+          )
+        } else if (status === 'unavailable') {
+          setPatStorageWarning(
+            'This browser cannot store your token securely. It will be kept only until this tab is closed.'
+          )
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPatStorageWarning(
+            'This browser cannot store your token securely. It will be kept only until this tab is closed.'
+          )
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setPatHydrating(false)
+      })
+
+    return () => { cancelled = true }
+  }, [])
+
   // Restore the last analysis on startup. The model is held in memory, so
   // without this a reload, bookmark or shared link loses it entirely.
   useEffect(() => {
@@ -137,11 +183,19 @@ export function AppProvider({ children }) {
   }, [pat])
   const savePat = useCallback(async token => {
     const requestId = ++patRequestId.current
+    patTouched.current = true
 
     setPat(token)
 
     if (token) {
-      localStorage.setItem('oe_pat', token)
+      const result = await persistPat(token)
+
+      // A newer save or delete started while encryption was in flight.
+      if (requestId !== patRequestId.current) return
+
+      setPatStorageWarning(result.persisted
+        ? ''
+        : 'This browser cannot store your token securely. It will be kept only until this tab is closed.')
 
       const rl = await fetchRateLimit(token)
 
@@ -153,7 +207,11 @@ export function AppProvider({ children }) {
         localStorage.setItem('oe_rate_limit', JSON.stringify(rl))
       }
     } else {
-      localStorage.removeItem('oe_pat')
+      await clearStoredPat()
+
+      if (requestId !== patRequestId.current) return
+
+      setPatStorageWarning('')
       localStorage.removeItem('oe_rate_limit')
       setRateLimit(null)
     }
@@ -448,6 +506,7 @@ export function AppProvider({ children }) {
   return (
     <Ctx.Provider value={{
       pat, savePat, orgs, model, issuesData, pullsData,
+      patHydrating, patStorageWarning,
       rateLimit, loading, loadMsg, govLoading, error, totalRepo,
       runAdvanceAnalytics, refreshRateLimit, advanceAnalyticsLoading, advanceAnalyticsComplete,
       runFullAnalytics,
