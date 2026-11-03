@@ -17,6 +17,16 @@
 
 ---
 
+## 🚀 Latest Release
+
+**OrgExplorer v1.0.0 is here!**
+
+Explore GitHub organizations, analyze repositories, visualize contributor networks,
+and discover organization insights.
+
+[View Release Notes](https://github.com/AOSSIE-Org/OrgExplorer/releases/tag/v1.0.0)
+---
+
 **OrgExplorer** transforms GitHub organizations into interactive, visual intelligence dashboards. Explore repository relationships, contributor networks, activity trends, risk metrics, and organizational health—all without leaving your browser.
 
 ### Key Insights
