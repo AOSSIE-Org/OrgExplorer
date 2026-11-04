@@ -29,7 +29,8 @@ export function useAdvancedMetrics(pulls = []) {
         avgMergeHours: 0,
         acceptanceRate: 0,
         merged: 0,
-        rejected: 0
+        rejected: 0,
+        mergeTimeSampleSize: 0
       }
     }
 
@@ -39,15 +40,21 @@ export function useAdvancedMetrics(pulls = []) {
       pr => pr.state === 'closed' && !pr.merged_at
     )
 
+    let validDurationCount = 0
     const totalMergeTime = mergedPRs.reduce((sum, pr) => {
+      // new Date(null) resolves to the 1970 epoch rather than failing, so a
+      // missing timestamp must be rejected before any Date is constructed.
+      if (!pr.created_at || !pr.merged_at) return sum
       const duration = new Date(pr.merged_at).getTime() - new Date(pr.created_at).getTime()
-      return Number.isFinite(duration) && duration >= 0 ? sum + duration : sum
+      if (!Number.isFinite(duration) || duration < 0) return sum
+      validDurationCount++
+      return sum + duration
     }, 0)
 
     const avgMergeHours =
-      mergedPRs.length === 0
+      validDurationCount === 0
         ? 0
-        : (totalMergeTime / mergedPRs.length / (1000 * 60 * 60)) || 0
+        : (totalMergeTime / validDurationCount / (1000 * 60 * 60)) || 0
 
     const acceptanceRate =
       mergedPRs.length + rejectedPRs.length === 0
@@ -60,7 +67,8 @@ export function useAdvancedMetrics(pulls = []) {
       avgMergeHours,
       acceptanceRate,
       merged: mergedPRs.length,
-      rejected: rejectedPRs.length
+      rejected: rejectedPRs.length,
+      mergeTimeSampleSize: validDurationCount
     }
   }, [pulls])
 }
