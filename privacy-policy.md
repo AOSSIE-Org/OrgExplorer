@@ -53,6 +53,8 @@ This data is stored only in your browser's:
 - `localStorage`
 - `IndexedDB`
 
+When you save a GitHub Personal Access Token, it is encrypted with AES-GCM. The ciphertext is stored in `localStorage`, while the non-extractable encryption key is stored in `IndexedDB` and never leaves your browser.
+
 OrgExplorer does not transmit this data to any server operated by us.
 
 When a GitHub Personal Access Token is provided, your browser uses it to authenticate requests directly with GitHub's API. The token is sent only to GitHub for authorized API requests and is never sent to OrgExplorer servers.
@@ -118,7 +120,8 @@ The relevant security considerations involve data stored on your own device.
 
 If you choose to provide a GitHub Personal Access Token:
 
-- It is stored only in your browser's `localStorage`
+- It is encrypted with AES-GCM before being written to `localStorage`
+- The encryption key is a non-extractable browser `CryptoKey` stored in `IndexedDB`; it never leaves your device
 - It is sent only to GitHub's API
 - It is never logged by OrgExplorer
 - It is never transmitted to OrgExplorer servers
@@ -131,7 +134,7 @@ We recommend:
 - Avoiding unnecessary scopes
 - Revoking your token from GitHub settings if you suspect misuse
 
-Please note that browser `localStorage` is not encrypted.
+Client-side encryption protects the token at rest, but it does not protect against malicious scripts running on the same origin (XSS) or an attacker with full access to your browser profile or unlocked device. Those actors can ask the browser to decrypt the token.
 
 ---
 

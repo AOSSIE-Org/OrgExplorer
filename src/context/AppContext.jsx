@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useCallback, useEffect, useMemo, u
 import { fetchOrg, fetchRepos, fetchContributors, fetchIssues, fetchRateLimit, fetchPulls } from '../services/github'
 import { buildAnalyticalModel, getTopRepositories } from '../services/analytics'
 import { saveAnalysis, loadAnalysis } from '../services/cache'
+import { readLegacyPatSync, readStoredPat, writeStoredPat, clearStoredPat } from '../services/patStorage'
 
 const Ctx = createContext(null)
 
@@ -26,7 +27,9 @@ function getStoredRateLimit() {
 }
 
 export function AppProvider({ children }) {
-  const [pat, setPat] = useState(() => localStorage.getItem('oe_pat') || '')
+  // Legacy plaintext is available synchronously so the first paint keeps the
+  // authenticated state; the async effect below migrates it to ciphertext.
+  const [pat, setPat] = useState(readLegacyPatSync)
   const [orgs, setOrgs] = useState([])
   const [model, setModel] = useState(null)
   const [issuesData, setIssuesData] = useState({})
@@ -42,15 +45,53 @@ export function AppProvider({ children }) {
   const [isComplete, setIsComplete] = useState(false)
   const [auditComplete, setAuditComplete] = useState(false)
   const [lastOrgNames, setLastOrgNames] = useState([])
-  // True until the cached analysis has been read, so routes that need a model
-  // wait for the restore instead of bouncing to the picker on first paint.
-  const [hydrating, setHydrating] = useState(true)
+  // Track analysis and PAT hydration separately.
+  const [analysisHydrating, setAnalysisHydrating] = useState(true)
+  const [patHydrating, setPatHydrating] = useState(true)
+  const hydrating = analysisHydrating || patHydrating
   // Set when state came straight from the cache, so the write-back effect can
   // skip it. Re-saving an untouched restore would stamp a fresh savedAt on
   // every page load and the entry would never reach its TTL.
   const restoredFromCache = useRef(false)
 
   const patRequestId = useRef(0)
+  const patRef = useRef(pat) // Keep the latest PAT available to async callbacks.
+  const patReadyResolve = useRef(null)
+  const patReady = useRef(null) // Resolves when PAT hydration finishes.
+
+  if (!patReady.current) {
+    patReady.current = new Promise(resolve => {
+      patReadyResolve.current = resolve
+    })
+  }
+
+  // Keep state and ref in sync.
+  const commitPat = useCallback(value => {
+    patRef.current = value
+    setPat(value)
+  }, [])
+
+  // Decrypt the stored PAT without overwriting a newer save.
+  useEffect(() => {
+    let cancelled = false
+
+    readStoredPat()
+      .then(value => {
+        if (cancelled) return
+        if (patRequestId.current === 0) commitPat(value)
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (cancelled) return
+        setPatHydrating(false)
+        patReadyResolve.current?.()
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [commitPat])
+
   // Restore the last analysis on startup. The model is held in memory, so
   // without this a reload, bookmark or shared link loses it entirely.
   useEffect(() => {
@@ -73,7 +114,7 @@ export function AppProvider({ children }) {
         setAdvanceAnalyticsComplete(!!cached.advanceAnalyticsComplete)
       })
       .finally(() => {
-        if (!cancelled) setHydrating(false)
+        if (!cancelled) setAnalysisHydrating(false)
       })
 
     return () => { cancelled = true }
@@ -124,8 +165,10 @@ export function AppProvider({ children }) {
   }, [rateLimit])
 
   const refreshRateLimit = useCallback(async () => {
+    // Wait for PAT hydration before using the token.
+    await patReady.current
     const requestId = patRequestId.current
-    const rl = await fetchRateLimit(pat)
+    const rl = await fetchRateLimit(patRef.current)
 
     if (requestId !== patRequestId.current) return null
 
@@ -134,18 +177,21 @@ export function AppProvider({ children }) {
       return true
     }
     return false
-  }, [pat])
+  }, [])
   const savePat = useCallback(async token => {
     const requestId = ++patRequestId.current
 
-    setPat(token)
+    commitPat(token)
 
     if (token) {
-      localStorage.setItem('oe_pat', token)
+      // Persist the token as ciphertext.
+      await writeStoredPat(token)
+
+      // A newer save or delete started while this request was in flight.
+      if (requestId !== patRequestId.current) return
 
       const rl = await fetchRateLimit(token)
 
-      // A newer save or delete started while this request was in flight.
       if (requestId !== patRequestId.current) return
 
       if (rl) {
@@ -153,11 +199,12 @@ export function AppProvider({ children }) {
         localStorage.setItem('oe_rate_limit', JSON.stringify(rl))
       }
     } else {
-      localStorage.removeItem('oe_pat')
+      // Remove both the ciphertext and the key.
+      await clearStoredPat()
       localStorage.removeItem('oe_rate_limit')
       setRateLimit(null)
     }
-  }, [])
+  }, [commitPat])
 
   // Multi-org explore
   const explore = useCallback(async orgNames => {
@@ -174,6 +221,11 @@ export function AppProvider({ children }) {
       }
     }
     if (!names.length) return false
+
+    // Wait for PAT hydration before using the token.
+    await patReady.current
+    const activePat = patRef.current
+
     setLoading(true);
     setError('');
     setModel(null);
@@ -184,7 +236,7 @@ export function AppProvider({ children }) {
     setAdvanceAnalyticsComplete(false);
     try {
       setLoadMsg('Fetching organization metadata...')
-      const orgRes = await Promise.allSettled(names.map(n => fetchOrg(n, pat)))
+      const orgRes = await Promise.allSettled(names.map(n => fetchOrg(n, activePat)))
 
       const rateLimitError = orgRes.find(r => r.status === 'rejected' && r.reason?.message === 'RATE_LIMIT')
       if (rateLimitError) {
@@ -203,7 +255,7 @@ export function AppProvider({ children }) {
       setLoadMsg('Fetching repositories...')
       const reposPerOrg = {}
       const repoRes = await Promise.allSettled(validOrgs.map(async org => {
-        const repos = await fetchRepos(org.login, org.public_repos, pat)
+        const repos = await fetchRepos(org.login, org.public_repos, activePat)
         reposPerOrg[org.login] = repos
         return repos
       }))
@@ -224,11 +276,11 @@ export function AppProvider({ children }) {
       const contribsPerRepo = {}
       for (const org of validOrgs) {
 
-        const top = pat ? (reposPerOrg[org.login] || []) : getTopRepositories(reposPerOrg[org.login] || [], 10);
+        const top = activePat ? (reposPerOrg[org.login] || []) : getTopRepositories(reposPerOrg[org.login] || [], 10);
         reposPerOrg[org.login] = top;
 
         const contribRes = await Promise.allSettled(top.map(async repo => {
-          const contribs = await fetchContributors(org.login, repo.name, pat)
+          const contribs = await fetchContributors(org.login, repo.name, activePat)
           contribsPerRepo[`${org.login}/${repo.name}`] = contribs
           return contribs
         }))
@@ -243,7 +295,7 @@ export function AppProvider({ children }) {
       const builtModel = buildAnalyticalModel(validOrgs, reposPerOrg, contribsPerRepo, totalReposPerOrg)
       setModel(builtModel)
 
-      setIsComplete(!!pat)
+      setIsComplete(!!activePat)
 
       // Save to recent searches, canonicalized to the official login
       // casing returned by GitHub and deduplicated case-insensitively, so
@@ -256,7 +308,7 @@ export function AppProvider({ children }) {
       return builtModel
     } catch (err) {
       setError(err.message === 'RATE_LIMIT'
-        ? (pat
+        ? (activePat
             ? 'GitHub API rate limit reached. Please wait for your quota to refresh.'
             : 'GitHub API rate limit reached. Add a PAT in Settings for 5,000 req/hr.')
         : err.message)
@@ -264,7 +316,7 @@ export function AppProvider({ children }) {
     } finally {
       setLoading(false); setLoadMsg('')
     }
-  }, [pat])
+  }, [])
 
   // re-run explore for the same orgs: used by the banner on
   // Overview / Contributors / Repositories / Network

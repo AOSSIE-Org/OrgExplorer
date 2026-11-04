@@ -111,7 +111,7 @@ export default function PATModal({ open, onClose }) {
                 marginTop: 4,
               }}
             >
-              Stored locally in your browser. Never sent anywhere except GitHub.
+              Encrypted in your browser. Sent only to GitHub's API, never to OrgExplorer servers.
             </div>
           </div>
 

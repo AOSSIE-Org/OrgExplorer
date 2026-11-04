@@ -17,6 +17,11 @@ export default function SettingsPage() {
   const [isValidating, setIsValidating] = useState(false)
   const [tokenError, setTokenError] = useState('')
 
+  // Populate the field after async PAT hydration.
+  useEffect(() => {
+    setDraft(pat)
+  }, [pat])
+
   const handleSave = async () => {
     const token = draft.trim();
     if (!token) return;
@@ -38,7 +43,7 @@ export default function SettingsPage() {
         return;
       }
 
-      savePat(token);
+      await savePat(token);
     } catch (err) {
       setTokenError('Network error verifying token');
     } finally {
@@ -46,9 +51,9 @@ export default function SettingsPage() {
     }
   }
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!window.confirm('Delete your PAT? This cannot be undone.')) return
-    savePat('')
+    await savePat('')
     setDraft('')
     setTokenError('')
   }
@@ -140,15 +145,24 @@ export default function SettingsPage() {
 
                       <div className="mb-4 color-(--text) text-xs">
                         <p>
-                          Your Personal Access Token (PAT) is stored locally on your device and is never sent to any server. OrgExplorer is a purely static page served to your browser via GitHub Pages and it has no servers.
+                          Your Personal Access Token (PAT) is encrypted in your browser before it is saved, and is only ever sent directly to GitHub's API. OrgExplorer is a purely static page served via GitHub Pages and has no servers of its own.
                         </p>
 
                         <ul className="list-disc ml-5 text-(--text) mt-1 text-xs">
-                          <li>Stored only in your browser.</li>
+                          <li>Encrypted at rest with AES-GCM.</li>
+                          <li>The non-extractable key is kept in this browser's IndexedDB and never leaves your device.</li>
+                          <li>Not hashed — GitHub needs the original token to authenticate requests.</li>
                           <li>Used exclusively for GitHub API authentication.</li>
                           <li>Never shared with third parties.</li>
                           <li>Can be removed at any time from Settings.</li>
                         </ul>
+
+                        <p className='text-(--text2) text-xs mt-2'>
+                          Browser storage cannot protect a token from malicious scripts
+                          running on this site (XSS) or from someone with full access to
+                          your browser profile. Use a least-privilege token and revoke it
+                          immediately if you suspect misuse.
+                        </p>
 
                         <p className='text-(--text2) text-xs mt-2'>
                           Using a PAT increases GitHub API limits and allows access to
