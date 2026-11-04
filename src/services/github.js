@@ -174,12 +174,38 @@ export async function resolveOrg(input, pat) {
   const normalize = text =>
     String(text || '').toLowerCase().replace(/[\s_-]+/g, '')
 
-  const selected =
-    candidates.find(item => normalize(item.login) === normalize(value)) ||
-    candidates[0]
+  const exactLoginMatch = candidates.find(
+    item => normalize(item.login) === normalize(value)
+  )
 
-  // Return the full organization profile, not the search result.
-  return fetchOrg(selected.login, pat)
+  if (exactLoginMatch) {
+    return fetchOrg(exactLoginMatch.login, pat)
+  }
+
+  // Match against full organization profile names when the login differs.
+  const profileResults = await Promise.allSettled(
+    candidates.map(item => fetchOrg(item.login, pat))
+  )
+
+  const profileError = profileResults.find(
+    result =>
+      result.status === 'rejected' &&
+      result.reason?.message !== 'NOT_FOUND'
+  )
+
+  if (profileError) throw profileError.reason
+
+  const matchingProfiles = profileResults
+    .filter(result => result.status === 'fulfilled')
+    .map(result => result.value)
+    .filter(org => normalize(org.name) === normalize(value))
+
+  // Do not guess when no unique organization match exists.
+  if (matchingProfiles.length !== 1) {
+    throw new Error('NOT_FOUND')
+  }
+
+  return matchingProfiles[0]
 }
 export async function fetchRepos(org, repoCount, pat) {
   const all = []
