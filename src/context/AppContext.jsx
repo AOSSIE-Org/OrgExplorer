@@ -196,8 +196,22 @@ export function AppProvider({ children }) {
         throw (unexpectedError.reason || new Error('Failed to fetch organization data.'))
       }
 
-      const validOrgs = orgRes.filter(r => r.status === 'fulfilled').map(r => r.value)
-      if (!validOrgs.length) throw new Error('No valid organizations found. Check the names and try again.')
+      const resolvedOrgs = orgRes
+        .filter(r => r.status === 'fulfilled')
+        .map(r => r.value)
+
+      const seenLogins = new Set()
+      const validOrgs = resolvedOrgs.filter(org => {
+        const login = String(org.login || '').toLowerCase()
+        if (!login || seenLogins.has(login)) return false
+
+        seenLogins.add(login)
+        return true
+      })
+
+      if (!validOrgs.length) {
+        throw new Error('No valid organizations found. Check the names and try again.')
+      }
       setOrgs(validOrgs)
 
       setLoadMsg('Fetching repositories...')
