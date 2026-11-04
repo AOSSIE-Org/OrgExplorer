@@ -144,6 +144,43 @@ async function fetchWithCache(url, pat) {
 export const fetchOrg = (org, pat) =>
   fetchWithCache(`https://api.github.com/orgs/${org}`, pat)
 
+export async function resolveOrg(input, pat) {
+  const value = String(input ?? '').trim()
+  if (!value) throw new Error('NOT_FOUND')
+
+  // Prefer direct lookup for a GitHub organization login.
+  if (!/\s/.test(value)) {
+    try {
+      return await fetchOrg(value, pat)
+    } catch (error) {
+      if (error?.message !== 'NOT_FOUND') throw error
+    }
+  }
+
+  // Search GitHub for organizations matching the supplied name.
+  const query = encodeURIComponent(`${value} in:name type:org`)
+  const results = await fetchWithCache(
+    `https://api.github.com/search/users?q=${query}&per_page=10`,
+    pat
+  )
+
+  const candidates = (results.items || []).filter(
+    item => item.type === 'Organization'
+  )
+
+  if (!candidates.length) throw new Error('NOT_FOUND')
+
+  // Prefer a login that exactly matches the input after normalization.
+  const normalize = text =>
+    String(text || '').toLowerCase().replace(/[\s_-]+/g, '')
+
+  const selected =
+    candidates.find(item => normalize(item.login) === normalize(value)) ||
+    candidates[0]
+
+  // Return the full organization profile, not the search result.
+  return fetchOrg(selected.login, pat)
+}
 export async function fetchRepos(org, repoCount, pat) {
   const all = []
   const maxPages = pat ? Math.ceil(repoCount / 100) : 5

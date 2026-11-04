@@ -15,7 +15,7 @@ export default function HomePage() {
   const recent = JSON.parse(localStorage.getItem('oe_recent') || '[]')
 
   const addChip = raw => {
-    const parts = raw.split(/[,+\s]+/).map(s => s.trim()).filter(Boolean)
+    const parts = raw.split(/[+,]/).map(s => s.trim()).filter(Boolean)
     setChips(prev => {
       // Deduplicate case-insensitively: `AOSSIE-Org` and `aossie-org` are
       // the same org, so keep only the first-seen casing.

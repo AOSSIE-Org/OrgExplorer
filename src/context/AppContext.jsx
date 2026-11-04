@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef } from 'react'
-import { fetchOrg, fetchRepos, fetchContributors, fetchIssues, fetchRateLimit, fetchPulls } from '../services/github'
+import { resolveOrg, fetchRepos, fetchContributors, fetchIssues, fetchRateLimit, fetchPulls } from '../services/github'
 import { buildAnalyticalModel, getTopRepositories } from '../services/analytics'
 import { saveAnalysis, loadAnalysis } from '../services/cache'
 
@@ -184,7 +184,7 @@ export function AppProvider({ children }) {
     setAdvanceAnalyticsComplete(false);
     try {
       setLoadMsg('Fetching organization metadata...')
-      const orgRes = await Promise.allSettled(names.map(n => fetchOrg(n, pat)))
+      const orgRes = await Promise.allSettled(names.map(n => resolveOrg(n, pat)))
 
       const rateLimitError = orgRes.find(r => r.status === 'rejected' && r.reason?.message === 'RATE_LIMIT')
       if (rateLimitError) {
