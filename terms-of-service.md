@@ -148,6 +148,8 @@ Data stored locally for performance purposes, including:
 - Recent searches
 
 is stored only within your browser's local storage or browser databases.
+Personal Access Tokens are encrypted with AES-GCM before storage; the
+non-extractable encryption key is kept in your browser's IndexedDB.
 
 For complete details, see our [Privacy Policy](https://github.com/AOSSIE-Org/OrgExplorer/blob/main/privacy-policy.md).
 

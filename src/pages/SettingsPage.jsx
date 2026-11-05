@@ -6,16 +6,28 @@ import { cacheClear } from '../services/github'
 import { clearAnalysis } from '../services/cache'
 import { AiOutlineInfoCircle } from "react-icons/ai";
 export default function SettingsPage() {
-  const { pat, savePat, rateLimit, refreshRateLimit } = useApp()
+  const { pat, patPersisted, savePat, rateLimit, refreshRateLimit } = useApp()
   const [draft, setDraft] = useState(pat)
+  const draftRef = useRef(draft)
+  const [draftEdited, setDraftEdited] = useState(false)
   const [show, setShow] = useState(false)
-  const isSaved = Boolean(pat && draft.trim() === pat)
+  const isSaved = Boolean(pat && patPersisted && draft.trim() === pat)
   const [cleared, setCleared] = useState(false)
   const [clearing, setClearing] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [refreshError, setRefreshError] = useState(false)
   const [isValidating, setIsValidating] = useState(false)
   const [tokenError, setTokenError] = useState('')
+
+  // Keep the latest draft available to in-flight saves.
+  useEffect(() => {
+    draftRef.current = draft
+  }, [draft])
+
+  // Populate the field after async PAT hydration unless the user has edited it.
+  useEffect(() => {
+    if (!draftEdited) setDraft(pat)
+  }, [pat, draftEdited])
 
   const handleSave = async () => {
     const token = draft.trim();
@@ -38,7 +50,8 @@ export default function SettingsPage() {
         return;
       }
 
-      savePat(token);
+      await savePat(token);
+      if (draftRef.current.trim() === token) setDraftEdited(false);
     } catch (err) {
       setTokenError('Network error verifying token');
     } finally {
@@ -46,10 +59,11 @@ export default function SettingsPage() {
     }
   }
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!window.confirm('Delete your PAT? This cannot be undone.')) return
-    savePat('')
+    await savePat('')
     setDraft('')
+    setDraftEdited(false)
     setTokenError('')
   }
 
@@ -140,15 +154,24 @@ export default function SettingsPage() {
 
                       <div className="mb-4 color-(--text) text-xs">
                         <p>
-                          Your Personal Access Token (PAT) is stored locally on your device and is never sent to any server. OrgExplorer is a purely static page served to your browser via GitHub Pages and it has no servers.
+                          Your Personal Access Token (PAT) is encrypted in your browser before it is saved, and is only ever sent directly to GitHub's API. OrgExplorer is a purely static page served via GitHub Pages and has no servers of its own.
                         </p>
 
                         <ul className="list-disc ml-5 text-(--text) mt-1 text-xs">
-                          <li>Stored only in your browser.</li>
+                          <li>Encrypted at rest with AES-GCM.</li>
+                          <li>The non-extractable key is kept in this browser's IndexedDB and never leaves your device.</li>
+                          <li>Not hashed — GitHub needs the original token to authenticate requests.</li>
                           <li>Used exclusively for GitHub API authentication.</li>
                           <li>Never shared with third parties.</li>
                           <li>Can be removed at any time from Settings.</li>
                         </ul>
+
+                        <p className='text-(--text2) text-xs mt-2'>
+                          Browser storage cannot protect a token from malicious scripts
+                          running on this site (XSS) or from someone with full access to
+                          your browser profile. Use a least-privilege token and revoke it
+                          immediately if you suspect misuse.
+                        </p>
 
                         <p className='text-(--text2) text-xs mt-2'>
                           Using a PAT increases GitHub API limits and allows access to
@@ -174,6 +197,7 @@ export default function SettingsPage() {
                 value={draft}
                 onChange={e => {
                   setDraft(e.target.value)
+                  setDraftEdited(true)
                   setTokenError('')
                 }}
                 placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
@@ -208,6 +232,11 @@ export default function SettingsPage() {
                 <FiTrash2 size={13} /> Delete
               </button>
             </div>
+            {pat && !patPersisted && (
+              <div style={{ color: 'var(--amber)', fontSize: 12, marginTop: 10 }}>
+                Session-only token: browser storage is unavailable, so this PAT will be lost on reload.
+              </div>
+            )}
           </div>
 
           {/* How to create a PAT */}

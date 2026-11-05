@@ -3,11 +3,11 @@ import { FiEye, FiEyeOff, FiSave, FiTrash2, FiX } from "react-icons/fi";
 import { useApp } from "../context/AppContext";
 
 export default function PATModal({ open, onClose }) {
-  const { pat, savePat } = useApp();
+  const { pat, patPersisted, savePat } = useApp();
 
   const [draft, setDraft] = useState(pat);
   const [show, setShow] = useState(false);
-  const isSaved = Boolean(pat && draft.trim() === pat)
+  const isSaved = Boolean(pat && patPersisted && draft.trim() === pat)
 
   useEffect(() => {
     if (open) {
@@ -111,7 +111,7 @@ export default function PATModal({ open, onClose }) {
                 marginTop: 4,
               }}
             >
-              Stored locally in your browser. Never sent anywhere except GitHub.
+              Encrypted in your browser. Sent only to GitHub's API, never to OrgExplorer servers.
             </div>
           </div>
 
@@ -242,6 +242,19 @@ export default function PATModal({ open, onClose }) {
               Delete
             </button>
           </div>
+
+          {pat && !patPersisted && (
+            <div
+              style={{
+                color: "var(--amber)",
+                fontSize: 12,
+                marginTop: -18,
+                marginBottom: 24,
+              }}
+            >
+              Session-only token: browser storage is unavailable, so this PAT will be lost on reload.
+            </div>
+          )}
 
           <div
             style={{
