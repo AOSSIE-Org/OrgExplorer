@@ -154,6 +154,31 @@ describe('patStorage', () => {
     expect(localStorage.getItem('oe_pat')).toBeNull()
   })
 
+  it('preserves ciphertext when key storage is temporarily unavailable', async () => {
+    await patStorage.writeStoredPat('ghp_keep_me')
+    const ciphertext = localStorage.getItem('oe_pat')
+
+    const open = vi.spyOn(indexedDB, 'open').mockImplementation(() => {
+      throw new Error('IndexedDB unavailable')
+    })
+    const generateKey = vi.spyOn(globalThis.crypto.subtle, 'generateKey')
+
+    vi.resetModules()
+    const reloaded = await import('./patStorage')
+
+    try {
+      await expect(reloaded.readStoredPat()).resolves.toEqual({ token: '', persisted: false })
+      expect(localStorage.getItem('oe_pat')).toBe(ciphertext)
+
+      await expect(reloaded.writeStoredPat('ghp_new')).resolves.toEqual({ persisted: false })
+      expect(localStorage.getItem('oe_pat')).toBe(ciphertext)
+      expect(generateKey).not.toHaveBeenCalled()
+    } finally {
+      generateKey.mockRestore()
+      open.mockRestore()
+    }
+  })
+
   it('reports a token as session-only when IndexedDB is unavailable', async () => {
     vi.resetModules()
     vi.stubGlobal('indexedDB', undefined)

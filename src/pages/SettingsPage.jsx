@@ -8,6 +8,7 @@ import { AiOutlineInfoCircle } from "react-icons/ai";
 export default function SettingsPage() {
   const { pat, patPersisted, savePat, rateLimit, refreshRateLimit } = useApp()
   const [draft, setDraft] = useState(pat)
+  const draftRef = useRef(draft)
   const [draftEdited, setDraftEdited] = useState(false)
   const [show, setShow] = useState(false)
   const isSaved = Boolean(pat && patPersisted && draft.trim() === pat)
@@ -17,6 +18,11 @@ export default function SettingsPage() {
   const [refreshError, setRefreshError] = useState(false)
   const [isValidating, setIsValidating] = useState(false)
   const [tokenError, setTokenError] = useState('')
+
+  // Keep the latest draft available to in-flight saves.
+  useEffect(() => {
+    draftRef.current = draft
+  }, [draft])
 
   // Populate the field after async PAT hydration unless the user has edited it.
   useEffect(() => {
@@ -45,7 +51,7 @@ export default function SettingsPage() {
       }
 
       await savePat(token);
-      setDraftEdited(false);
+      if (draftRef.current.trim() === token) setDraftEdited(false);
     } catch (err) {
       setTokenError('Network error verifying token');
     } finally {

@@ -100,14 +100,19 @@ async function getKey() {
     const crypto = getCrypto()
     if (!crypto?.subtle) return null
 
+    let existing
     try {
-      const existing = await getStoredKey()
-      if (existing) {
-        keyIsPersistent = true
-        return existing
-      }
-    } catch {
+      existing = await getStoredKey()
+    } catch (error) {
+      // Never replace a key that may exist but could not be read.
       keyIsPersistent = false
+      cachedKeyPromise = null
+      throw error
+    }
+
+    if (existing) {
+      keyIsPersistent = true
+      return existing
     }
 
     try {
@@ -234,20 +239,34 @@ export function readStoredPat() {
     if (!raw) return { token: '', persisted: false }
 
     if (isEncryptedPat(raw)) {
+      let key = null
       try {
-        const key = await getKey()
+        key = await getKey()
+      } catch {
+        // Key storage is unavailable; keep the ciphertext for a later retry.
+        return { token: '', persisted: false }
+      }
+
+      if (!key) return { token: '', persisted: false }
+
+      try {
         const token = await decryptToken(raw, key)
         if (token == null) throw new Error('Unable to decrypt PAT')
         return { token, persisted: true }
       } catch {
-        // Missing key, corrupt ciphertext or storage cleared in another tab.
+        // The key was available, so this decryption failure confirms corruption.
         removeRawPat()
         return { token: '', persisted: false }
       }
     }
 
     // Migrate an existing plaintext token to ciphertext.
-    const key = await getKey()
+    let key = null
+    try {
+      key = await getKey()
+    } catch {
+      // Key storage is unavailable; do not leave plaintext behind.
+    }
     let encrypted = null
 
     try {
@@ -282,7 +301,16 @@ export function writeStoredPat(token) {
       return { persisted: false }
     }
 
-    const key = await getKey()
+    let key = null
+    try {
+      key = await getKey()
+    } catch {
+      // Preserve any existing ciphertext; key access may be retryable.
+      return { persisted: false }
+    }
+
+    if (!key) return { persisted: false }
+
     let encrypted = null
 
     try {
