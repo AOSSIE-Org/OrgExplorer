@@ -30,6 +30,7 @@ export function AppProvider({ children }) {
   // Legacy plaintext is available synchronously so the first paint keeps the
   // authenticated state; the async effect below migrates it to ciphertext.
   const [pat, setPat] = useState(readLegacyPatSync)
+  const [patPersisted, setPatPersisted] = useState(false)
   const [orgs, setOrgs] = useState([])
   const [model, setModel] = useState(null)
   const [issuesData, setIssuesData] = useState({})
@@ -76,9 +77,12 @@ export function AppProvider({ children }) {
     let cancelled = false
 
     readStoredPat()
-      .then(value => {
+      .then(result => {
         if (cancelled) return
-        if (patRequestId.current === 0) commitPat(value)
+        if (patRequestId.current === 0) {
+          commitPat(result.token)
+          setPatPersisted(result.persisted)
+        }
       })
       .catch(() => {})
       .finally(() => {
@@ -185,24 +189,33 @@ export function AppProvider({ children }) {
 
     if (token) {
       // Persist the token as ciphertext.
-      await writeStoredPat(token)
+      const result = await writeStoredPat(token)
 
       // A newer save or delete started while this request was in flight.
-      if (requestId !== patRequestId.current) return
+      if (requestId !== patRequestId.current) return result
+
+      setPatPersisted(result.persisted)
 
       const rl = await fetchRateLimit(token)
 
-      if (requestId !== patRequestId.current) return
+      if (requestId !== patRequestId.current) return result
 
       if (rl) {
         setRateLimit(rl)
         localStorage.setItem('oe_rate_limit', JSON.stringify(rl))
       }
+
+      return result
     } else {
       // Remove both the ciphertext and the key.
       await clearStoredPat()
+
+      if (requestId !== patRequestId.current) return { persisted: false }
+
+      setPatPersisted(false)
       localStorage.removeItem('oe_rate_limit')
       setRateLimit(null)
+      return { persisted: false }
     }
   }, [commitPat])
 
@@ -499,7 +512,7 @@ export function AppProvider({ children }) {
 
   return (
     <Ctx.Provider value={{
-      pat, savePat, orgs, model, issuesData, pullsData,
+      pat, patPersisted, savePat, orgs, model, issuesData, pullsData,
       rateLimit, loading, loadMsg, govLoading, error, totalRepo,
       runAdvanceAnalytics, refreshRateLimit, advanceAnalyticsLoading, advanceAnalyticsComplete,
       runFullAnalytics,

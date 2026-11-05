@@ -105,19 +105,25 @@ afterEach(() => {
 
 describe('patStorage', () => {
   it('stores ciphertext and decrypts the original token', async () => {
-    await patStorage.writeStoredPat('ghp_test_secret_token')
+    await expect(patStorage.writeStoredPat('ghp_test_secret_token')).resolves.toEqual({ persisted: true })
 
     const raw = localStorage.getItem('oe_pat')
     expect(raw).toMatch(/^enc:v1:/)
     expect(raw).not.toContain('ghp_test_secret_token')
 
-    await expect(patStorage.readStoredPat()).resolves.toBe('ghp_test_secret_token')
+    await expect(patStorage.readStoredPat()).resolves.toEqual({
+      token: 'ghp_test_secret_token',
+      persisted: true,
+    })
   })
 
   it('migrates a legacy plaintext token to ciphertext', async () => {
     localStorage.setItem('oe_pat', 'ghp_legacy_token')
 
-    await expect(patStorage.readStoredPat()).resolves.toBe('ghp_legacy_token')
+    await expect(patStorage.readStoredPat()).resolves.toEqual({
+      token: 'ghp_legacy_token',
+      persisted: true,
+    })
 
     const raw = localStorage.getItem('oe_pat')
     expect(raw).toMatch(/^enc:v1:/)
@@ -129,14 +135,24 @@ describe('patStorage', () => {
     await patStorage.clearStoredPat()
 
     expect(localStorage.getItem('oe_pat')).toBeNull()
-    await expect(patStorage.readStoredPat()).resolves.toBe('')
+    await expect(patStorage.readStoredPat()).resolves.toEqual({ token: '', persisted: false })
   })
 
   it('discards corrupt or undecryptable ciphertext', async () => {
     localStorage.setItem('oe_pat', 'enc:v1:not-valid:data')
 
-    await expect(patStorage.readStoredPat()).resolves.toBe('')
+    await expect(patStorage.readStoredPat()).resolves.toEqual({ token: '', persisted: false })
     expect(localStorage.getItem('oe_pat')).toBeNull()
+  })
+
+  it('reports a token as session-only when IndexedDB is unavailable', async () => {
+    vi.resetModules()
+    vi.stubGlobal('indexedDB', undefined)
+    const sessionStorage = await import('./patStorage')
+
+    await expect(sessionStorage.writeStoredPat('ghp_session_only')).resolves.toEqual({ persisted: false })
+    expect(localStorage.getItem('oe_pat')).toBeNull()
+    await expect(sessionStorage.readStoredPat()).resolves.toEqual({ token: '', persisted: false })
   })
 
   it('reports whether a stored value is encrypted', () => {

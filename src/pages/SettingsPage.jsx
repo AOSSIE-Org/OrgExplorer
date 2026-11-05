@@ -6,10 +6,11 @@ import { cacheClear } from '../services/github'
 import { clearAnalysis } from '../services/cache'
 import { AiOutlineInfoCircle } from "react-icons/ai";
 export default function SettingsPage() {
-  const { pat, savePat, rateLimit, refreshRateLimit } = useApp()
+  const { pat, patPersisted, savePat, rateLimit, refreshRateLimit } = useApp()
   const [draft, setDraft] = useState(pat)
+  const [draftEdited, setDraftEdited] = useState(false)
   const [show, setShow] = useState(false)
-  const isSaved = Boolean(pat && draft.trim() === pat)
+  const isSaved = Boolean(pat && patPersisted && draft.trim() === pat)
   const [cleared, setCleared] = useState(false)
   const [clearing, setClearing] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -17,10 +18,10 @@ export default function SettingsPage() {
   const [isValidating, setIsValidating] = useState(false)
   const [tokenError, setTokenError] = useState('')
 
-  // Populate the field after async PAT hydration.
+  // Populate the field after async PAT hydration unless the user has edited it.
   useEffect(() => {
-    setDraft(pat)
-  }, [pat])
+    if (!draftEdited) setDraft(pat)
+  }, [pat, draftEdited])
 
   const handleSave = async () => {
     const token = draft.trim();
@@ -44,6 +45,7 @@ export default function SettingsPage() {
       }
 
       await savePat(token);
+      setDraftEdited(false);
     } catch (err) {
       setTokenError('Network error verifying token');
     } finally {
@@ -55,6 +57,7 @@ export default function SettingsPage() {
     if (!window.confirm('Delete your PAT? This cannot be undone.')) return
     await savePat('')
     setDraft('')
+    setDraftEdited(false)
     setTokenError('')
   }
 
@@ -188,6 +191,7 @@ export default function SettingsPage() {
                 value={draft}
                 onChange={e => {
                   setDraft(e.target.value)
+                  setDraftEdited(true)
                   setTokenError('')
                 }}
                 placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
@@ -222,6 +226,11 @@ export default function SettingsPage() {
                 <FiTrash2 size={13} /> Delete
               </button>
             </div>
+            {pat && !patPersisted && (
+              <div style={{ color: 'var(--amber)', fontSize: 12, marginTop: 10 }}>
+                Session-only token: browser storage is unavailable, so this PAT will be lost on reload.
+              </div>
+            )}
           </div>
 
           {/* How to create a PAT */}

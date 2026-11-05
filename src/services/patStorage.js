@@ -227,22 +227,22 @@ export function readLegacyPatSync() {
   return raw && !isEncryptedPat(raw) ? raw : ''
 }
 
-// Read, decrypt, and migrate the stored token.
+// Read, decrypt, and migrate the stored token with its persistence state.
 export function readStoredPat() {
   return enqueue(async () => {
     const raw = readRawPat()
-    if (!raw) return ''
+    if (!raw) return { token: '', persisted: false }
 
     if (isEncryptedPat(raw)) {
       try {
         const key = await getKey()
         const token = await decryptToken(raw, key)
         if (token == null) throw new Error('Unable to decrypt PAT')
-        return token
+        return { token, persisted: true }
       } catch {
         // Missing key, corrupt ciphertext or storage cleared in another tab.
         removeRawPat()
-        return ''
+        return { token: '', persisted: false }
       }
     }
 
@@ -257,16 +257,16 @@ export function readStoredPat() {
     }
 
     if (encrypted && keyIsPersistent && writeRawPat(encrypted)) {
-      return raw
+      return { token: raw, persisted: true }
     }
 
     // Never leave plaintext behind if encryption or storage failed.
     removeRawPat()
-    return raw
+    return { token: raw, persisted: false }
   })
 }
 
-// Encrypt and persist a token, or clear it.
+// Encrypt and persist a token, or clear it, and report persistence.
 export function writeStoredPat(token) {
   return enqueue(async () => {
     if (!token) {
@@ -279,7 +279,7 @@ export function writeStoredPat(token) {
       } catch {
         // Best effort.
       }
-      return
+      return { persisted: false }
     }
 
     const key = await getKey()
@@ -291,9 +291,12 @@ export function writeStoredPat(token) {
       encrypted = null
     }
 
-    if (!(encrypted && keyIsPersistent && writeRawPat(encrypted))) {
-      removeRawPat()
+    if (encrypted && keyIsPersistent && writeRawPat(encrypted)) {
+      return { persisted: true }
     }
+
+    removeRawPat()
+    return { persisted: false }
   })
 }
 
