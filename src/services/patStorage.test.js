@@ -131,11 +131,20 @@ describe('patStorage', () => {
   })
 
   it('removes both the ciphertext and the key when clearing', async () => {
-    await patStorage.writeStoredPat('ghp_to_delete')
-    await patStorage.clearStoredPat()
+    const generateKey = vi.spyOn(globalThis.crypto.subtle, 'generateKey')
 
-    expect(localStorage.getItem('oe_pat')).toBeNull()
-    await expect(patStorage.readStoredPat()).resolves.toEqual({ token: '', persisted: false })
+    try {
+      await patStorage.writeStoredPat('ghp_to_delete')
+      await patStorage.clearStoredPat()
+
+      expect(localStorage.getItem('oe_pat')).toBeNull()
+      await expect(patStorage.readStoredPat()).resolves.toEqual({ token: '', persisted: false })
+
+      await patStorage.writeStoredPat('ghp_after_clear')
+      expect(generateKey).toHaveBeenCalledTimes(2)
+    } finally {
+      generateKey.mockRestore()
+    }
   })
 
   it('discards corrupt or undecryptable ciphertext', async () => {
