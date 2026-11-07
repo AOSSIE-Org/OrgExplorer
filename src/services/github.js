@@ -170,42 +170,53 @@ export async function resolveOrg(input, pat) {
 
   if (!candidates.length) throw new Error('NOT_FOUND')
 
-  // Prefer a login that exactly matches the input after normalization.
-  const normalize = text =>
-    String(text || '').toLowerCase().replace(/[\s_-]+/g, '')
-
+  // Match canonical GitHub logins without removing separators.
   const exactLoginMatch = candidates.find(
-    item => normalize(item.login) === normalize(value)
-  )
+    item => String(item.login || '').toLowerCase() === value.toLowerCase()
+  );
 
   if (exactLoginMatch) {
-    return fetchOrg(exactLoginMatch.login, pat)
+    return fetchOrg(exactLoginMatch.login, pat);
   }
 
-  // Match against full organization profile names when the login differs.
-  const profileResults = await Promise.allSettled(
-    candidates.map(item => fetchOrg(item.login, pat))
-  )
+  // Fetch candidate profiles in small batches to limit concurrent requests.
+  const profileResults = [];
+  for (let i = 0; i < candidates.length; i += 2) {
+    const batch = await Promise.allSettled(
+      candidates.slice(i, i + 2).map(item => fetchOrg(item.login, pat))
+    );
+    profileResults.push(...batch);
+
+    // Stop immediately when GitHub reports a rate limit.
+    const rateLimit = batch.find(
+      result => result.status === 'rejected' && result.reason?.message === 'RATE_LIMIT'
+    );
+    if (rateLimit) throw rateLimit.reason;
+  }
+
+  // Match the full profile name, ignoring only letter casing and outer spaces.
+  const matchingProfiles = profileResults
+    .filter(result => result.status === 'fulfilled')
+    .map(result => result.value)
+    .filter(org =>
+      String(org.name || '').trim().toLowerCase() === value.toLowerCase()
+    );
+
+  // Return only a unique, reliable profile-name match.
+  if (matchingProfiles.length === 1) {
+    return matchingProfiles[0];
+  }
 
   const profileError = profileResults.find(
     result =>
       result.status === 'rejected' &&
       result.reason?.message !== 'NOT_FOUND'
-  )
+  );
 
-  if (profileError) throw profileError.reason
+  if (profileError) throw profileError.reason;
 
-  const matchingProfiles = profileResults
-    .filter(result => result.status === 'fulfilled')
-    .map(result => result.value)
-    .filter(org => normalize(org.name) === normalize(value))
-
-  // Do not guess when no unique organization match exists.
-  if (matchingProfiles.length !== 1) {
-    throw new Error('NOT_FOUND')
-  }
-
-  return matchingProfiles[0]
+  // Never guess when no unique organization match exists.
+  throw new Error('NOT_FOUND');
 }
 export async function fetchRepos(org, repoCount, pat) {
   const all = []

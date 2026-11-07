@@ -42,6 +42,7 @@ export function AppProvider({ children }) {
   const [isComplete, setIsComplete] = useState(false)
   const [auditComplete, setAuditComplete] = useState(false)
   const [lastOrgNames, setLastOrgNames] = useState([])
+  const [failedOrgNames, setFailedOrgNames] = useState([])
   // True until the cached analysis has been read, so routes that need a model
   // wait for the restore instead of bouncing to the picker on first paint.
   const [hydrating, setHydrating] = useState(true)
@@ -180,11 +181,19 @@ export function AppProvider({ children }) {
     setOrgs([]);
     setIssuesData({});
     setLastOrgNames(names);
+    setFailedOrgNames([]);
     setAuditComplete(false);
     setAdvanceAnalyticsComplete(false);
     try {
       setLoadMsg('Fetching organization metadata...')
       const orgRes = await Promise.allSettled(names.map(n => resolveOrg(n, pat)))
+
+      const failedNames = orgRes.flatMap((result, index) =>
+        result.status === 'rejected' && result.reason?.message === 'NOT_FOUND'
+          ? [names[index]]
+          : []
+      );
+      setFailedOrgNames(failedNames);
 
       const rateLimitError = orgRes.find(r => r.status === 'rejected' && r.reason?.message === 'RATE_LIMIT')
       if (rateLimitError) {
@@ -466,6 +475,7 @@ export function AppProvider({ children }) {
       runAdvanceAnalytics, refreshRateLimit, advanceAnalyticsLoading, advanceAnalyticsComplete,
       runFullAnalytics,
       isComplete, auditComplete, lastOrgNames, hydrating,
+      failedOrgNames,
       explore, runFullExplore, runAudit, runGovernanceAnalysis, setError, staleRepoStats
     }}>
       {children}

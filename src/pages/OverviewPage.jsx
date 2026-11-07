@@ -15,7 +15,7 @@ const LANG_COLORS = ['#22c55e', '#f5c518', '#3b82f6', '#ef4444', '#a855f7', '#f9
 const fmt = n => n > 999 ? (n / 1000).toFixed(1) + 'k' : String(n)
 
 export default function OverviewPage() {
-  const { orgs, model, totalRepo, isComplete, loading, runFullExplore } = useApp()
+  const { orgs, model, totalRepo, isComplete, loading, runFullExplore, failedOrgNames = [], lastOrgNames = [] } = useApp()
   const { theme } = useTheme()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
@@ -23,9 +23,7 @@ export default function OverviewPage() {
   const [showAllOrgs, setShowAllOrgs] = useState(false)
   const infoRef = useRef(null)
   const location = useLocation();
-  const chips = location.state?.chips || [];
-  const verifiedOrgs = orgs.map(o => o.login);
-  const notVerifiedOrgs = chips.filter(c => !verifiedOrgs.some(org => c.trim() === org));
+
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -110,9 +108,9 @@ export default function OverviewPage() {
         onRun={runFullExplore}
       />
       {/* Org identity bar */}
-      {chips.length > orgs.length && (
+      {failedOrgNames.length > 0 && (
         <div className="text-amber-400 mb-4">
-          {`Analysis completed with warnings: ${chips.length - orgs.length} of ${chips.length} organizations could not be loaded: ${notVerifiedOrgs.join(', ')}.`}
+          {'Analysis completed with warnings: ' + failedOrgNames.length + ' of ' + lastOrgNames.length + ' organizations could not be loaded: ' + failedOrgNames.join(', ') + '.'}
         </div>
       )}
       <div
