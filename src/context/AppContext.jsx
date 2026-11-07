@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef } from 'react'
-import { fetchOrg, fetchRepos, fetchContributors, fetchIssues, fetchRateLimit, fetchPulls } from '../services/github'
+import { resolveOrg, fetchRepos, fetchContributors, fetchIssues, fetchRateLimit, fetchPulls } from '../services/github'
 import { buildAnalyticalModel, getTopRepositories } from '../services/analytics'
 import { saveAnalysis, loadAnalysis } from '../services/cache'
 
@@ -42,6 +42,7 @@ export function AppProvider({ children }) {
   const [isComplete, setIsComplete] = useState(false)
   const [auditComplete, setAuditComplete] = useState(false)
   const [lastOrgNames, setLastOrgNames] = useState([])
+  const [failedOrgNames, setFailedOrgNames] = useState([])
   // True until the cached analysis has been read, so routes that need a model
   // wait for the restore instead of bouncing to the picker on first paint.
   const [hydrating, setHydrating] = useState(true)
@@ -180,11 +181,19 @@ export function AppProvider({ children }) {
     setOrgs([]);
     setIssuesData({});
     setLastOrgNames(names);
+    setFailedOrgNames([]);
     setAuditComplete(false);
     setAdvanceAnalyticsComplete(false);
     try {
       setLoadMsg('Fetching organization metadata...')
-      const orgRes = await Promise.allSettled(names.map(n => fetchOrg(n, pat)))
+      const orgRes = await Promise.allSettled(names.map(n => resolveOrg(n, pat)))
+
+      const failedNames = orgRes.flatMap((result, index) =>
+        result.status === 'rejected' && result.reason?.message === 'NOT_FOUND'
+          ? [names[index]]
+          : []
+      );
+      setFailedOrgNames(failedNames);
 
       const rateLimitError = orgRes.find(r => r.status === 'rejected' && r.reason?.message === 'RATE_LIMIT')
       if (rateLimitError) {
@@ -196,8 +205,22 @@ export function AppProvider({ children }) {
         throw (unexpectedError.reason || new Error('Failed to fetch organization data.'))
       }
 
-      const validOrgs = orgRes.filter(r => r.status === 'fulfilled').map(r => r.value)
-      if (!validOrgs.length) throw new Error('No valid organizations found. Check the names and try again.')
+      const resolvedOrgs = orgRes
+        .filter(r => r.status === 'fulfilled')
+        .map(r => r.value)
+
+      const seenLogins = new Set()
+      const validOrgs = resolvedOrgs.filter(org => {
+        const login = String(org.login || '').toLowerCase()
+        if (!login || seenLogins.has(login)) return false
+
+        seenLogins.add(login)
+        return true
+      })
+
+      if (!validOrgs.length) {
+        throw new Error('No valid organizations found. Check the names and try again.')
+      }
       setOrgs(validOrgs)
 
       setLoadMsg('Fetching repositories...')
@@ -452,6 +475,7 @@ export function AppProvider({ children }) {
       runAdvanceAnalytics, refreshRateLimit, advanceAnalyticsLoading, advanceAnalyticsComplete,
       runFullAnalytics,
       isComplete, auditComplete, lastOrgNames, hydrating,
+      failedOrgNames,
       explore, runFullExplore, runAudit, runGovernanceAnalysis, setError, staleRepoStats
     }}>
       {children}

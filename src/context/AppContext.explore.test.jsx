@@ -11,6 +11,7 @@ vi.mock('../services/cache', () => ({
 
 vi.mock('../services/github', () => ({
   fetchOrg: vi.fn(),
+  resolveOrg: vi.fn(),
   fetchRepos: vi.fn(),
   fetchContributors: vi.fn(),
   fetchIssues: vi.fn(),
@@ -18,14 +19,16 @@ vi.mock('../services/github', () => ({
   fetchPulls: vi.fn(),
 }))
 
-function TestExplorer() {
-  const { explore, error, loading, model } = useApp()
+function TestExplorer({ names = ['test-org'] } = {}) {
+  const { explore, error, loading, model, orgs, failedOrgNames } = useApp()
   return (
     <div>
-      <button onClick={() => explore(['test-org'])}>Explore</button>
+      <button onClick={() => explore(names)}>Explore</button>
       {loading && <span data-testid="loading">Loading...</span>}
       {error && <span data-testid="error-message">{error}</span>}
       {model && <span data-testid="model-loaded">Model Loaded</span>}
+      <span data-testid="resolved-org-logins">{orgs.map(org => org.login).join(',')}</span>
+      <span data-testid="failed-org-names">{(failedOrgNames || []).join(',')}</span>
     </div>
   )
 }
@@ -33,11 +36,22 @@ function TestExplorer() {
 describe('AppContext explore rate-limit and error handling', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    if (typeof globalThis.localStorage === 'undefined') {
+      const store = new Map()
+      globalThis.localStorage = {
+        getItem: key => store.has(String(key)) ? store.get(String(key)) : null,
+        setItem: (key, value) => store.set(String(key), String(value)),
+        removeItem: key => store.delete(String(key)),
+        clear: () => store.clear(),
+        key: index => Array.from(store.keys())[index] ?? null,
+        get length() { return store.size }
+      }
+    }
     localStorage.clear()
   })
 
   it('correctly reports rate limit error instead of "No valid organizations found" when fetchOrg hits rate limit', async () => {
-    github.fetchOrg.mockRejectedValue(new Error('RATE_LIMIT'))
+    github.resolveOrg.mockRejectedValue(new Error('RATE_LIMIT'))
 
     render(
       <AppProvider>
@@ -57,7 +71,7 @@ describe('AppContext explore rate-limit and error handling', () => {
 
   it('shows actionable refresh rate limit message when PAT is configured', async () => {
     localStorage.setItem('oe_pat', 'test-pat-token')
-    github.fetchOrg.mockRejectedValue(new Error('RATE_LIMIT'))
+    github.resolveOrg.mockRejectedValue(new Error('RATE_LIMIT'))
 
     render(
       <AppProvider>
@@ -75,7 +89,7 @@ describe('AppContext explore rate-limit and error handling', () => {
   })
 
   it('reports "No valid organizations found" when organization truly does not exist (NOT_FOUND)', async () => {
-    github.fetchOrg.mockRejectedValue(new Error('NOT_FOUND'))
+    github.resolveOrg.mockRejectedValue(new Error('NOT_FOUND'))
 
     render(
       <AppProvider>
@@ -93,7 +107,7 @@ describe('AppContext explore rate-limit and error handling', () => {
   })
 
   it('propagates unexpected API failures instead of masking as "No valid organizations found"', async () => {
-    github.fetchOrg.mockRejectedValue(new Error('Network error: connection reset'))
+    github.resolveOrg.mockRejectedValue(new Error('Network error: connection reset'))
 
     render(
       <AppProvider>
@@ -112,7 +126,7 @@ describe('AppContext explore rate-limit and error handling', () => {
   })
 
   it('reports rate limit error when fetchRepos hits rate limit', async () => {
-    github.fetchOrg.mockResolvedValue({ login: 'test-org', public_repos: 1 })
+    github.resolveOrg.mockResolvedValue({ login: 'test-org', public_repos: 1 })
     github.fetchRepos.mockRejectedValue(new Error('RATE_LIMIT'))
 
     render(
@@ -131,7 +145,7 @@ describe('AppContext explore rate-limit and error handling', () => {
   })
 
   it('reports rate limit error and does not load a model when fetchContributors hits rate limit', async () => {
-    github.fetchOrg.mockResolvedValue({ login: 'test-org', public_repos: 1 })
+    github.resolveOrg.mockResolvedValue({ login: 'test-org', public_repos: 1 })
     github.fetchRepos.mockResolvedValue([{ name: 'test-repo' }])
     github.fetchContributors.mockRejectedValue(new Error('RATE_LIMIT'))
 
@@ -150,8 +164,52 @@ describe('AppContext explore rate-limit and error handling', () => {
     expect(screen.queryByTestId('model-loaded')).not.toBeInTheDocument()
   })
 
+  it('retains successful organizations and records NOT_FOUND input names', async () => {
+    github.resolveOrg.mockImplementation(async name => {
+      if (name === 'missing-org') throw new Error('NOT_FOUND')
+      return { login: 'test-org', public_repos: 1 }
+    })
+    github.fetchRepos.mockResolvedValue([{ name: 'test-repo', stargazers_count: 5, forks_count: 2, open_issues_count: 1 }])
+    github.fetchContributors.mockResolvedValue([{ login: 'dev1', contributions: 10 }])
+
+    render(
+      <AppProvider>
+        <TestExplorer names={['test-org', 'missing-org']} />
+      </AppProvider>
+    )
+
+    await act(async () => {
+      screen.getByText('Explore').click()
+    })
+
+    expect(await screen.findByTestId('model-loaded')).toBeInTheDocument()
+    expect(screen.getByTestId('resolved-org-logins').textContent).toBe('test-org')
+    expect(screen.getByTestId('failed-org-names').textContent).toBe('missing-org')
+    expect(github.fetchRepos).toHaveBeenCalledTimes(1)
+  })
+
+  it('fetches repositories only once when different inputs resolve to the same login', async () => {
+    github.resolveOrg.mockResolvedValue({ login: 'same-org', public_repos: 1 })
+    github.fetchRepos.mockResolvedValue([{ name: 'test-repo', stargazers_count: 5, forks_count: 2, open_issues_count: 1 }])
+    github.fetchContributors.mockResolvedValue([{ login: 'dev1', contributions: 10 }])
+
+    render(
+      <AppProvider>
+        <TestExplorer names={['same-org', 'same-org-alias']} />
+      </AppProvider>
+    )
+
+    await act(async () => {
+      screen.getByText('Explore').click()
+    })
+
+    expect(await screen.findByTestId('model-loaded')).toBeInTheDocument()
+    expect(screen.getByTestId('resolved-org-logins').textContent).toBe('same-org')
+    expect(github.fetchRepos).toHaveBeenCalledTimes(1)
+  })
+
   it('successfully loads analytical model for a valid organization search', async () => {
-    github.fetchOrg.mockResolvedValue({ login: 'test-org', public_repos: 1 })
+    github.resolveOrg.mockResolvedValue({ login: 'test-org', public_repos: 1 })
     github.fetchRepos.mockResolvedValue([{ name: 'test-repo', stargazers_count: 5, forks_count: 2, open_issues_count: 1 }])
     github.fetchContributors.mockResolvedValue([{ login: 'dev1', contributions: 10 }])
 
