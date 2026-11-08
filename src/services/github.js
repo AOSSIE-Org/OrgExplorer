@@ -1,5 +1,8 @@
+import { getAuthScope } from './authScope'
+
 // IndexedDB Cache (L2)
 const DB_NAME = 'orgexplorer_cache'
+const DB_VERSION = 2
 const STORE = 'cache'
 const TTL_MS = 3_600_000 // 1 hour
 
@@ -29,36 +32,87 @@ export function normalizeCacheKey(url) {
 
 function openDB() {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, 1)
-    req.onupgradeneeded = e => e.target.result.createObjectStore(STORE, { keyPath: 'k' })
+    if (typeof indexedDB === 'undefined') {
+      reject(new Error('IndexedDB unavailable'))
+      return
+    }
+
+    const req = indexedDB.open(DB_NAME, DB_VERSION)
+    req.onupgradeneeded = e => {
+      const db = e.target.result
+      if (!db.objectStoreNames.contains(STORE)) {
+        db.createObjectStore(STORE, { keyPath: 'k' })
+      } else {
+        // Purge legacy URL-only entries from before auth scoping.
+        e.target.transaction.objectStore(STORE).clear()
+      }
+    }
     req.onsuccess = e => resolve(e.target.result)
     req.onerror = () => reject(req.error)
+    req.onblocked = () => reject(new Error('IndexedDB blocked'))
   })
 }
 
-export async function cacheGet(key) {
+function scopedCacheKey(key, scope) {
+  return `${scope}|${normalizeCacheKey(key)}`
+}
+
+export async function cacheGet(key, scope = 'anon') {
   try {
     const db = await openDB()
     return new Promise(res => {
-      const req = db.transaction(STORE, 'readonly').objectStore(STORE).get(normalizeCacheKey(key))
-      req.onsuccess = () => {
-        const r = req.result
-        if (!r || Date.now() - r.ts > TTL_MS) return res(null)
-        res(r.v)
+      try {
+        const tx = db.transaction(STORE, 'readonly')
+        const req = tx.objectStore(STORE).get(scopedCacheKey(key, scope))
+        req.onsuccess = () => {
+          db.close()
+          const r = req.result
+          if (!r || Date.now() - r.ts > TTL_MS) return res(null)
+          res(r.v)
+        }
+        req.onerror = () => {
+          db.close()
+          res(null)
+        }
+        tx.onerror = () => {
+          db.close()
+          res(null)
+        }
+        tx.onabort = () => {
+          db.close()
+          res(null)
+        }
+      } catch {
+        db.close()
+        res(null)
       }
-      req.onerror = () => res(null)
     })
   } catch { return null }
 }
 
-export async function cacheSet(key, value) {
+export async function cacheSet(key, value, scope = 'anon') {
   try {
     const db = await openDB()
     return new Promise(res => {
-      const tx = db.transaction(STORE, 'readwrite')
-      tx.objectStore(STORE).put({ k: normalizeCacheKey(key), v: value, ts: Date.now() })
-      tx.oncomplete = () => res(true)
-      tx.onerror = () => res(false)
+      try {
+        const tx = db.transaction(STORE, 'readwrite')
+        tx.objectStore(STORE).put({ k: scopedCacheKey(key, scope), v: value, ts: Date.now() })
+        tx.oncomplete = () => {
+          db.close()
+          res(true)
+        }
+        tx.onerror = () => {
+          db.close()
+          res(false)
+        }
+        tx.onabort = () => {
+          db.close()
+          res(false)
+        }
+      } catch {
+        db.close()
+        res(false)
+      }
     })
   } catch { return false }
 }
@@ -67,18 +121,35 @@ export async function cacheClear() {
   try {
     const db = await openDB()
     return new Promise(res => {
-      const tx = db.transaction(STORE, 'readwrite')
-      tx.objectStore(STORE).clear()
-      tx.oncomplete = () => res(true)
-      tx.onerror = () => res(false)
+      try {
+        const tx = db.transaction(STORE, 'readwrite')
+        tx.objectStore(STORE).clear()
+        tx.oncomplete = () => {
+          db.close()
+          res(true)
+        }
+        tx.onerror = () => {
+          db.close()
+          res(false)
+        }
+        tx.onabort = () => {
+          db.close()
+          res(false)
+        }
+      } catch {
+        db.close()
+        res(false)
+      }
     })
   } catch { return false }
 }
 
 // Core fetchWithCache
 async function fetchWithCache(url, pat) {
+  const scope = await getAuthScope(pat)
+
   // L2 check
-  const cached = await cacheGet(url)
+  const cached = scope ? await cacheGet(url, scope) : null
   if (cached) return cached
 
   const headers = { Accept: 'application/vnd.github.v3+json' }
@@ -129,14 +200,14 @@ async function fetchWithCache(url, pat) {
     // All list-endpoint callers treat [] as "no data", and analytics
     // already defaults missing entries to [].
     const empty = []
-    cacheSet(url, empty) // write-back, non-blocking
+    if (scope) cacheSet(url, empty, scope) // write-back, non-blocking
     return empty
   }
 
   if (!res.ok) throw new Error(`HTTP_${res.status}`)
 
   const data = await res.json()
-  cacheSet(url, data) // write-back, non-blocking
+  if (scope) cacheSet(url, data, scope) // write-back, non-blocking
   return data
 }
 

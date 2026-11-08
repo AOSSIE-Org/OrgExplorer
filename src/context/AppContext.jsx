@@ -1,7 +1,8 @@
 import { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef } from 'react'
-import { fetchOrg, fetchRepos, fetchContributors, fetchIssues, fetchRateLimit, fetchPulls } from '../services/github'
+import { fetchOrg, fetchRepos, fetchContributors, fetchIssues, fetchRateLimit, fetchPulls, cacheClear } from '../services/github'
 import { buildAnalyticalModel, getTopRepositories } from '../services/analytics'
-import { saveAnalysis, loadAnalysis } from '../services/cache'
+import { saveAnalysis, loadAnalysis, clearAnalysis } from '../services/cache'
+import { resetScopeCache } from '../services/authScope'
 
 const Ctx = createContext(null)
 
@@ -27,6 +28,7 @@ function getStoredRateLimit() {
 
 export function AppProvider({ children }) {
   const [pat, setPat] = useState(() => localStorage.getItem('oe_pat') || '')
+  const patRef = useRef(pat)
   const [orgs, setOrgs] = useState([])
   const [model, setModel] = useState(null)
   const [issuesData, setIssuesData] = useState({})
@@ -51,14 +53,36 @@ export function AppProvider({ children }) {
   const restoredFromCache = useRef(false)
 
   const patRequestId = useRef(0)
+  const exploreRequestId = useRef(0)
+  const authEpoch = useRef(0)
+
+  const resetAnalysisState = useCallback(() => {
+    restoredFromCache.current = false
+    setOrgs([])
+    setModel(null)
+    setIssuesData({})
+    setPullsData({})
+    setError('')
+    setLoading(false)
+    setLoadMsg('')
+    setGovLoading(false)
+    setAdvanceAnalyticsLoading(false)
+    setTotalRepo(0)
+    setLastOrgNames([])
+    setIsComplete(false)
+    setAuditComplete(false)
+    setAdvanceAnalyticsComplete(false)
+  }, [])
+
   // Restore the last analysis on startup. The model is held in memory, so
   // without this a reload, bookmark or shared link loses it entirely.
   useEffect(() => {
     let cancelled = false
+    const hydrationPat = patRef.current
 
-    loadAnalysis()
+    loadAnalysis(hydrationPat)
       .then(cached => {
-        if (cancelled || !cached) return
+        if (cancelled || patRef.current !== hydrationPat || !cached) return
 
         restoredFromCache.current = true
 
@@ -93,9 +117,9 @@ export function AppProvider({ children }) {
     saveAnalysis({
       orgs, model, totalRepo, isComplete, lastOrgNames,
       issuesData, pullsData, auditComplete, advanceAnalyticsComplete
-    })
+    }, pat)
   }, [
-    hydrating, orgs, model, totalRepo, isComplete, lastOrgNames,
+    hydrating, pat, orgs, model, totalRepo, isComplete, lastOrgNames,
     issuesData, pullsData, auditComplete, advanceAnalyticsComplete
   ])
 
@@ -136,14 +160,35 @@ export function AppProvider({ children }) {
     return false
   }, [pat])
   const savePat = useCallback(async token => {
+    const trimmed = typeof token === 'string' ? token.trim() : ''
     const requestId = ++patRequestId.current
+    const authChanged = patRef.current !== trimmed
 
-    setPat(token)
+    patRef.current = trimmed
+    setPat(trimmed)
 
-    if (token) {
-      localStorage.setItem('oe_pat', token)
+    if (trimmed) {
+      localStorage.setItem('oe_pat', trimmed)
+    } else {
+      localStorage.removeItem('oe_pat')
+      localStorage.removeItem('oe_rate_limit')
+      setRateLimit(null)
+    }
 
-      const rl = await fetchRateLimit(token)
+    if (authChanged) {
+      // Invalidate any active data-fetching flow and drop old token references.
+      authEpoch.current++
+      exploreRequestId.current++
+      resetScopeCache()
+      resetAnalysisState()
+      await Promise.all([cacheClear(), clearAnalysis()])
+
+      // A newer save or delete started while clearing was in flight.
+      if (requestId !== patRequestId.current) return
+    }
+
+    if (trimmed) {
+      const rl = await fetchRateLimit(trimmed)
 
       // A newer save or delete started while this request was in flight.
       if (requestId !== patRequestId.current) return
@@ -152,12 +197,8 @@ export function AppProvider({ children }) {
         setRateLimit(rl)
         localStorage.setItem('oe_rate_limit', JSON.stringify(rl))
       }
-    } else {
-      localStorage.removeItem('oe_pat')
-      localStorage.removeItem('oe_rate_limit')
-      setRateLimit(null)
     }
-  }, [])
+  }, [resetAnalysisState])
 
   // Multi-org explore
   const explore = useCallback(async orgNames => {
@@ -174,6 +215,8 @@ export function AppProvider({ children }) {
       }
     }
     if (!names.length) return false
+
+    const currentRequestId = ++exploreRequestId.current
     setLoading(true);
     setError('');
     setModel(null);
@@ -185,6 +228,7 @@ export function AppProvider({ children }) {
     try {
       setLoadMsg('Fetching organization metadata...')
       const orgRes = await Promise.allSettled(names.map(n => fetchOrg(n, pat)))
+      if (currentRequestId !== exploreRequestId.current) return false
 
       const rateLimitError = orgRes.find(r => r.status === 'rejected' && r.reason?.message === 'RATE_LIMIT')
       if (rateLimitError) {
@@ -198,6 +242,7 @@ export function AppProvider({ children }) {
 
       const validOrgs = orgRes.filter(r => r.status === 'fulfilled').map(r => r.value)
       if (!validOrgs.length) throw new Error('No valid organizations found. Check the names and try again.')
+      if (currentRequestId !== exploreRequestId.current) return false
       setOrgs(validOrgs)
 
       setLoadMsg('Fetching repositories...')
@@ -207,6 +252,7 @@ export function AppProvider({ children }) {
         reposPerOrg[org.login] = repos
         return repos
       }))
+      if (currentRequestId !== exploreRequestId.current) return false
 
       const repoRateLimit = repoRes.find(r => r.status === 'rejected' && r.reason?.message === 'RATE_LIMIT')
       if (repoRateLimit) {
@@ -223,6 +269,7 @@ export function AppProvider({ children }) {
       setLoadMsg('Fetching contributor data for top repositories...')
       const contribsPerRepo = {}
       for (const org of validOrgs) {
+        if (currentRequestId !== exploreRequestId.current) return false
 
         const top = pat ? (reposPerOrg[org.login] || []) : getTopRepositories(reposPerOrg[org.login] || [], 10);
         reposPerOrg[org.login] = top;
@@ -232,6 +279,7 @@ export function AppProvider({ children }) {
           contribsPerRepo[`${org.login}/${repo.name}`] = contribs
           return contribs
         }))
+        if (currentRequestId !== exploreRequestId.current) return false
 
         const contribRateLimit = contribRes.find(r => r.status === 'rejected' && r.reason?.message === 'RATE_LIMIT')
         if (contribRateLimit) {
@@ -241,6 +289,9 @@ export function AppProvider({ children }) {
 
       setLoadMsg('Building analytical data model...')
       const builtModel = buildAnalyticalModel(validOrgs, reposPerOrg, contribsPerRepo, totalReposPerOrg)
+
+      if (currentRequestId !== exploreRequestId.current) return false
+
       setModel(builtModel)
 
       setIsComplete(!!pat)
@@ -255,6 +306,7 @@ export function AppProvider({ children }) {
       localStorage.setItem('oe_recent', JSON.stringify(next))
       return builtModel
     } catch (err) {
+      if (currentRequestId !== exploreRequestId.current) return false
       setError(err.message === 'RATE_LIMIT'
         ? (pat
             ? 'GitHub API rate limit reached. Please wait for your quota to refresh.'
@@ -262,7 +314,9 @@ export function AppProvider({ children }) {
         : err.message)
       return false
     } finally {
-      setLoading(false); setLoadMsg('')
+      if (currentRequestId === exploreRequestId.current) {
+        setLoading(false); setLoadMsg('')
+      }
     }
   }, [pat])
 
@@ -300,8 +354,14 @@ export function AppProvider({ children }) {
   // Governance audit : used directly when repos are already complete
   const runAudit = useCallback(async () => {
     if (!model || govLoading) return
+    const activeAuthEpoch = authEpoch.current
+    const activeExploreId = exploreRequestId.current
     setGovLoading(true)
     const map = await auditRepos(model.allRepos)
+    if (activeAuthEpoch !== authEpoch.current || activeExploreId !== exploreRequestId.current) {
+      setGovLoading(false)
+      return
+    }
     setIssuesData(map)
     setGovLoading(false)
     setAuditComplete(!!pat)
@@ -314,20 +374,27 @@ export function AppProvider({ children }) {
   //   just fetch issues.
   const runGovernanceAnalysis = useCallback(async () => {
     if (govLoading) return
+    const activeAuthEpoch = authEpoch.current
+    let activeExploreId = exploreRequestId.current
 
     let currentModel = model
     if (!isComplete) {
       setGovLoading(true) // reflect "working" immediately, explore() also sets its own loading
       const freshModel = await runFullExplore()
       setGovLoading(false)
-      if (!freshModel) return
+      if (!freshModel || activeAuthEpoch !== authEpoch.current) return
+      activeExploreId = exploreRequestId.current
       currentModel = freshModel
     }
 
-    if (!currentModel) return
+    if (!currentModel || activeAuthEpoch !== authEpoch.current || activeExploreId !== exploreRequestId.current) return
 
     setGovLoading(true)
     const map = await auditRepos(currentModel.allRepos)
+    if (activeAuthEpoch !== authEpoch.current || activeExploreId !== exploreRequestId.current) {
+      setGovLoading(false)
+      return
+    }
     setIssuesData(map)
     setGovLoading(false)
     setAuditComplete(!!pat)
@@ -340,27 +407,38 @@ export function AppProvider({ children }) {
   // - If already complete -> skip repo fetching, just fetch pulls.
   const runAdvanceAnalytics = useCallback(async () => {
     if (advanceAnalyticsLoading) return
+    const activeAuthEpoch = authEpoch.current
+    let activeExploreId = exploreRequestId.current
 
     let currentModel = model
     if (!isComplete) {
       setAdvanceAnalyticsLoading(true) // reflect "working" immediately
       const freshModel = await runFullExplore()
       setAdvanceAnalyticsLoading(false)
-      if (!freshModel) return
+      if (!freshModel || activeAuthEpoch !== authEpoch.current) return
+      activeExploreId = exploreRequestId.current
       currentModel = freshModel
     }
 
-    if (!currentModel) return
+    if (!currentModel || activeAuthEpoch !== authEpoch.current || activeExploreId !== exploreRequestId.current) return
 
     setAdvanceAnalyticsLoading(true)
     const map = {}
     const repos = selectAnalysisRepos(currentModel.totalRepos)
 
     for (let i = 0; i < repos.length; i += 5) {
+      if (activeAuthEpoch !== authEpoch.current || activeExploreId !== exploreRequestId.current) {
+        setAdvanceAnalyticsLoading(false)
+        return
+      }
       const batch = repos.slice(i, i + 5)
       await Promise.allSettled(batch.map(async repo => {
         map[`${repo.orgLogin}/${repo.name}`] = await fetchPulls(repo.orgLogin, repo.name, pat)
       }))
+    }
+    if (activeAuthEpoch !== authEpoch.current || activeExploreId !== exploreRequestId.current) {
+      setAdvanceAnalyticsLoading(false)
+      return
     }
     setPullsData(map)
     setAdvanceAnalyticsLoading(false)
@@ -371,6 +449,8 @@ export function AppProvider({ children }) {
   // Runs explore() once if needed, then fetches issues + pulls in parallel
   const runFullAnalytics = useCallback(async () => {
     if (govLoading || advanceAnalyticsLoading) return
+    const activeAuthEpoch = authEpoch.current
+    let activeExploreId = exploreRequestId.current
 
     let currentModel = model
     if (!isComplete) {
@@ -379,11 +459,12 @@ export function AppProvider({ children }) {
       const freshModel = await runFullExplore()
       setGovLoading(false)
       setAdvanceAnalyticsLoading(false)
-      if (!freshModel) return
+      if (!freshModel || activeAuthEpoch !== authEpoch.current) return
+      activeExploreId = exploreRequestId.current
       currentModel = freshModel
     }
 
-    if (!currentModel) return
+    if (!currentModel || activeAuthEpoch !== authEpoch.current || activeExploreId !== exploreRequestId.current) return
 
     setGovLoading(true)
     setAdvanceAnalyticsLoading(true)
@@ -394,6 +475,7 @@ export function AppProvider({ children }) {
         const repos = selectAnalysisRepos(currentModel.totalRepos)
         const map = {}
         for (let i = 0; i < repos.length; i += 5) {
+          if (activeAuthEpoch !== authEpoch.current || activeExploreId !== exploreRequestId.current) return map
           const batch = repos.slice(i, i + 5)
           await Promise.allSettled(batch.map(async repo => {
             map[`${repo.orgLogin}/${repo.name}`] = await fetchPulls(repo.orgLogin, repo.name, pat)
@@ -402,6 +484,12 @@ export function AppProvider({ children }) {
         return map
       })()
     ])
+
+    if (activeAuthEpoch !== authEpoch.current || activeExploreId !== exploreRequestId.current) {
+      setGovLoading(false)
+      setAdvanceAnalyticsLoading(false)
+      return
+    }
 
     setIssuesData(issuesMap)
     setPullsData(pullsMap)
