@@ -1,11 +1,20 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { normalizeCacheKey, fetchOrg, fetchRepos, fetchContributors } from './github'
+import { normalizeCacheKey, fetchOrg, fetchRepos, fetchContributors, cacheClear } from './github'
 
 /** Minimal in-memory stand-in for the IndexedDB API surface used by github.js. */
 function installFakeIndexedDB() {
   const tables = new Map()
+  const stores = new Set()
+  let version = 0
+
   const db = {
-    createObjectStore() {},
+    objectStoreNames: {
+      contains: name => stores.has(name),
+    },
+    createObjectStore(name) {
+      stores.add(name)
+      if (!tables.has(name)) tables.set(name, new Map())
+    },
     close() {},
     transaction(storeName) {
       let table = tables.get(storeName)
@@ -43,11 +52,15 @@ function installFakeIndexedDB() {
       return tx
     },
   }
+
   vi.stubGlobal('indexedDB', {
-    open() {
+    open(name, requestedVersion = 1) {
       const req = {}
       queueMicrotask(() => {
-        if (req.onupgradeneeded) req.onupgradeneeded({ target: { result: db } })
+        if (requestedVersion > version) {
+          version = requestedVersion
+          if (req.onupgradeneeded) req.onupgradeneeded({ target: { result: db } })
+        }
         if (req.onsuccess) req.onsuccess({ target: { result: db } })
       })
       return req
@@ -163,6 +176,47 @@ describe('case-insensitive caching', () => {
 
     await fetchRepos('aossie-org', 1, 'pat')
     expect(calls).toHaveLength(1)
+  })
+})
+
+describe('auth-scoped caching', () => {
+  it('does not reuse anonymous responses after a PAT is added', async () => {
+    installFakeIndexedDB()
+    const calls = installCountingFetch({ login: 'AOSSIE-Org' })
+
+    await fetchOrg('AOSSIE-Org')
+    await fetchOrg('AOSSIE-Org', 'ghp_secret_token')
+    expect(calls).toHaveLength(2)
+
+    await fetchOrg('AOSSIE-Org', 'ghp_secret_token')
+    expect(calls).toHaveLength(2)
+  })
+
+  it('does not share cache entries between different PATs', async () => {
+    installFakeIndexedDB()
+    const calls = installCountingFetch({ login: 'AOSSIE-Org' })
+
+    await fetchOrg('AOSSIE-Org', 'ghp_token_a')
+    await fetchOrg('AOSSIE-Org', 'ghp_token_b')
+    expect(calls).toHaveLength(2)
+
+    await fetchOrg('AOSSIE-Org', 'ghp_token_a')
+    expect(calls).toHaveLength(2)
+  })
+
+  it('clears cache entries for every auth scope', async () => {
+    installFakeIndexedDB()
+    const calls = installCountingFetch({ login: 'AOSSIE-Org' })
+
+    await fetchOrg('AOSSIE-Org')
+    await fetchOrg('AOSSIE-Org', 'ghp_token_a')
+    expect(calls).toHaveLength(2)
+
+    expect(await cacheClear()).toBe(true)
+
+    await fetchOrg('AOSSIE-Org')
+    await fetchOrg('AOSSIE-Org', 'ghp_token_a')
+    expect(calls).toHaveLength(4)
   })
 })
 

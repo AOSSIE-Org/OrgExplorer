@@ -42,12 +42,12 @@ export default function PATModal({ open, onClose }) {
 
   if (!open) return null;
 
-  const handleSave = () => {
-    savePat(draft.trim());
+  const handleSave = async () => {
+    await savePat(draft.trim());
   };
 
-  const handleDelete = () => {
-    savePat("");
+  const handleDelete = async () => {
+    await savePat("");
     setDraft("");
   };
 

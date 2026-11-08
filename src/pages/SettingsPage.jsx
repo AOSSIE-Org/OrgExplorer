@@ -38,7 +38,7 @@ export default function SettingsPage() {
         return;
       }
 
-      savePat(token);
+      await savePat(token);
     } catch (err) {
       setTokenError('Network error verifying token');
     } finally {
@@ -46,9 +46,9 @@ export default function SettingsPage() {
     }
   }
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!window.confirm('Delete your PAT? This cannot be undone.')) return
-    savePat('')
+    await savePat('')
     setDraft('')
     setTokenError('')
   }

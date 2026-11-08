@@ -1,5 +1,5 @@
 /**
- * Persistent cache for the last analysis.
+ * Persistent cache for the last analysis, partitioned by auth context.
  *
  * The analytical model is expensive to rebuild — it costs dozens of GitHub API
  * calls against a 60 req/hr unauthenticated budget — but it lived only in React
@@ -15,10 +15,12 @@
  * jsdom) degrades to the previous behaviour instead of breaking the app.
  */
 
+import { getAuthScope } from './authScope'
+
 const DB_NAME = 'orgexplorer'
-const DB_VERSION = 1
+const DB_VERSION = 2
 const STORE = 'analysis'
-const KEY = 'latest'
+const KEY_PREFIX = 'latest:'
 
 /** Matches the "1HR intelligent cache" the landing page advertises. */
 export const CACHE_TTL_MS = 60 * 60 * 1000
@@ -34,7 +36,12 @@ function openDb() {
 
     req.onupgradeneeded = () => {
       const db = req.result
-      if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE)
+      if (!db.objectStoreNames.contains(STORE)) {
+        db.createObjectStore(STORE)
+      } else {
+        // Purge the legacy unscoped analysis from before auth partitioning.
+        req.transaction.objectStore(STORE).clear()
+      }
     }
     req.onsuccess = () => resolve(req.result)
     req.onerror = () => reject(req.error)
@@ -46,35 +53,49 @@ function withStore(mode, run) {
   return openDb().then(db =>
     new Promise((resolve, reject) => {
       let result
-      const tx = db.transaction(STORE, mode)
-      const req = run(tx.objectStore(STORE))
+      try {
+        const tx = db.transaction(STORE, mode)
+        const req = run(tx.objectStore(STORE))
 
-      if (req) req.onsuccess = () => { result = req.result }
-      tx.oncomplete = () => { db.close(); resolve(result) }
-      tx.onerror = () => { db.close(); reject(tx.error) }
-      tx.onabort = () => { db.close(); reject(tx.error) }
+        if (req) req.onsuccess = () => { result = req.result }
+        tx.oncomplete = () => { db.close(); resolve(result) }
+        tx.onerror = () => { db.close(); reject(tx.error) }
+        tx.onabort = () => { db.close(); reject(tx.error) }
+      } catch (err) {
+        db.close()
+        reject(err)
+      }
     })
   )
 }
 
-/** Persist the current analysis. Never throws. */
-export async function saveAnalysis(payload) {
+/** Persist the current analysis for the active auth scope. Never throws. */
+export async function saveAnalysis(payload, pat) {
   try {
-    await withStore('readwrite', store => store.put({ ...payload, savedAt: Date.now() }, KEY))
+    const scope = await getAuthScope(pat)
+    if (!scope) return
+
+    await withStore('readwrite', store =>
+      store.put({ ...payload, savedAt: Date.now() }, `${KEY_PREFIX}${scope}`)
+    )
   } catch {
     // Best effort — a full or unavailable store must not break analysis.
   }
 }
 
-/** Return the cached analysis, or null when absent, stale or unreadable. */
-export async function loadAnalysis() {
+/** Return the cached analysis for the active auth scope, or null. */
+export async function loadAnalysis(pat) {
   try {
-    const record = await withStore('readonly', store => store.get(KEY))
+    const scope = await getAuthScope(pat)
+    if (!scope) return null
+
+    const key = `${KEY_PREFIX}${scope}`
+    const record = await withStore('readonly', store => store.get(key))
 
     if (!record?.model) return null
 
     if (Date.now() - record.savedAt > CACHE_TTL_MS) {
-      await clearAnalysis()
+      await withStore('readwrite', store => store.delete(key))
       return null
     }
 
@@ -87,7 +108,7 @@ export async function loadAnalysis() {
 /** Drop the cached analysis. Never throws; resolves true iff the delete succeeded. */
 export async function clearAnalysis() {
   try {
-    await withStore('readwrite', store => store.delete(KEY))
+    await withStore('readwrite', store => store.clear())
     return true
   } catch {
     // Best effort.
