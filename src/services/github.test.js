@@ -77,7 +77,9 @@ describe('github service', () => {
     })
 
     it('throws RATE_LIMIT on HTTP 403', async () => {
-      const mockHeaders = new Headers()
+      const mockHeaders = new Headers({
+        'x-ratelimit-remaining': '0',
+      })
       global.fetch = vi.fn().mockResolvedValue({
         status: 403,
         ok: false,
@@ -147,6 +149,50 @@ describe('github service', () => {
 
       const contribs = await fetchContributors('org', 'bad-repo', null)
       expect(contribs).toEqual([])
+    })
+
+    it('paginates contributors when using a PAT across multiple pages', async () => {
+      const mockHeaders = new Headers({
+        'x-ratelimit-limit': '5000',
+        'x-ratelimit-remaining': '4999',
+        'x-ratelimit-used': '1',
+        'x-ratelimit-reset': '1800000000',
+      })
+
+      const page1 = Array.from({ length: 100 }, (_, i) => ({ id: i + 1, login: `user-${i + 1}` }))
+      const page2 = [{ id: 101, login: 'user-101' }, { id: 102, login: 'user-102' }]
+
+      global.fetch = vi.fn().mockImplementation(async (url) => {
+        const page = new URL(url).searchParams.get('page')
+        if (page === '1') {
+          return {
+            status: 200,
+            ok: true,
+            headers: mockHeaders,
+            text: vi.fn().mockResolvedValue(JSON.stringify(page1)),
+          }
+        }
+        if (page === '2') {
+          return {
+            status: 200,
+            ok: true,
+            headers: mockHeaders,
+            text: vi.fn().mockResolvedValue(JSON.stringify(page2)),
+          }
+        }
+        return {
+          status: 200,
+          ok: true,
+          headers: mockHeaders,
+          text: vi.fn().mockResolvedValue('[]'),
+        }
+      })
+
+      const contribs = await fetchContributors('org', 'repo', 'test-pat')
+      expect(contribs).toHaveLength(102)
+      expect(contribs).toEqual([...page1, ...page2])
+      expect(contribs).toContainEqual(page1[0])
+      expect(contribs).toContainEqual(page2[0])
     })
   })
 

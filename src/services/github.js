@@ -140,8 +140,15 @@ export async function fetchWithCache(url, pat) {
     return []
   }
 
-  const text = await res.text()
-  const data = text ? JSON.parse(text) : []
+  let data
+  if (typeof res.text === 'function') {
+    const text = await res.text()
+    data = text ? JSON.parse(text) : []
+  } else if (typeof res.json === 'function') {
+    data = await res.json()
+  } else {
+    data = []
+  }
   cacheSet(url, data) // write-back, non-blocking
   return data
 }
