@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
   fetchWithCache,
   fetchContributors,
@@ -8,10 +8,68 @@ import {
   cacheClear,
 } from './github'
 
+function installFakeIndexedDB() {
+  const tables = new Map()
+  const db = {
+    createObjectStore() {},
+    close() {},
+    transaction(storeName) {
+      let table = tables.get(storeName)
+      if (!table) {
+        table = new Map()
+        tables.set(storeName, table)
+      }
+      const tx = {
+        oncomplete: null,
+        onerror: null,
+        onabort: null,
+        objectStore() {
+          return {
+            get(k) {
+              const req = { result: table.has(k) ? table.get(k) : undefined }
+              queueMicrotask(() => req.onsuccess && req.onsuccess())
+              return req
+            },
+            put(record) {
+              table.set(record.k, record)
+              const req = {}
+              queueMicrotask(() => req.onsuccess && req.onsuccess())
+              return req
+            },
+            clear() {
+              table.clear()
+              const req = {}
+              queueMicrotask(() => req.onsuccess && req.onsuccess())
+              return req
+            },
+          }
+        },
+      }
+      queueMicrotask(() => tx.oncomplete && tx.oncomplete())
+      return tx
+    },
+  }
+  vi.stubGlobal('indexedDB', {
+    open() {
+      const req = {}
+      queueMicrotask(() => {
+        if (req.onupgradeneeded) req.onupgradeneeded({ target: { result: db } })
+        if (req.onsuccess) req.onsuccess({ target: { result: db } })
+      })
+      return req
+    },
+  })
+}
+
 describe('github service', () => {
   beforeEach(async () => {
     vi.restoreAllMocks()
+    installFakeIndexedDB()
     await cacheClear()
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
   })
 
   describe('fetchWithCache', () => {
@@ -109,6 +167,55 @@ describe('github service', () => {
       })
 
       await expect(fetchWithCache('https://api.github.com/server-error')).rejects.toThrow('HTTP_500')
+    })
+
+    it('returns empty array [] on 409 Conflict and caches that result', async () => {
+      const mockHeaders = new Headers({
+        'x-ratelimit-limit': '5000',
+        'x-ratelimit-remaining': '4999',
+        'x-ratelimit-used': '1',
+        'x-ratelimit-reset': '1800000000',
+      })
+
+      global.fetch = vi.fn().mockResolvedValue({
+        status: 409,
+        ok: false,
+        headers: mockHeaders,
+        text: vi.fn().mockResolvedValue(''),
+        json: vi.fn().mockRejectedValue(new SyntaxError('Unexpected end of JSON input')),
+      })
+
+      const url = 'https://api.github.com/repos/org/repo-409/contributors'
+      const first = await fetchWithCache(url)
+      expect(first).toEqual([])
+      expect(global.fetch).toHaveBeenCalledTimes(1)
+
+      const second = await fetchWithCache(url)
+      expect(second).toEqual([])
+      expect(global.fetch).toHaveBeenCalledTimes(1)
+    })
+
+    it('rejects with INVALID_JSON on 200 response with malformed JSON and does not cache it', async () => {
+      const mockHeaders = new Headers({
+        'x-ratelimit-limit': '5000',
+        'x-ratelimit-remaining': '4999',
+        'x-ratelimit-used': '1',
+        'x-ratelimit-reset': '1800000000',
+      })
+
+      global.fetch = vi.fn().mockResolvedValue({
+        status: 200,
+        ok: true,
+        headers: mockHeaders,
+        text: vi.fn().mockResolvedValue('{"invalid_json":'),
+      })
+
+      const url = 'https://api.github.com/repos/org/repo/malformed-json'
+      await expect(fetchWithCache(url)).rejects.toThrow('INVALID_JSON')
+      expect(global.fetch).toHaveBeenCalledTimes(1)
+
+      await expect(fetchWithCache(url)).rejects.toThrow('INVALID_JSON')
+      expect(global.fetch).toHaveBeenCalledTimes(2)
     })
   })
 

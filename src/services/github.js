@@ -135,15 +135,18 @@ export async function fetchWithCache(url, pat) {
 
   if (!res.ok) throw new Error(`HTTP_${res.status}`)
 
-  if (res.status === 204) {
-    cacheSet(url, [])
-    return []
-  }
-
   let data
   if (typeof res.text === 'function') {
     const text = await res.text()
-    data = text ? JSON.parse(text) : []
+    if (!text) {
+      data = []
+    } else {
+      try {
+        data = JSON.parse(text)
+      } catch {
+        throw new Error('INVALID_JSON')
+      }
+    }
   } else if (typeof res.json === 'function') {
     data = await res.json()
   } else {
