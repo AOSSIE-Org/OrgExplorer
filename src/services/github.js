@@ -75,8 +75,8 @@ export async function cacheClear() {
   } catch { return false }
 }
 
-// Core fetchWithCache
-async function fetchWithCache(url, pat) {
+// Core fetchWithCache 
+export async function fetchWithCache(url, pat) {
   // L2 check
   const cached = await cacheGet(url)
   if (cached) return cached
@@ -135,7 +135,23 @@ async function fetchWithCache(url, pat) {
 
   if (!res.ok) throw new Error(`HTTP_${res.status}`)
 
-  const data = await res.json()
+  let data
+  if (typeof res.text === 'function') {
+    const text = await res.text()
+    if (!text) {
+      data = []
+    } else {
+      try {
+        data = JSON.parse(text)
+      } catch {
+        throw new Error('INVALID_JSON')
+      }
+    }
+  } else if (typeof res.json === 'function') {
+    data = await res.json()
+  } else {
+    data = []
+  }
   cacheSet(url, data) // write-back, non-blocking
   return data
 }
@@ -150,8 +166,12 @@ export async function fetchRepos(org, repoCount, pat) {
   for (let page = 1; page <= maxPages; page++) {
     const url = `https://api.github.com/orgs/${org}/repos?per_page=100&page=${page}&sort=updated`
     const data = await fetchWithCache(url, pat)
-    all.push(...data)
-    if (data.length < 100) break
+    if (Array.isArray(data)) {
+      all.push(...data)
+      if (data.length < 100) break
+    } else {
+      break
+    }
   }
   return all
 }
@@ -162,8 +182,12 @@ export async function fetchContributors(org, repo, pat) {
   for(let page = 1; page<=maxPages ; page++) {
     const url = `https://api.github.com/repos/${org}/${repo}/contributors?per_page=100&page=${page}`
     const data = await fetchWithCache(url, pat)
-    all.push(...data)
-    if(data.length < 100) break
+    if (Array.isArray(data)) {
+      all.push(...data)
+      if (data.length < 100) break
+    } else {
+      break
+    }
   }
   return all
 }
@@ -174,8 +198,12 @@ export async function fetchIssues(org, repo, pat) {
   for(let page = 1; page<=maxPages ; page++) {
     const url = `https://api.github.com/repos/${org}/${repo}/issues?state=all&per_page=100&page=${page}`
     const data = await fetchWithCache(url, pat)
-    all.push(...data)
-    if(data.length < 100) break
+    if (Array.isArray(data)) {
+      all.push(...data)
+      if (data.length < 100) break
+    } else {
+      break
+    }
   }
   return all
 }
@@ -186,8 +214,12 @@ export async function fetchPulls(org, repo, pat) {
   for(let page = 1; page<=maxPages ; page++) {
     const url = `https://api.github.com/repos/${org}/${repo}/pulls?state=all&per_page=100&page=${page}`
     const data = await fetchWithCache(url, pat)
-    all.push(...data)
-    if(data.length < 100) break
+    if (Array.isArray(data)) {
+      all.push(...data)
+      if (data.length < 100) break
+    } else {
+      break
+    }
   }
   return all
 }
