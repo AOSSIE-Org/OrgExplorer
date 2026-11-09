@@ -28,8 +28,11 @@ describe('buildAnalyticalModel', () => {
     const result = buildAnalyticalModel(orgs, reposPerOrg, contribsPerRepo, totalReposPerOrg)
 
     expect(result.totalRepos).toHaveLength(2)
+    const repoAResult = result.totalRepos.find(r => r.name === 'repo-a')
     const repoBResult = result.totalRepos.find(r => r.name === 'repo-b')
+    expect(repoAResult.contributorsFetched).toBe(true)
     expect(repoBResult.contributors).toEqual([])
+    expect(repoBResult.contributorsFetched).toBe(false)
     expect(repoBResult.busFactor).toEqual({ factor: 0, risk: 'unknown' })
     expect(repoBResult.orgLogin).toBe('org-a')
   })

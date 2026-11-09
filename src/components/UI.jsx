@@ -82,14 +82,40 @@ export function Badge({ text, variant }) {
   return <span style={C.pill(color, bg)}>{String(text).toUpperCase()}</span>
 }
 
-export function HealthBar({ score }) {
+export function HealthBar({ score, onClick, isInteractive = false, title, ariaLabel }) {
   const color = score >= 70 ? 'var(--green)' : score >= 40 ? 'var(--amber)' : 'var(--red)'
+  const interactive = typeof onClick === 'function' && isInteractive !== false
+
+  const handleKeyDown = e => {
+    if (interactive && (e.key === 'Enter' || e.key === ' ')) {
+      e.preventDefault()
+      onClick?.()
+    }
+  }
+
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      <div style={{ flex: 1, height: 4, background: 'var(--border)', borderRadius: 2 }}>
-        <div style={{ width: `${score}%`, height: '100%', background: color, borderRadius: 2 }} />
+    <div
+      role={interactive ? 'button' : undefined}
+      tabIndex={interactive ? 0 : undefined}
+      onClick={interactive ? onClick : undefined}
+      onKeyDown={interactive ? handleKeyDown : undefined}
+      title={title || (interactive ? 'Click to view health score breakdown & recommendations' : undefined)}
+      aria-label={interactive ? (ariaLabel || `Health score ${score} out of 100. Open breakdown.`) : undefined}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        cursor: interactive ? 'pointer' : 'default',
+        padding: interactive ? '2px 4px' : undefined,
+        borderRadius: interactive ? 4 : undefined,
+        transition: 'background 0.15s ease',
+      }}
+      className={interactive ? 'hover:bg-(--surface2)' : undefined}
+    >
+      <div style={{ flex: 1, height: 5, background: 'var(--border)', borderRadius: 3, overflow: 'hidden' }}>
+        <div style={{ width: `${Math.min(100, Math.max(0, score))}%`, height: '100%', background: color, borderRadius: 3, transition: 'width 0.3s ease' }} />
       </div>
-      <span style={{ fontSize: 12, fontWeight: 600, color, minWidth: 26 }}>{score}</span>
+      <span style={{ fontSize: 12, fontWeight: 600, color, minWidth: 26, textAlign: 'right' }}>{score}</span>
     </div>
   )
 }

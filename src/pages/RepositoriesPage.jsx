@@ -9,6 +9,7 @@ import EmptyStateCard from '../components/EmptyStateCard'
 import { useNavigate } from 'react-router-dom'
 import AnalysisBanner from '../components/AnalysisBanner'
 import { RepositorySkeleton } from '../components/Orgexplorerskeletons';
+import RepoHealthDrawer from '../components/RepoHealthDrawer'
 
 const ACTIVITY_CLASSIFICATIONS = ['All', 'Thriving', 'Active', 'Dormant', 'Hibernating']
 const ACTIVITY_COLORS = { Thriving: 'var(--green)', Active: 'var(--blue)', Dormant: 'var(--amber)', Hibernating: 'var(--red)' }
@@ -21,6 +22,7 @@ export default function RepositoriesPage() {
   const [orgFilter, setOrgFilter] = useState('All Organizations')
   const [shown, setShown] = useState(20)
   const [openInfo, setOpenInfo] = useState(false)
+  const [selectedRepoForHealth, setSelectedRepoForHealth] = useState(null)
   const infoRef = useRef(null)
 
   useEffect(() => {
@@ -219,7 +221,6 @@ export default function RepositoriesPage() {
           ))}
         </div>
       </div>
-
       {!allRepos?.length && (
         <div style={{ padding: '32px 24px', maxWidth: 900, margin: '0 auto' }}>
           <EmptyStateCard
@@ -257,24 +258,32 @@ export default function RepositoriesPage() {
             <tbody>
               {visible.map((r, i) => (
                 <tr key={r.id} style={{ borderBottom: '1px solid var(--border)', background: i % 2 ? 'var(--surface2)' : 'transparent' }}>
-                 <td style={{ padding: '10px 14px' }}>
-  <a
-    href={`${r.html_url}`}
-    target="_blank"
-    rel="noopener noreferrer"
-    style={{
-      textDecoration: 'none',
-      color: 'inherit',
-    }}
-  >
-    <div style={{ fontWeight: 500, fontSize: 13 }}>{r.name}</div>
-    {r.orgLogin && <div style={{ fontSize: 11, color: 'var(--text2)' }}>{r.orgLogin}</div>}
-  </a>
-</td>
+                  <td style={{ padding: '10px 14px' }}>
+                    <a
+                      href={`${r.html_url}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        textDecoration: 'none',
+                        color: 'inherit',
+                      }}
+                    >
+                      <div style={{ fontWeight: 500, fontSize: 13 }}>{r.name}</div>
+                      {r.orgLogin && <div style={{ fontSize: 11, color: 'var(--text2)' }}>{r.orgLogin}</div>}
+                    </a>
+                  </td>
                   <td style={{ padding: '10px 14px', fontSize: 13, color: 'var(--text2)' }}>{r.stargazers_count.toLocaleString()}</td>
                   <td style={{ padding: '10px 14px', fontSize: 13, color: 'var(--text2)' }}>{r.forks_count.toLocaleString()}</td>
                   <td style={{ padding: '10px 14px', fontSize: 13, color: r.open_issues_count > 30 ? 'var(--red)' : 'var(--text2)' }}>{r.open_issues_count}</td>
-                  <td style={{ padding: '10px 14px', minWidth: 130 }}><HealthBar score={r.healthScore} /></td>
+                  <td style={{ padding: '10px 14px', minWidth: 130 }}>
+                    <HealthBar
+                      score={r.healthScore}
+                      onClick={() => setSelectedRepoForHealth(r)}
+                      isInteractive={true}
+                      title={`Click to inspect health breakdown for ${r.name}`}
+                      ariaLabel={`${r.name}: health score ${r.healthScore} out of 100. Open breakdown.`}
+                    />
+                  </td>
                   <td style={{ padding: '10px 14px', fontSize: 13, color: 'var(--text2)' }}>{r.language || 'N/A'}</td>
                   <td style={{ padding: '10px 14px' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}><Badge text={r.activityClassification} />
@@ -289,8 +298,13 @@ export default function RepositoriesPage() {
           </table>
           <LoadMore shown={shown} total={sorted.length} onLoad={() => setShown(s => s + 20)} />
         </div>
-  )
-}
-    </div >
+      )}
+
+      <RepoHealthDrawer
+        repo={selectedRepoForHealth}
+        isOpen={Boolean(selectedRepoForHealth)}
+        onClose={() => setSelectedRepoForHealth(null)}
+      />
+    </div>
   )
 }
