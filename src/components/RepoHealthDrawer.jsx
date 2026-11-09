@@ -18,17 +18,17 @@ import {
 import { C } from './UI'
 import { computeHealthBreakdown, getHealthRecommendations } from '../services/analytics'
 
-export default function RepoHealthDrawer({ repo, onClose, isOpen }) {
-  const [activeTab, setActiveTab] = useState('breakdown')
+export default function RepoHealthDrawer({ repo, onClose, isOpen, initialTab = 'breakdown' }) {
+  const [activeTab, setActiveTab] = useState(initialTab)
   const drawerRef = useRef(null)
   const previousActiveElementRef = useRef(null)
 
-  // Reset active tab to breakdown on open or when repository changes
+  // Reset active tab to initialTab on open or when repository changes
   useEffect(() => {
     if (isOpen) {
-      setActiveTab('breakdown')
+      setActiveTab(initialTab)
     }
-  }, [isOpen, repo?.name, repo?.orgLogin])
+  }, [isOpen, initialTab, repo?.name, repo?.orgLogin])
 
   // Focus trap and focus restoration
   useEffect(() => {
