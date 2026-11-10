@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { normalizeCacheKey, fetchOrg, fetchRepos, fetchContributors } from './github'
+import { normalizeCacheKey, fetchOrg, fetchRepos, fetchContributors, fetchIssues, fetchPulls } from './github'
 
 /** Minimal in-memory stand-in for the IndexedDB API surface used by github.js. */
 function installFakeIndexedDB() {
@@ -163,6 +163,44 @@ describe('case-insensitive caching', () => {
 
     await fetchRepos('aossie-org', 1, 'pat')
     expect(calls).toHaveLength(1)
+  })
+})
+
+describe('GitHub API path segments', () => {
+  it('keeps org input inside the org path, without changing the query or fragment', async () => {
+    installFakeIndexedDB()
+    const calls = installCountingFetch({ login: 'test' })
+
+    await fetchOrg('../users/octocat?x=1#fragment', 'pat')
+
+    expect(new URL(calls[0]).pathname).toBe('/orgs/..%2Fusers%2Foctocat%3Fx%3D1%23fragment')
+    expect(new URL(calls[0]).search).toBe('')
+    expect(new URL(calls[0]).hash).toBe('')
+  })
+
+  it('encodes names for each paginated endpoint', async () => {
+    installFakeIndexedDB()
+    const calls = installCountingFetch([])
+
+    await fetchRepos('org?x=1', 1, 'pat')
+    await fetchContributors('org?x=1', 'repo/name', 'pat')
+    await fetchIssues('org?x=1', 'repo/name', 'pat')
+    await fetchPulls('org?x=1', 'repo/name', 'pat')
+
+    expect(calls).toHaveLength(4)
+    expect(new URL(calls[0]).pathname).toBe('/orgs/org%3Fx%3D1/repos')
+    for (const url of calls.slice(1)) {
+      expect(new URL(url).pathname).toMatch(/^\/repos\/org%3Fx%3D1\/repo%2Fname\/(contributors|issues|pulls)$/)
+    }
+  })
+
+  it('rejects dot-only segments that URL parsers would normalize', async () => {
+    installFakeIndexedDB()
+    const calls = installCountingFetch([])
+
+    await expect(fetchOrg('..', 'pat')).rejects.toThrow('INVALID_NAME')
+    await expect(fetchContributors('org', '.', 'pat')).rejects.toThrow('INVALID_NAME')
+    expect(calls).toHaveLength(0)
   })
 })
 

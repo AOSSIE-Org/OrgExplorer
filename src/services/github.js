@@ -141,14 +141,20 @@ async function fetchWithCache(url, pat) {
 }
 
 // Public service functions
-export const fetchOrg = (org, pat) =>
-  fetchWithCache(`https://api.github.com/orgs/${org}`, pat)
+function encodePathSegment(value) {
+  // URL parsers normalize dot-only path segments even when they are encoded.
+  if (value === '.' || value === '..') throw new Error('INVALID_NAME')
+  return encodeURIComponent(value)
+}
+
+export const fetchOrg = async (org, pat) =>
+  fetchWithCache(`https://api.github.com/orgs/${encodePathSegment(org)}`, pat)
 
 export async function fetchRepos(org, repoCount, pat) {
   const all = []
   const maxPages = pat ? Math.ceil(repoCount / 100) : 5
   for (let page = 1; page <= maxPages; page++) {
-    const url = `https://api.github.com/orgs/${org}/repos?per_page=100&page=${page}&sort=updated`
+    const url = `https://api.github.com/orgs/${encodePathSegment(org)}/repos?per_page=100&page=${page}&sort=updated`
     const data = await fetchWithCache(url, pat)
     all.push(...data)
     if (data.length < 100) break
@@ -160,7 +166,7 @@ export async function fetchContributors(org, repo, pat) {
   const all = []
   const maxPages = pat ? 10 : 1
   for(let page = 1; page<=maxPages ; page++) {
-    const url = `https://api.github.com/repos/${org}/${repo}/contributors?per_page=100&page=${page}`
+    const url = `https://api.github.com/repos/${encodePathSegment(org)}/${encodePathSegment(repo)}/contributors?per_page=100&page=${page}`
     const data = await fetchWithCache(url, pat)
     all.push(...data)
     if(data.length < 100) break
@@ -172,7 +178,7 @@ export async function fetchIssues(org, repo, pat) {
   const all = []
   const maxPages = pat ? 10 : 1
   for(let page = 1; page<=maxPages ; page++) {
-    const url = `https://api.github.com/repos/${org}/${repo}/issues?state=all&per_page=100&page=${page}`
+    const url = `https://api.github.com/repos/${encodePathSegment(org)}/${encodePathSegment(repo)}/issues?state=all&per_page=100&page=${page}`
     const data = await fetchWithCache(url, pat)
     all.push(...data)
     if(data.length < 100) break
@@ -184,7 +190,7 @@ export async function fetchPulls(org, repo, pat) {
   const all = []
   const maxPages = pat ? 10 : 1
   for(let page = 1; page<=maxPages ; page++) {
-    const url = `https://api.github.com/repos/${org}/${repo}/pulls?state=all&per_page=100&page=${page}`
+    const url = `https://api.github.com/repos/${encodePathSegment(org)}/${encodePathSegment(repo)}/pulls?state=all&per_page=100&page=${page}`
     const data = await fetchWithCache(url, pat)
     all.push(...data)
     if(data.length < 100) break
