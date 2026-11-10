@@ -23,6 +23,7 @@ function TestExplorer() {
   return (
     <div>
       <button onClick={() => explore(['test-org'])}>Explore</button>
+      <button onClick={() => explore(['..', 'test-org'])}>Explore mixed</button>
       {loading && <span data-testid="loading">Loading...</span>}
       {error && <span data-testid="error-message">{error}</span>}
       {model && <span data-testid="model-loaded">Model Loaded</span>}
@@ -90,6 +91,27 @@ describe('AppContext explore rate-limit and error handling', () => {
     const errorEl = await screen.findByTestId('error-message')
     expect(errorEl.textContent).toBe('No valid organizations found. Check the names and try again.')
     expect(screen.queryByTestId('model-loaded')).not.toBeInTheDocument()
+  })
+
+  it('skips invalid organization names while loading valid ones', async () => {
+    github.fetchOrg.mockImplementation(name => name === '..'
+      ? Promise.reject(new Error('INVALID_NAME'))
+      : Promise.resolve({ login: name, public_repos: 1 }))
+    github.fetchRepos.mockResolvedValue([{ name: 'test-repo' }])
+    github.fetchContributors.mockResolvedValue([])
+
+    render(
+      <AppProvider>
+        <TestExplorer />
+      </AppProvider>
+    )
+
+    await act(async () => {
+      screen.getByText('Explore mixed').click()
+    })
+
+    expect(await screen.findByTestId('model-loaded')).toBeInTheDocument()
+    expect(screen.queryByTestId('error-message')).not.toBeInTheDocument()
   })
 
   it('propagates unexpected API failures instead of masking as "No valid organizations found"', async () => {

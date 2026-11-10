@@ -189,9 +189,11 @@ describe('GitHub API path segments', () => {
 
     expect(calls).toHaveLength(4)
     expect(new URL(calls[0]).pathname).toBe('/orgs/org%3Fx%3D1/repos')
-    for (const url of calls.slice(1)) {
-      expect(new URL(url).pathname).toMatch(/^\/repos\/org%3Fx%3D1\/repo%2Fname\/(contributors|issues|pulls)$/)
-    }
+    expect(calls.slice(1).map(url => new URL(url).pathname)).toEqual([
+      '/repos/org%3Fx%3D1/repo%2Fname/contributors',
+      '/repos/org%3Fx%3D1/repo%2Fname/issues',
+      '/repos/org%3Fx%3D1/repo%2Fname/pulls',
+    ])
   })
 
   it('rejects dot-only segments that URL parsers would normalize', async () => {
