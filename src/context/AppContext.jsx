@@ -191,7 +191,7 @@ export function AppProvider({ children }) {
         throw new Error('RATE_LIMIT')
       }
 
-      const unexpectedError = orgRes.find(r => r.status === 'rejected' && r.reason?.message !== 'NOT_FOUND')
+      const unexpectedError = orgRes.find(r => r.status === 'rejected' && !['NOT_FOUND', 'INVALID_NAME'].includes(r.reason?.message))
       if (unexpectedError) {
         throw (unexpectedError.reason || new Error('Failed to fetch organization data.'))
       }
