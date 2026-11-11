@@ -4,6 +4,7 @@ import { useApp } from '../context/AppContext'
 import { C, PageTitle, EmptyOk } from '../components/UI'
 import EmptyStateCard from '../components/EmptyStateCard'
 import AnalysisBanner from '../components/AnalysisBanner'
+import AuditFailureNotice from '../components/AuditFailureNotice'
 import { GovernanceSkeleton } from '../components/Orgexplorerskeletons'
 
 const TABS = [
@@ -50,6 +51,7 @@ export default function GovernancePage() {
   runAudit,
   govLoading,
   auditComplete,
+  auditFailures,
   loading,
   runGovernanceAnalysis,
   staleRepoStats,
@@ -274,6 +276,7 @@ export default function GovernancePage() {
         loading={loading || govLoading}
         onRun={runGovernanceAnalysis}
       />
+      <AuditFailureNotice failedRepos={auditFailures} />
       <PageTitle
         title="Governance Audit"
         subtitle="Analyzing structural integrity and compliance across the portfolio"
