@@ -9,6 +9,7 @@ import { IoChevronDown } from 'react-icons/io5'
 import { HiCheck, HiOutlineClock } from 'react-icons/hi'
 import { useAdvancedMetrics } from '../hooks/useSortedData'
 import AnalysisBanner from '../components/AnalysisBanner'
+import AuditFailureNotice from '../components/AuditFailureNotice'
 import { AnalyticsSkeleton } from '../components/Orgexplorerskeletons'
 
 const TOOLTIP_STYLE = {
@@ -23,7 +24,7 @@ const TOOLTIP_STYLE = {
 }
 
 export default function AnalyticsPage() {
-  const { model, issuesData, runAudit, govLoading, runAdvanceAnalytics, advanceAnalyticsLoading, advanceAnalyticsComplete, runFullAnalytics, pullsData,  auditComplete, loading, runGovernanceAnalysis, pat  } = useApp()
+  const { model, issuesData, runAudit, govLoading, runAdvanceAnalytics, advanceAnalyticsLoading, advanceAnalyticsComplete, runFullAnalytics, pullsData, auditComplete, auditFailures, loading, runGovernanceAnalysis, pat } = useApp()
 
   const [granularity,   setGranularity]   = useState('monthly')
   const [selectedRepo, setSelectedRepo] = useState('All')
@@ -118,6 +119,7 @@ export default function AnalyticsPage() {
         loading={loading || govLoading || advanceAnalyticsLoading}
         onRun={runFullAnalytics}
       />
+      <AuditFailureNotice failedRepos={auditFailures} />
       <PageTitle
         title="Activity Trends"
         subtitle="How PR and issue velocity is evolving over time — created, merged, and closed per week or month."
