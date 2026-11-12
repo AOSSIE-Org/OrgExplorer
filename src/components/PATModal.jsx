@@ -1,17 +1,22 @@
 import React, { useState, useEffect } from "react";
-import { FiEye, FiEyeOff, FiSave, FiTrash2, FiX } from "react-icons/fi";
+import { FiEye, FiEyeOff, FiSave, FiTrash2, FiX, FiAlertTriangle, FiLoader } from "react-icons/fi";
 import { useApp } from "../context/AppContext";
+import { validatePat } from "../services/github";
 
 export default function PATModal({ open, onClose }) {
   const { pat, savePat } = useApp();
 
   const [draft, setDraft] = useState(pat);
   const [show, setShow] = useState(false);
-  const isSaved = Boolean(pat && draft.trim() === pat)
+  const [validating, setValidating] = useState(false);
+  const [error, setError] = useState("");
+  const isSaved = Boolean(pat && draft.trim() === pat);
 
   useEffect(() => {
     if (open) {
       setDraft(pat);
+      setError("");
+      setValidating(false);
     }
   }, [open, pat]);
 
@@ -42,13 +47,32 @@ export default function PATModal({ open, onClose }) {
 
   if (!open) return null;
 
-  const handleSave = () => {
-    savePat(draft.trim());
+  // Validate token with GitHub API before persisting to storage
+  const handleSave = async () => {
+    const trimmed = draft.trim();
+    if (!trimmed || validating) return;
+
+    if (isSaved) return;
+
+    setValidating(true);
+    setError("");
+
+    const res = await validatePat(trimmed);
+
+    if (!res.valid) {
+      setError(res.error || "Invalid token");
+      setValidating(false);
+      return;
+    }
+
+    await savePat(trimmed);
+    setValidating(false);
   };
 
   const handleDelete = () => {
     savePat("");
     setDraft("");
+    setError("");
   };
 
   return (
@@ -159,20 +183,29 @@ export default function PATModal({ open, onClose }) {
             style={{
               display: "flex",
               gap: 8,
-              marginBottom: 16,
+              marginBottom: error ? 10 : 16,
             }}
           >
             <input
               type={show ? "text" : "password"}
               value={draft}
-              onChange={(e) => setDraft(e.target.value)}
+              onChange={(e) => {
+                setDraft(e.target.value);
+                if (error) setError("");
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !validating && draft.trim()) {
+                  handleSave();
+                }
+              }}
+              disabled={validating}
               placeholder="ghp_xxxxxxxxxxxxxxxxx"
               style={{
                 flex: 1,
                 padding: "10px 12px",
                 background: "var(--surface2)",
                 color: "var(--text)",
-                border: "1px solid var(--border)",
+                border: error ? "1px solid var(--red)" : "1px solid var(--border)",
                 borderRadius: 8,
               }}
             />
@@ -180,18 +213,40 @@ export default function PATModal({ open, onClose }) {
             <button
               type="button"
               onClick={() => setShow((s) => !s)}
+              disabled={validating}
               style={{
                 padding: "0 14px",
                 borderRadius: 8,
                 border: "1px solid var(--border)",
                 background: "transparent",
                 color: "var(--text)",
-                cursor: "pointer",
+                cursor: validating ? "not-allowed" : "pointer",
               }}
             >
               {show ? <FiEyeOff /> : <FiEye />}
             </button>
           </div>
+
+          {error && (
+            <div
+              role="alert"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "8px 12px",
+                marginBottom: 16,
+                background: "rgba(239, 68, 68, 0.08)",
+                border: "1px solid rgba(239, 68, 68, 0.25)",
+                borderRadius: 8,
+                color: "var(--red)",
+                fontSize: 13,
+              }}
+            >
+              <FiAlertTriangle size={15} style={{ flexShrink: 0 }} />
+              <span>{error}</span>
+            </div>
+          )}
 
           <div
             style={{
@@ -203,7 +258,7 @@ export default function PATModal({ open, onClose }) {
             <button
               type="button"
               onClick={handleSave}
-              disabled={!draft.trim()}
+              disabled={!draft.trim() || validating || isSaved}
               style={{
                 padding: "10px 18px",
                 border: "none",
@@ -211,14 +266,24 @@ export default function PATModal({ open, onClose }) {
                 background: "var(--accent)",
                 color: "#111",
                 fontWeight: 600,
-                cursor: "pointer",
+                cursor: (!draft.trim() || validating || isSaved) ? "not-allowed" : "pointer",
+                opacity: (!draft.trim() || validating) ? 0.6 : 1,
                 display: "flex",
                 alignItems: "center",
                 gap: 8,
               }}
             >
-              <FiSave />
-              {isSaved ? "Saved" : "Save"}
+              {validating ? (
+                <>
+                  <FiLoader className="spin" size={16} />
+                  Verifying...
+                </>
+              ) : (
+                <>
+                  <FiSave size={16} />
+                  {isSaved ? "Saved" : "Save"}
+                </>
+              )}
             </button>
 
             <button

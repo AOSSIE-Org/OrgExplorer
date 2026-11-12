@@ -201,3 +201,32 @@ export async function fetchRateLimit(pat) {
     return data.rate
   } catch { return null }
 }
+
+// Test token validity against /rate_limit before saving to avoid broken 401 states
+export async function validatePat(token) {
+  const trimmed = typeof token === 'string' ? token.trim() : ''
+  if (!trimmed) {
+    return { valid: false, error: 'Token cannot be empty' }
+  }
+
+  try {
+    const headers = {
+      Accept: 'application/vnd.github.v3+json',
+      Authorization: `token ${trimmed}`
+    }
+    const res = await fetch('https://api.github.com/rate_limit', { headers })
+
+    if (res.status === 401) {
+      return { valid: false, error: 'Invalid or expired GitHub token' }
+    }
+
+    if (!res.ok) {
+      return { valid: false, error: `GitHub API error (${res.status})` }
+    }
+
+    const data = await res.json()
+    return { valid: true, rate: data?.rate }
+  } catch {
+    return { valid: false, error: 'Network error verifying token with GitHub' }
+  }
+}
