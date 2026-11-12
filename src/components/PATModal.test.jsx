@@ -79,24 +79,117 @@ describe("PATModal", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
-  it("validates and saves successfully when token is valid", async () => {
-    vi.spyOn(githubService, "validatePat").mockResolvedValueOnce({
-      valid: true,
-      rate: { limit: 5000, remaining: 5000, reset: 1700000000 },
+  it("validates and saves successfully when token is valid, verifying pending state", async () => {
+    let resolveValidation;
+    const validationPromise = new Promise((resolve) => {
+      resolveValidation = resolve;
     });
+
+    vi.spyOn(githubService, "validatePat").mockReturnValue(validationPromise);
 
     render(<PATModal open={true} onClose={vi.fn()} />);
 
     const input = screen.getByPlaceholderText("ghp_xxxxxxxxxxxxxxxxx");
     fireEvent.change(input, { target: { value: "ghp_validToken123" } });
 
-    fireEvent.click(screen.getByRole("button", { name: /save/i }));
+    const saveButton = screen.getByRole("button", { name: /save/i });
+    fireEvent.click(saveButton);
+
+    // Verify pending loading state and disabled controls
+    expect(screen.getByText(/verifying.../i)).toBeInTheDocument();
+    expect(input).toBeDisabled();
+    expect(saveButton).toBeDisabled();
+
+    // Repeated submission while pending should not trigger another validation
+    fireEvent.click(saveButton);
+    expect(githubService.validatePat).toHaveBeenCalledTimes(1);
+
+    // Resolve deferred validation
+    resolveValidation({
+      valid: true,
+      rate: { limit: 5000, remaining: 5000, reset: 1700000000 },
+    });
 
     await waitFor(() => {
       expect(mockSavePat).toHaveBeenCalledWith("ghp_validToken123");
     });
 
+    expect(screen.queryByText(/verifying.../i)).not.toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("cancels pending validation when Delete is clicked so token is not restored", async () => {
+    mockPatState = "ghp_existingToken";
+    let resolveValidation;
+    const validationPromise = new Promise((resolve) => {
+      resolveValidation = resolve;
+    });
+
+    vi.spyOn(githubService, "validatePat").mockReturnValue(validationPromise);
+
+    render(<PATModal open={true} onClose={vi.fn()} />);
+
+    const input = screen.getByPlaceholderText("ghp_xxxxxxxxxxxxxxxxx");
+    fireEvent.change(input, { target: { value: "ghp_newToken123" } });
+
+    const saveButton = screen.getByRole("button", { name: /save/i });
+    fireEvent.click(saveButton);
+
+    expect(screen.getByText(/verifying.../i)).toBeInTheDocument();
+
+    // Click Delete while validation is still in flight
+    const deleteButton = screen.getByRole("button", { name: /delete/i });
+    fireEvent.click(deleteButton);
+
+    expect(mockSavePat).toHaveBeenCalledWith("");
+    mockSavePat.mockClear();
+
+    // Now resolve validation late
+    resolveValidation({
+      valid: true,
+      rate: { limit: 5000 },
+    });
+
+    // Wait a brief delay to ensure no trailing save occurred
+    await new Promise((r) => setTimeout(r, 50));
+    expect(mockSavePat).not.toHaveBeenCalled();
+  });
+
+  it("cancels pending validation when modal is closed", async () => {
+    let resolveValidation;
+    const validationPromise = new Promise((resolve) => {
+      resolveValidation = resolve;
+    });
+
+    vi.spyOn(githubService, "validatePat").mockReturnValue(validationPromise);
+    const mockOnClose = vi.fn();
+
+    const { rerender } = render(<PATModal open={true} onClose={mockOnClose} />);
+
+    const input = screen.getByPlaceholderText("ghp_xxxxxxxxxxxxxxxxx");
+    fireEvent.change(input, { target: { value: "ghp_testToken123" } });
+
+    const saveButton = screen.getByRole("button", { name: /save/i });
+    fireEvent.click(saveButton);
+
+    expect(screen.getByText(/verifying.../i)).toBeInTheDocument();
+
+    // Close modal via close button
+    const closeButtons = screen.getAllByRole("button", { name: /close/i });
+    fireEvent.click(closeButtons[0]);
+    expect(mockOnClose).toHaveBeenCalled();
+
+    // Unrender modal
+    rerender(<PATModal open={false} onClose={mockOnClose} />);
+
+    // Resolve validation after modal is closed
+    resolveValidation({
+      valid: true,
+      rate: { limit: 5000 },
+    });
+
+    await new Promise((r) => setTimeout(r, 50));
+    expect(mockSavePat).not.toHaveBeenCalled();
   });
 
   it("triggers validation on Enter key press in the input field", async () => {
@@ -129,3 +222,4 @@ describe("PATModal", () => {
     expect(screen.getByPlaceholderText("ghp_xxxxxxxxxxxxxxxxx")).toHaveValue("");
   });
 });
+

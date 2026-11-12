@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { FiEye, FiEyeOff, FiSave, FiTrash2, FiX, FiAlertTriangle, FiLoader } from "react-icons/fi";
 import { useApp } from "../context/AppContext";
 import { validatePat } from "../services/github";
@@ -11,13 +11,19 @@ export default function PATModal({ open, onClose }) {
   const [validating, setValidating] = useState(false);
   const [error, setError] = useState("");
   const isSaved = Boolean(pat && draft.trim() === pat);
+  const activeValidationId = useRef(0);
 
   useEffect(() => {
     if (open) {
       setDraft(pat);
       setError("");
       setValidating(false);
+    } else {
+      activeValidationId.current += 1;
     }
+    return () => {
+      activeValidationId.current += 1;
+    };
   }, [open, pat]);
 
   useEffect(() => {
@@ -47,6 +53,12 @@ export default function PATModal({ open, onClose }) {
 
   if (!open) return null;
 
+  const handleClose = () => {
+    activeValidationId.current += 1;
+    setValidating(false);
+    onClose();
+  };
+
   // Validate token with GitHub API before persisting to storage
   const handleSave = async () => {
     const trimmed = draft.trim();
@@ -54,10 +66,18 @@ export default function PATModal({ open, onClose }) {
 
     if (isSaved) return;
 
+    activeValidationId.current += 1;
+    const currentValidationId = activeValidationId.current;
+
     setValidating(true);
     setError("");
 
     const res = await validatePat(trimmed);
+
+    // Bail out if user deleted token, closed modal, or submitted again
+    if (currentValidationId !== activeValidationId.current) {
+      return;
+    }
 
     if (!res.valid) {
       setError(res.error || "Invalid token");
@@ -70,6 +90,8 @@ export default function PATModal({ open, onClose }) {
   };
 
   const handleDelete = () => {
+    activeValidationId.current += 1;
+    setValidating(false);
     savePat("");
     setDraft("");
     setError("");
@@ -78,7 +100,7 @@ export default function PATModal({ open, onClose }) {
   return (
     <>
       <div
-        onClick={onClose}
+        onClick={handleClose}
         style={{
           position: "fixed",
           inset: 0,
@@ -141,7 +163,7 @@ export default function PATModal({ open, onClose }) {
 
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             aria-label="Close"
             title="Close"
             style={{
@@ -395,7 +417,7 @@ export default function PATModal({ open, onClose }) {
         >
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             style={{
               padding: "10px 20px",
               borderRadius: 8,
