@@ -494,7 +494,7 @@ export default function AnalyticsPage() {
                   fontSize: 13
                 }}
               >
-                Based on <b>{advancedMetrics.merged}</b> merged pull requests
+                Based on <b>{advancedMetrics.mergeTimeSampleSize}</b> merged pull requests
             </div>
           </div>
 
