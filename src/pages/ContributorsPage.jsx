@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react'
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { FiDatabase, FiDownload, FiExternalLink } from 'react-icons/fi'
 import { useApp } from '../context/AppContext'
 import { C, SortTh, PageTitle, LoadMore } from '../components/UI'
@@ -17,9 +17,37 @@ export default function ContributorsPage() {
   const [openInfo, setOpenInfo] = useState(null)
   const [pinnedInfo, setPinnedInfo] = useState(null)
   const [selectedOrg, setSelectedOrg] = useState('all')
+  const [popupPos, setPopupPos] = useState({ top: 90, right: 16 })
   const busFactorRef = useRef(null)
   const freshnessRef = useRef(null)
   const signalRef = useRef(null)
+  const cardRef = useRef(null)
+  const popupRef = useRef(null)
+
+  const updatePopupPos = useCallback(() => {
+    if (signalRef.current && cardRef.current) {
+      const signalRect = signalRef.current.getBoundingClientRect()
+      const cardRect = cardRef.current.getBoundingClientRect()
+      if (signalRect.bottom > 0 && cardRect.top >= 0) {
+        setPopupPos({
+          top: signalRect.bottom - cardRect.top,
+          right: Math.max(8, cardRect.right - signalRect.right),
+        })
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    if (openInfo === 'signals' || pinnedInfo === 'signals') {
+      updatePopupPos()
+      window.addEventListener('resize', updatePopupPos)
+      window.addEventListener('scroll', updatePopupPos, true)
+      return () => {
+        window.removeEventListener('resize', updatePopupPos)
+        window.removeEventListener('scroll', updatePopupPos, true)
+      }
+    }
+  }, [openInfo, pinnedInfo, updatePopupPos])
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -36,6 +64,11 @@ export default function ContributorsPage() {
       if (
         signalRef.current &&
         signalRef.current.contains(e.target)
+      ) return
+
+      if (
+        popupRef.current &&
+        popupRef.current.contains(e.target)
       ) return
 
       setOpenInfo(null)
@@ -281,7 +314,7 @@ export default function ContributorsPage() {
       </div>
 
       {/* Analytical table */}
-      <div style={{ ...C.card, padding: 0, overflowX: 'auto', minHeight: 380 }}>
+      <div ref={cardRef} style={{ ...C.card, padding: 0, position: 'relative' }}>
         <div style={{ padding: '14px 16px', display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', borderBottom: '1px solid var(--border)' }}>
           <input
             value={search} onChange={e => setSearch(e.target.value)}
@@ -317,147 +350,117 @@ export default function ContributorsPage() {
         </div>
         {filtered?.length ?
           (<>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr>
-                  <SortTh label="Contributor" sortKey="login" sortConfig={sortConfig} onSort={onSort} />
-                  <SortTh label="Total Contributions" sortKey="totalContribs" sortConfig={sortConfig} onSort={onSort} />
-                  <SortTh label="Repos Contributed To" sortKey="repos" sortConfig={sortConfig} onSort={onSort} />
-                  <SortTh label="Orgs" sortKey="orgs" sortConfig={sortConfig} onSort={onSort} />
-                  <SortTh label="Last Active" sortKey="lastActive" sortConfig={sortConfig} onSort={onSort} />
-                  <th
-                    style={{ padding: '10px 14px', fontSize: 11, color: 'var(--text2)', fontWeight: 600, background: 'var(--surface2)', borderBottom: '1px solid var(--border)', textAlign: 'left', position: 'relative' }}
-                    ref={signalRef}
-                  >
-                    <div
-                      className="flex items-center gap-2"
-                      style={{ position: 'relative' }}
-                      onMouseEnter={() => setOpenInfo("signals")}
-                      onMouseLeave={() => {
-                        if (pinnedInfo !== "signals") {
-                          setOpenInfo(prev => prev === "signals" ? null : prev)
-                        }
-                      }}
+            <div style={{ overflowX: 'auto', minHeight: 380 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>
+                    <SortTh label="Contributor" sortKey="login" sortConfig={sortConfig} onSort={onSort} />
+                    <SortTh label="Total Contributions" sortKey="totalContribs" sortConfig={sortConfig} onSort={onSort} />
+                    <SortTh label="Repos Contributed To" sortKey="repos" sortConfig={sortConfig} onSort={onSort} />
+                    <SortTh label="Orgs" sortKey="orgs" sortConfig={sortConfig} onSort={onSort} />
+                    <SortTh label="Last Active" sortKey="lastActive" sortConfig={sortConfig} onSort={onSort} />
+                    <th
+                      style={{ padding: '10px 14px', fontSize: 11, color: 'var(--text2)', fontWeight: 600, background: 'var(--surface2)', borderBottom: '1px solid var(--border)', textAlign: 'left', position: 'relative' }}
+                      ref={signalRef}
                     >
-                      <p>SIGNALS</p>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (pinnedInfo === "signals") {
-                            setPinnedInfo(null)
-                            setOpenInfo(null)
-                          } else {
-                            setPinnedInfo("signals")
-                            setOpenInfo("signals")
+                      <div
+                        className="flex items-center gap-2"
+                        style={{ position: 'relative' }}
+                        onMouseEnter={() => {
+                          updatePopupPos()
+                          setOpenInfo("signals")
+                        }}
+                        onMouseLeave={(e) => {
+                          const to = e.relatedTarget
+                          if (to && to.nodeType && popupRef.current?.contains(to)) return
+                          if (pinnedInfo !== "signals") {
+                            setOpenInfo(prev => prev === "signals" ? null : prev)
                           }
                         }}
-                        className="p-2 rounded-full hover:bg-(--bg) transition"
-                        aria-label="Signals information"
-                        aria-expanded={openInfo === 'signals' || pinnedInfo === 'signals'}
-                        aria-controls="signals-info-popup"
                       >
-                        <AiOutlineInfoCircle className="text-(--text) cursor-pointer" />
-                      </button>
+                        <p>SIGNALS</p>
 
-                      {(openInfo === 'signals' || pinnedInfo === 'signals') && (
-                        <div
-                          id="signals-info-popup"
-                          role="region"
-                          aria-label="Contributor Signals"
-                          style={{
-                            ...C.card,
-                            position: 'absolute',
-                            top: '130%',
-                            right: 2,
-                            width: '320px',
-                            maxWidth: 'min(320px, calc(100vw - 40px))',
-                            zIndex: 100,
-                            boxShadow: '0 8px 30px rgba(0,0,0,0.3)',
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (pinnedInfo === "signals") {
+                              setPinnedInfo(null)
+                              setOpenInfo(null)
+                            } else {
+                              updatePopupPos()
+                              setPinnedInfo("signals")
+                              setOpenInfo("signals")
+                            }
                           }}
-                          className="info-popover"
+                          className="p-2 rounded-full hover:bg-(--bg) transition"
+                          aria-label="Signals information"
+                          aria-expanded={openInfo === 'signals' || pinnedInfo === 'signals'}
+                          aria-controls="signals-info-popup"
                         >
-                          <h4 className='mb-2 text-(--accent)'>Contributor Signals</h4>
-
-                          <div className="text-(--text) text-xs">
-                            <p>
-                              Measures how contributors connect repositories and organizations.
-                            </p>
-
-                            <ul className="ml-2 mt-2">
-                              <li>
-                                <strong>Connector Contributors</strong> — active in 3+ repositories.
-                              </li>
-                              <li>
-                                <strong>Cross-Org Contributors</strong> — contribute across multiple organizations.
-                              </li>
-                            </ul></div>
-
-                          <p style={{ marginTop: 8 }}>
-                            Higher values indicate stronger collaboration and knowledge sharing.
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {visible.map((c, i) => (
-                  <tr key={c.login} style={{ borderBottom: '1px solid var(--border)', background: i % 2 ? 'var(--surface2)' : 'transparent' }}>
-                    <td style={{ padding: '10px 14px' }}>
-                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                        <Link
-                          to={`/contributors/${c.login}`}
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: 8,
-                            textDecoration: 'none',
-                            color: 'inherit',
-                          }}
-                          title="View contributor profile"
-                          aria-label="View contributor profile"
-                        >
-                          <img src={c.avatar_url} alt={c.login} style={{ width: 28, height: 28, borderRadius: '50%' }} />
-                          <span style={{ fontSize: 13, fontWeight: 500 }} className="hover:text-(--accent) transition">{c.login}</span>
-                        </Link>
-                        <a
-                          href={`https://github.com/${c.login}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{ display: 'inline-flex', alignItems: 'center', color: 'var(--text2)', opacity: 0.7 }}
-                          title="View GitHub profile"
-                          aria-label="View GitHub profile"
-                          className="hover:opacity-100 hover:text-(--accent)"
-                        >
-                          <FiExternalLink size={12} />
-                        </a>
+                          <AiOutlineInfoCircle className="text-(--text) cursor-pointer" />
+                        </button>
                       </div>
-                    </td>
-                    <td style={{ padding: '10px 14px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <div style={{ width: 80, height: 4, background: 'var(--border)', borderRadius: 2 }}>
-                          <div style={{ width: `${Math.min(100, c.totalContribs / 15)}%`, height: '100%', background: 'var(--accent)', borderRadius: 2 }} />
-                        </div>
-                        <span style={{ fontSize: 13, color: 'var(--text2)' }}>{c.totalContribs.toLocaleString()}</span>
-                      </div>
-                    </td>
-                    <td style={{ padding: '10px 14px', fontSize: 13, color: 'var(--text2)' }}>{c.repos.length}</td>
-                    <td style={{ padding: '10px 14px', fontSize: 13, color: 'var(--text2)' }}>{c.orgs.length}</td>
-                    <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--text2)' }}>{c.lastActive?.slice(0, 10) || '—'}</td>
-                    <td style={{ padding: '10px 14px' }}>
-                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                        {c.isConnector && <span style={C.pill('var(--accent)', 'rgba(245,197,24,.12)')}>CONNECTOR</span>}
-                        {c.isCrossOrg && <span style={C.pill('var(--purple)', 'rgba(168,85,247,.12)')}>CROSS-ORG</span>}
-                        {c.freshness > 70 ? <span style={C.pill('var(--green)', 'rgba(34,197,94,.12)')}>ACTIVE</span>:<span style={C.pill('var(--red)', 'rgba(239, 68, 68, 0.12)')}>INACTIVE</span>}
-                      </div>
-                    </td>
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-            <LoadMore shown={shown} total={sorted.length} onLoad={() => setShown(s => s + 20)} /></>) :
+                </thead>
+                <tbody>
+                  {visible.map((c, i) => (
+                    <tr key={c.login} style={{ borderBottom: '1px solid var(--border)', background: i % 2 ? 'var(--surface2)' : 'transparent' }}>
+                      <td style={{ padding: '10px 14px' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                          <Link
+                            to={`/contributors/${c.login}`}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 8,
+                              textDecoration: 'none',
+                              color: 'inherit',
+                            }}
+                            title="View contributor profile"
+                            aria-label="View contributor profile"
+                          >
+                            <img src={c.avatar_url} alt={c.login} style={{ width: 28, height: 28, borderRadius: '50%' }} />
+                            <span style={{ fontSize: 13, fontWeight: 500 }} className="hover:text-(--accent) transition">{c.login}</span>
+                          </Link>
+                          <a
+                            href={`https://github.com/${c.login}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ display: 'inline-flex', alignItems: 'center', color: 'var(--text2)', opacity: 0.7 }}
+                            title="View GitHub profile"
+                            aria-label="View GitHub profile"
+                            className="hover:opacity-100 hover:text-(--accent)"
+                          >
+                            <FiExternalLink size={12} />
+                          </a>
+                        </div>
+                      </td>
+                      <td style={{ padding: '10px 14px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <div style={{ width: 80, height: 4, background: 'var(--border)', borderRadius: 2 }}>
+                            <div style={{ width: `${Math.min(100, c.totalContribs / 15)}%`, height: '100%', background: 'var(--accent)', borderRadius: 2 }} />
+                          </div>
+                          <span style={{ fontSize: 13, color: 'var(--text2)' }}>{c.totalContribs.toLocaleString()}</span>
+                        </div>
+                      </td>
+                      <td style={{ padding: '10px 14px', fontSize: 13, color: 'var(--text2)' }}>{c.repos.length}</td>
+                      <td style={{ padding: '10px 14px', fontSize: 13, color: 'var(--text2)' }}>{c.orgs.length}</td>
+                      <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--text2)' }}>{c.lastActive?.slice(0, 10) || '—'}</td>
+                      <td style={{ padding: '10px 14px' }}>
+                        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                          {c.isConnector && <span style={C.pill('var(--accent)', 'rgba(245,197,24,.12)')}>CONNECTOR</span>}
+                          {c.isCrossOrg && <span style={C.pill('var(--purple)', 'rgba(168,85,247,.12)')}>CROSS-ORG</span>}
+                          {c.freshness > 70 ? <span style={C.pill('var(--green)', 'rgba(34,197,94,.12)')}>ACTIVE</span>:<span style={C.pill('var(--red)', 'rgba(239, 68, 68, 0.12)')}>INACTIVE</span>}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <LoadMore shown={shown} total={sorted.length} onLoad={() => setShown(s => s + 20)} />
+          </>) :
           (<>
             <div
               style={{
@@ -479,7 +482,55 @@ export default function ContributorsPage() {
               />
             </div>
           </>)}
+
+        {(openInfo === 'signals' || pinnedInfo === 'signals') && (
+          <div
+            ref={popupRef}
+            id="signals-info-popup"
+            role="region"
+            aria-label="Contributor Signals"
+            onMouseEnter={() => setOpenInfo("signals")}
+            onMouseLeave={(e) => {
+              const to = e.relatedTarget
+              if (to && to.nodeType && signalRef.current?.contains(to)) return
+              if (pinnedInfo !== "signals") {
+                setOpenInfo(prev => prev === "signals" ? null : prev)
+              }
+            }}
+            style={{
+              ...C.card,
+              position: 'absolute',
+              top: popupPos.top,
+              right: popupPos.right,
+              width: '320px',
+              maxWidth: 'min(320px, calc(100vw - 40px))',
+              zIndex: 100,
+              boxShadow: '0 8px 30px rgba(0,0,0,0.3)',
+            }}
+            className="info-popover"
+          >
+            <h4 className='mb-2 text-(--accent)'>Contributor Signals</h4>
+
+            <div className="text-(--text) text-xs">
+              <p>
+                Measures how contributors connect repositories and organizations.
+              </p>
+
+              <ul className="ml-2 mt-2">
+                <li>
+                  <strong>Connector Contributors</strong> — active in 3+ repositories.
+                </li>
+                <li>
+                  <strong>Cross-Org Contributors</strong> — contribute across multiple organizations.
+                </li>
+              </ul>
+              <p style={{ marginTop: 8 }}>
+                Higher values indicate stronger collaboration and knowledge sharing.
+              </p>
+            </div>
+          </div>
+        )}
       </div>
-    </div >
+    </div>
   )
 }

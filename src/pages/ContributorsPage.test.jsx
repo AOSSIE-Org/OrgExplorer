@@ -153,6 +153,92 @@ describe('ContributorsPage - Signals popup cropping and interaction (#335)', () 
     expect(infoButton).toHaveAttribute('aria-expanded', 'false')
   })
 
+  it('keeps unpinned signals popup open when pointer moves from header to popup and closes when pointer leaves popup', () => {
+    renderPage()
+
+    const infoButton = screen.getByRole('button', { name: /signals information/i })
+    const signalsHeader = infoButton.closest('div')
+    expect(infoButton).toHaveAttribute('aria-expanded', 'false')
+
+    // Hover header to open
+    fireEvent.mouseEnter(signalsHeader)
+    const popup = screen.getByRole('region', { name: /contributor signals/i })
+    expect(popup).toBeInTheDocument()
+
+    // Move pointer from header into the popup (relatedTarget: popup) -> stays open
+    fireEvent.mouseLeave(signalsHeader, { relatedTarget: popup })
+    expect(screen.getByText('Contributor Signals')).toBeInTheDocument()
+
+    // Hover inside popup
+    fireEvent.mouseEnter(popup)
+    expect(screen.getByText('Contributor Signals')).toBeInTheDocument()
+
+    // Leave popup to an external element -> unpinned popup closes
+    fireEvent.mouseLeave(popup, { relatedTarget: document.body })
+    expect(screen.queryByText('Contributor Signals')).not.toBeInTheDocument()
+    expect(infoButton).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('renders #signals-info-popup outside the table scroll container and remains visible within layout when toolbar wraps at narrow widths', () => {
+    // Simulate narrow viewport
+    window.innerWidth = 375
+    window.innerHeight = 667
+
+    renderPage()
+
+    // Filter to one contributor
+    const searchInput = screen.getByPlaceholderText(/search by username/i)
+    fireEvent.change(searchInput, { target: { value: 'alice' } })
+
+    const table = screen.getByRole('table')
+    const scrollContainer = table.closest('div')
+    const cardContainer = scrollContainer.parentElement
+
+    expect(scrollContainer).toHaveStyle({ minHeight: '380px' })
+
+    const infoButton = screen.getByRole('button', { name: /signals information/i })
+    fireEvent.click(infoButton)
+
+    const popup = screen.getByRole('region', { name: /contributor signals/i })
+    expect(popup).toBeInTheDocument()
+
+    // Verified: popup is outside the horizontal scroll container
+    expect(scrollContainer.contains(popup)).toBe(false)
+    expect(cardContainer.contains(popup)).toBe(true)
+
+    // Verify layout positioning at narrow width
+    expect(popup).toHaveStyle({
+      position: 'absolute',
+      zIndex: '100',
+    })
+
+    // Simulate bounding boxes for wrapped toolbar at narrow width
+    vi.spyOn(cardContainer, 'getBoundingClientRect').mockReturnValue({
+      top: 150,
+      bottom: 650,
+      left: 10,
+      right: 365,
+      width: 355,
+      height: 500,
+    })
+    vi.spyOn(popup, 'getBoundingClientRect').mockReturnValue({
+      top: 250,
+      bottom: 460,
+      left: 30,
+      right: 350,
+      width: 320,
+      height: 210,
+    })
+
+    const cardRect = cardContainer.getBoundingClientRect()
+    const popupRect = popup.getBoundingClientRect()
+
+    expect(popupRect.top).toBeGreaterThanOrEqual(cardRect.top)
+    expect(popupRect.bottom).toBeLessThanOrEqual(cardRect.bottom)
+    expect(popupRect.left).toBeGreaterThanOrEqual(cardRect.left)
+    expect(popupRect.right).toBeLessThanOrEqual(cardRect.right)
+  })
+
   it('renders contributor avatar_url and counts from repos/orgs arrays', () => {
     renderPage()
 
