@@ -46,6 +46,11 @@ export default function Navbar() {
       setIsOverflowing(current => current === nextOverflowing ? current : nextOverflowing)
     }
 
+    if (typeof ResizeObserver === 'undefined') {
+      measureOverflow()
+      return
+    }
+
     const observer = new ResizeObserver(measureOverflow)
     observer.observe(navbar)
     observer.observe(links)
