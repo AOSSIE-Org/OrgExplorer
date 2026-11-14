@@ -4,17 +4,18 @@ const STORE = 'cache'
 const TTL_MS = 3_600_000 // 1 hour
 
 /**
- * Canonicalize an API URL into a deterministic cache key.
+ * Canonicalize an API URL and authentication state into a deterministic cache key.
  *
  * GitHub treats org and repo names case-insensitively, but the raw URL
  * string does not — `.../orgs/AOSSIE-Org` and `.../orgs/aossie-org` would
  * otherwise become two separate entries, and a re-search in a different
  * case would burn rate-limit quota on data we already hold.
  *
- * Only the pathname is lowercased; query values are left untouched (they
- * can be case-sensitive, e.g. search qualifiers) while parameter order is
- * normalized so equivalent URLs share one key. The request URL itself is
- * never rewritten — this applies to the cache key only.
+ * In addition to canonicalizing the URL (lowercasing path and sorting query params),
+ * the cache key is namespaced by authentication state:
+ * - Anonymous requests are scoped under `anon:<url>`.
+ * - Authenticated requests are scoped under `auth_<tokenHash>:<url>` using a
+ *   non-reversible hash of the PAT, ensuring cache isolation between different tokens (#228).
  */
 function hashToken(str) {
   let h1 = 0x811c9dc5 >>> 0
