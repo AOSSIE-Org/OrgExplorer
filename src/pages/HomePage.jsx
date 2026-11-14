@@ -34,6 +34,10 @@ export default function HomePage() {
   }
 
   const removeChip = c => setChips(prev => prev.filter(x => x !== c))
+  const editChip = c => {
+    removeChip(c)
+    setInput(c)
+  }
   const handleKey = e => {
     if ((e.key === 'Enter' || e.key === ',') && input.trim()) {
       e.preventDefault()
@@ -43,7 +47,9 @@ export default function HomePage() {
       go();
     }
     if (e.key === 'Backspace' && !input && chips.length) {
+      const lastChip = chips[chips.length - 1]
       setChips(prev => prev.slice(0, -1))
+      setInput(lastChip)
     }
   }
 
@@ -83,13 +89,27 @@ export default function HomePage() {
         }}>
           <FiSearch size={16} color="var(--text2)" style={{ marginLeft: 4, flexShrink: 0 }} />
           {chips.map(c => (
-            <span key={c} style={{
-              background: 'rgba(245,197,24,.1)', border: '1px solid rgba(245,197,24,.3)',
-              color: 'var(--accent)', borderRadius: 4, padding: '3px 8px',
-              fontSize: 13, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 4,
-            }}>
+            <span
+              key={c}
+              onClick={() => editChip(c)}
+              title="Click to edit"
+              style={{
+                background: 'rgba(245,197,24,.1)', border: '1px solid rgba(245,197,24,.3)',
+                color: 'var(--accent)', borderRadius: 4, padding: '3px 8px',
+                fontSize: 13, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 4,
+                cursor: 'pointer',
+              }}
+            >
               {c}
-              <FiX size={12} style={{ cursor: 'pointer', opacity: .7 }} onClick={() => removeChip(c)} />
+              <FiX
+                size={12}
+                style={{ cursor: 'pointer', opacity: .7 }}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  removeChip(c)
+                }}
+                title="Remove"
+              />
             </span>
           ))}
           <input
