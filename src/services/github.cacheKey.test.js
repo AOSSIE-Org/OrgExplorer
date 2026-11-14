@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { normalizeCacheKey, fetchOrg, fetchRepos, fetchContributors } from './github'
+import { normalizeCacheKey, fetchOrg, fetchRepos, fetchContributors, fetchSearchAllPages, fetchWithCache } from './github'
 
 /** Minimal in-memory stand-in for the IndexedDB API surface used by github.js. */
 function installFakeIndexedDB() {
@@ -234,5 +234,106 @@ describe('empty-repository responses', () => {
     }))
 
     await expect(fetchOrg('test-org', 'pat')).rejects.toThrow('HTTP_403')
+  })
+})
+
+describe('fetchSearchAllPages and shared search caching', () => {
+  it('caches search results so repeating contributor profile search costs zero extra fetches', async () => {
+    installFakeIndexedDB()
+    const calls = []
+    vi.stubGlobal('fetch', async (url) => {
+      calls.push(String(url))
+      return {
+        status: 200,
+        ok: true,
+        headers: {
+          get: (h) => (h === 'x-ratelimit-remaining' ? '4900' : '5000')
+        },
+        json: async () => ({
+          total_count: 2,
+          items: [
+            { id: 1, title: 'Issue 1' },
+            { id: 2, title: 'Issue 2' }
+          ]
+        })
+      }
+    })
+
+    const searchUrl = 'https://api.github.com/search/issues?q=author:alice+org:test-org&per_page=100'
+    const results1 = await fetchSearchAllPages(searchUrl, 'pat')
+    expect(results1).toHaveLength(2)
+    expect(calls).toHaveLength(1)
+
+    // Second call for the same contributor search should hit cache and NOT invoke fetch
+    const results2 = await fetchSearchAllPages(searchUrl, 'pat')
+    expect(results2).toEqual(results1)
+    expect(calls).toHaveLength(1)
+  })
+
+  it('paginates correctly across multiple search pages', async () => {
+    installFakeIndexedDB()
+    const calls = []
+    vi.stubGlobal('fetch', async (url) => {
+      const u = String(url)
+      calls.push(u)
+      const page = new URL(u).searchParams.get('page') === '2' ? 2 : 1
+      return {
+        status: 200,
+        ok: true,
+        headers: { get: () => '5000' },
+        json: async () => {
+          if (page === 1) {
+            return {
+              total_count: 3,
+              items: [{ id: 1 }, { id: 2 }]
+            }
+          }
+          return {
+            total_count: 3,
+            items: [{ id: 3 }]
+          }
+        }
+      }
+    })
+
+    const searchUrl = 'https://api.github.com/search/issues?q=author:bob&per_page=2'
+    const results = await fetchSearchAllPages(searchUrl, 'pat', { perPage: 2 })
+    expect(results).toHaveLength(3)
+    expect(calls).toHaveLength(2)
+  })
+
+  it('stops pagination if signal is aborted', async () => {
+    installFakeIndexedDB()
+    const controller = new AbortController()
+    controller.abort()
+
+    const searchUrl = 'https://api.github.com/search/issues?q=author:carol'
+    await expect(fetchSearchAllPages(searchUrl, 'pat', { signal: controller.signal })).rejects.toThrow('The operation was aborted')
+  })
+
+  it('dispatches rate-limit-update event and throws RATE_LIMIT on rate limits', async () => {
+    installFakeIndexedDB()
+    let dispatched = null
+    const handler = (e) => { dispatched = e.detail }
+    window.addEventListener('rate-limit-update', handler)
+
+    vi.stubGlobal('fetch', async () => ({
+      status: 429,
+      ok: false,
+      headers: {
+        get: (h) => {
+          if (h === 'x-ratelimit-remaining') return '0'
+          if (h === 'x-ratelimit-limit') return '30'
+          return null
+        }
+      },
+      json: async () => ({ message: 'API rate limit exceeded' })
+    }))
+
+    const searchUrl = 'https://api.github.com/search/issues?q=author:dave'
+    await expect(fetchSearchAllPages(searchUrl, 'pat')).rejects.toThrow('RATE_LIMIT')
+    expect(dispatched).toBeDefined()
+    expect(dispatched.remaining).toBe(0)
+    window.removeEventListener('rate-limit-update', handler)
   })
 })

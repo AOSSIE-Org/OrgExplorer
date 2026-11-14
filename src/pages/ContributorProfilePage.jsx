@@ -4,6 +4,7 @@ import { FiArrowLeft, FiDownload, FiExternalLink, FiCalendar, FiBriefcase, FiAle
 import { useApp } from '../context/AppContext'
 import { C, PageTitle, Spinner, StatCard } from '../components/UI'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { fetchSearchAllPages } from '../services/github'
 const ITEMS_PER_PAGE = 10
 
 // Reusable ContributionTable component
@@ -99,32 +100,6 @@ function Pagination({ page, totalPages, onPrev, onNext }) {
       </button>
     </div>
   )
-}
-
-// Pagination helper to fetch up to 10 pages (1,000 results maximum)
-async function fetchAllPages(initialUrl, headers, signal) {
-  let items = []
-  let url = initialUrl
-  for (let page = 1; page <= 10; page++) {
-    const res = await fetch(url, { headers, signal })
-    if (res.status === 403) {
-      throw new Error('RATE_LIMIT')
-    }
-    if (!res.ok) {
-      throw new Error(`HTTP_${res.status}`)
-    }
-    const data = await res.json()
-    items = items.concat(data.items || [])
-
-    const linkHeader = res.headers.get('Link')
-    if (!linkHeader) break
-
-    const match = linkHeader.match(/<([^>]+)>;\s*rel="next"/)
-    if (!match) break
-
-    url = match[1]
-  }
-  return items
 }
 
 // Helper to escape table cell values for markdown
@@ -231,14 +206,9 @@ export default function ContributorProfilePage() {
         const url = `https://api.github.com/search/issues?q=author:${encodedUser}+${orgQuery}&per_page=100`
         const mergedUrl = `https://api.github.com/search/issues?q=author:${encodedUser}+is:pr+is:merged+${orgQuery}&per_page=100`
 
-        const headers = { Accept: 'application/vnd.github.v3+json' }
-        if (pat) {
-          headers.Authorization = `token ${pat}`
-        }
-
         const [items, mergedItems] = await Promise.all([
-          fetchAllPages(url, headers, controller.signal),
-          fetchAllPages(mergedUrl, headers, controller.signal)
+          fetchSearchAllPages(url, pat, { signal: controller.signal }),
+          fetchSearchAllPages(mergedUrl, pat, { signal: controller.signal })
         ])
 
         if (!active) return

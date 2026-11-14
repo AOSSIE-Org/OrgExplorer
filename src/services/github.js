@@ -76,15 +76,21 @@ export async function cacheClear() {
 }
 
 // Core fetchWithCache
-async function fetchWithCache(url, pat) {
+export async function fetchWithCache(url, pat, opts = {}) {
   // L2 check
   const cached = await cacheGet(url)
   if (cached) return cached
 
+  if (opts?.signal?.aborted) {
+    const err = new Error('The operation was aborted')
+    err.name = 'AbortError'
+    throw err
+  }
+
   const headers = { Accept: 'application/vnd.github.v3+json' }
   if (pat) headers.Authorization = `token ${pat}`
 
-  const res = await fetch(url, { headers })
+  const res = await fetch(url, { headers, signal: opts?.signal })
 
   window.dispatchEvent(
     new CustomEvent('rate-limit-update', {
@@ -190,6 +196,32 @@ export async function fetchPulls(org, repo, pat) {
     if(data.length < 100) break
   }
   return all
+}
+
+export async function fetchSearchAllPages(initialUrl, pat, opts = {}) {
+  let items = []
+  const maxPages = opts?.maxPages || 10
+  const parsedUrl = new URL(initialUrl)
+  const perPage = opts?.perPage || Number(parsedUrl.searchParams.get('per_page')) || 100
+  parsedUrl.searchParams.set('per_page', String(perPage))
+
+  for (let page = 1; page <= maxPages; page++) {
+    if (opts?.signal?.aborted) {
+      const err = new Error('The operation was aborted')
+      err.name = 'AbortError'
+      throw err
+    }
+    parsedUrl.searchParams.set('page', String(page))
+    const pageUrl = parsedUrl.toString()
+    const data = await fetchWithCache(pageUrl, pat, opts)
+    const pageItems = Array.isArray(data?.items) ? data.items : []
+    items.push(...pageItems)
+    const totalCount = data?.total_count ?? 0
+    if (pageItems.length < perPage || items.length >= totalCount) {
+      break
+    }
+  }
+  return items
 }
 
 export async function fetchRateLimit(pat) {
