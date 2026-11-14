@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FiSearch, FiX } from 'react-icons/fi'
 import { useApp } from '../context/AppContext'
@@ -11,6 +11,7 @@ export default function HomePage() {
   const navigate = useNavigate()
   const [input, setInput] = useState('')
   const [chips, setChips] = useState([])
+  const inputRef = useRef(null)
 
   const recent = JSON.parse(localStorage.getItem('oe_recent') || '[]')
 
@@ -34,6 +35,11 @@ export default function HomePage() {
   }
 
   const removeChip = c => setChips(prev => prev.filter(x => x !== c))
+  const editChip = c => {
+    removeChip(c)
+    setInput(c)
+    inputRef.current?.focus()
+  }
   const handleKey = e => {
     if ((e.key === 'Enter' || e.key === ',') && input.trim()) {
       e.preventDefault()
@@ -43,7 +49,10 @@ export default function HomePage() {
       go();
     }
     if (e.key === 'Backspace' && !input && chips.length) {
+      const lastChip = chips[chips.length - 1]
       setChips(prev => prev.slice(0, -1))
+      setInput(lastChip)
+      inputRef.current?.focus()
     }
   }
 
@@ -83,16 +92,44 @@ export default function HomePage() {
         }}>
           <FiSearch size={16} color="var(--text2)" style={{ marginLeft: 4, flexShrink: 0 }} />
           {chips.map(c => (
-            <span key={c} style={{
-              background: 'rgba(245,197,24,.1)', border: '1px solid rgba(245,197,24,.3)',
-              color: 'var(--accent)', borderRadius: 4, padding: '3px 8px',
-              fontSize: 13, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 4,
-            }}>
-              {c}
-              <FiX size={12} style={{ cursor: 'pointer', opacity: .7 }} onClick={() => removeChip(c)} />
+            <span
+              key={c}
+              style={{
+                background: 'rgba(245,197,24,.1)', border: '1px solid rgba(245,197,24,.3)',
+                color: 'var(--accent)', borderRadius: 4, padding: '3px 8px',
+                fontSize: 13, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 4,
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => editChip(c)}
+                title="Click to edit"
+                aria-label={`Edit ${c}`}
+                style={{
+                  background: 'none', border: 'none', padding: 0,
+                  color: 'inherit', font: 'inherit', cursor: 'pointer',
+                  display: 'inline-flex', alignItems: 'center',
+                }}
+              >
+                {c}
+              </button>
+              <button
+                type="button"
+                onClick={() => removeChip(c)}
+                title="Remove"
+                aria-label={`Remove ${c}`}
+                style={{
+                  background: 'none', border: 'none', padding: 0,
+                  color: 'inherit', cursor: 'pointer', opacity: 0.7,
+                  display: 'inline-flex', alignItems: 'center',
+                }}
+              >
+                <FiX size={12} />
+              </button>
             </span>
           ))}
           <input
+            ref={inputRef}
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={handleKey}
