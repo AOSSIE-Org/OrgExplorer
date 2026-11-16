@@ -259,7 +259,9 @@ export function AppProvider({ children }) {
         ? (pat
             ? 'GitHub API rate limit reached. Please wait for your quota to refresh.'
             : 'GitHub API rate limit reached. Add a PAT in Settings for 5,000 req/hr.')
-        : err.message)
+        : err.message.startsWith('HTTP_')
+          ? 'Something went wrong. Please check your connection and try again.'
+          : err.message)
       return false
     } finally {
       setLoading(false); setLoadMsg('')
