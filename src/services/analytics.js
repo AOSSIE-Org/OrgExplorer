@@ -154,7 +154,22 @@ export function buildTimeSeries(issues = [], granularity = 'monthly') {
     .slice(-SLICE_COUNT)
 }
 
-// CSV Export
+// CSV Export & RFC 4180 Escaping
+export function escapeCSVField(val) {
+  if (val === null || val === undefined) return ''
+  const str = String(val)
+  if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+    return `"${str.replace(/"/g, '""')}"`
+  }
+  return str
+}
+
+export function formatCSV(header, rows) {
+  return [header, ...rows]
+    .map(row => row.map(escapeCSVField).join(','))
+    .join('\n')
+}
+
 function download(content, filename, type = 'text/csv') {
   const blob = new Blob([content], { type })
   const url = URL.createObjectURL(blob)
@@ -166,19 +181,19 @@ function download(content, filename, type = 'text/csv') {
 export function exportReposCSV(repos) {
   const header = ['Repository', 'Org', 'Stars', 'Forks', 'Open Issues', 'Health Score', 'Activity Classification', 'Language', 'Last Active']
   const rows = repos.map(r => [r.name, r.orgLogin, r.stargazers_count, r.forks_count, r.open_issues_count, r.healthScore, r.activityClassification, r.language || 'N/A', r.pushed_at?.slice(0, 10)])
-  download([header, ...rows].map(r => r.join(',')).join('\n'), 'orgexplorer-repos.csv')
+  download(formatCSV(header, rows), 'orgexplorer-repos.csv')
 }
 
 export function exportContributorsCSV(contributors) {
   const header = ['Login', 'Total Contributions', 'Repos', 'Orgs', 'Last Active', 'Connector', 'Cross-Org']
   const rows = contributors.map(c => [c.login, c.totalContribs, c.repos.length, c.orgs.length, c.lastActive?.slice(0, 10) || '', c.isConnector, c.isCrossOrg])
-  download([header, ...rows].map(r => r.join(',')).join('\n'), 'orgexplorer-contributors.csv')
+  download(formatCSV(header, rows), 'orgexplorer-contributors.csv')
 }
 
 export function exportTrendsCSV(series) {
   const header = ['Date', 'PRs Created', 'PRs Merged', 'PRs Closed', 'Issues Created', 'Issues Closed']
   const rows = series.map(s => [s.date, s.prs_created, s.prs_merged, s.prs_closed, s.issues_created, s.issues_closed])
-  download([header, ...rows].map(r => r.join(',')).join('\n'), 'orgexplorer-trends.csv')
+  download(formatCSV(header, rows), 'orgexplorer-trends.csv')
 }
 
 export function getTopRepositories(repos, limit = 10) {
