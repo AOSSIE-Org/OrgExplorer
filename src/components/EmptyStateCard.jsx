@@ -48,7 +48,7 @@ export default function EmptyStateCard({
         <h2
           style={{
             color: "var(--text)",
-            fontSize: "3rem",
+            fontSize: "1.75rem",
             fontWeight: 700,
             lineHeight: 1.15,
             marginBottom: "18px",
@@ -61,7 +61,7 @@ export default function EmptyStateCard({
         {/* Description */}
         <p
           style={{
-            color: "#D4C58A",
+            color: "var(--text2)",
             fontSize: "1rem",
             lineHeight: 1.7,
             maxWidth: "470px",

@@ -84,7 +84,7 @@ export default function RepositoriesPage() {
     ['pushed_at', 'Repository Activity'],
   ]
 
-  const showNoSearchResults = search.trim() && filtered.length === 0
+  const showNoSearchResults = filtered.length === 0
 
   return (
     <div style={{ padding: '32px 24px', maxWidth: 1100, margin: '0 auto' }} className="fade-up">
@@ -237,9 +237,9 @@ export default function RepositoriesPage() {
           <EmptyStateCard
             SvgIcon={<FiDatabase size={36} color="var(--accent)" />}
             title="No matching repositories"
-            description="No repositories match your search. Try a different search term."
-            buttonText="Clear Search"
-            onButtonClick={() => setSearch('')}
+            description="No repositories match your current filters. Try adjusting or clearing them."
+            buttonText="Clear Filters"
+            onButtonClick={() => { setSearch(''); setActivityClassification('All'); setLang('All Languages'); setOrgFilter('All Organizations') }}
           />
         </div>
       )}
