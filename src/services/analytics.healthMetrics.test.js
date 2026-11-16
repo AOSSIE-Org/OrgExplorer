@@ -75,6 +75,28 @@ describe('computeActivityClassification', () => {
   it('treats the exact 30-day boundary as Thriving (inclusive)', () => {
     expect(computeActivityClassification({ pushed_at: daysAgoISO(30) })).toBe('Thriving')
   })
+
+  it('treats the exact 90-day boundary as Active (inclusive)', () => {
+    expect(computeActivityClassification({ pushed_at: daysAgoISO(90) })).toBe('Active')
+  })
+
+  it('treats the exact 180-day boundary as Dormant (inclusive)', () => {
+    expect(computeActivityClassification({ pushed_at: daysAgoISO(180) })).toBe('Dormant')
+  })
+
+  it('classifies repos slightly past thresholds into the next tier', () => {
+    expect(computeActivityClassification({ pushed_at: daysAgoISO(30.1) })).toBe('Active')
+    expect(computeActivityClassification({ pushed_at: daysAgoISO(90.1) })).toBe('Dormant')
+    expect(computeActivityClassification({ pushed_at: daysAgoISO(180.1) })).toBe('Hibernating')
+  })
+
+  it('classifies a freshly pushed repo (0 days) as Thriving', () => {
+    expect(computeActivityClassification({ pushed_at: new Date().toISOString() })).toBe('Thriving')
+  })
+
+  it('handles future timestamps without breaking (clock skew)', () => {
+    expect(computeActivityClassification({ pushed_at: daysAgoISO(-1) })).toBe('Thriving')
+  })
 })
 
 describe('computeBusFactor', () => {
