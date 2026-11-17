@@ -26,9 +26,11 @@ describe("PATModal accessibility", () => {
     render(<PATModal open={true} onClose={() => {}} />);
 
     expect(screen.getByRole("button", { name: "Show token" })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/ghp_/)).toHaveAttribute("type", "password");
 
     await user.click(screen.getByRole("button", { name: "Show token" }));
 
     expect(screen.getByRole("button", { name: "Hide token" })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/ghp_/)).toHaveAttribute("type", "text");
   });
 });
