@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useId } from "react";
 import { FiEye, FiEyeOff, FiSave, FiTrash2, FiX } from "react-icons/fi";
 import { useApp } from "../context/AppContext";
 
 export default function PATModal({ open, onClose }) {
   const { pat, savePat } = useApp();
+  const tokenId = useId();
 
   const [draft, setDraft] = useState(pat);
   const [show, setShow] = useState(false);
@@ -144,16 +145,18 @@ export default function PATModal({ open, onClose }) {
             padding: 24,
           }}
         >
-          <div
+          <label
+            htmlFor={tokenId}
             style={{
               fontSize: 12,
               color: "var(--text2)",
               marginBottom: 6,
               letterSpacing: ".06em",
+              cursor: "pointer",
             }}
           >
-            PERSONAL ACCESS TOKEN
-          </div>
+            Personal access token
+          </label>
 
           <div
             style={{
@@ -163,6 +166,7 @@ export default function PATModal({ open, onClose }) {
             }}
           >
             <input
+              id={tokenId}
               type={show ? "text" : "password"}
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
@@ -179,6 +183,7 @@ export default function PATModal({ open, onClose }) {
 
             <button
               type="button"
+              aria-label={show ? "Hide token" : "Show token"}
               onClick={() => setShow((s) => !s)}
               style={{
                 padding: "0 14px",
