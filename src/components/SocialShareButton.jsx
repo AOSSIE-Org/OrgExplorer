@@ -54,9 +54,9 @@ const SocialShareButton = ({
         componentId,
         debug,
       });
-    } else {
-      console.warn('SocialShareButton widget not loaded');
-    }
+    } else if (debug) {
+  console.warn('SocialShareButton widget not loaded');
+}
     return () => {
       if (shareButtonRef.current) {
         shareButtonRef.current.destroy();
