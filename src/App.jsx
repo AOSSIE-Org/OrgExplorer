@@ -18,6 +18,7 @@ import Footer from './components/layout/Footer'
 import Support from './pages/Support'
 import RequireAnalysis from './components/RequireAnalysis'
 import NotFoundPage from './pages/NotFoundPage'
+import DocumentTitle from './components/DocumentTitle'
 
 function Layout({ children }) {
   return (
@@ -44,6 +45,7 @@ function AppContent() {
   return (
     <Layout>
       <ScrollToTop />
+      <DocumentTitle />
       <Routes>
         <Route path="/"             element={<HomePage />} />
         <Route path="/overview"     element={<RequireAnalysis><OverviewPage /></RequireAnalysis>} />
