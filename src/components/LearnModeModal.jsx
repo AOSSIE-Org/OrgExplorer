@@ -1,13 +1,65 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { FiX } from "react-icons/fi";
 
+const FOCUSABLE =
+  'a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])';
+
 export default function LearnMoreModal({ open, onClose }) {
+  const dialogRef = useRef(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  useEffect(() => {
+    if (!open) return;
+
+    const previouslyFocused = document.activeElement;
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+
+    // Move focus inside the dialog
+    const items = dialog.querySelectorAll(FOCUSABLE);
+    (items[0] || dialog).focus();
+
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onCloseRef.current();
+        return;
+      }
+      if (e.key !== "Tab") return;
+
+      const focusables = dialog.querySelectorAll(FOCUSABLE);
+      if (focusables.length === 0) {
+        e.preventDefault();
+        return;
+      }
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      // Restore focus to the element that opened the dialog
+      previouslyFocused?.focus?.();
+    };
+  }, [open]);
+
   if (!open) return null;
 
   return (
     <>
       <div
         onClick={onClose}
+        aria-hidden="true"
         style={{
           position: "fixed",
           inset: 0,
@@ -17,6 +69,11 @@ export default function LearnMoreModal({ open, onClose }) {
       />
 
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="learn-more-title"
+        tabIndex={-1}
         style={{
           position: "fixed",
           left: "50%",
@@ -45,13 +102,14 @@ export default function LearnMoreModal({ open, onClose }) {
             background: "var(--surface)",
           }}
         >
-          <div style={{ fontSize: 18, fontWeight: 700 }}>
+          <div id="learn-more-title" style={{ fontSize: 18, fontWeight: 700 }}>
             Standard vs. Complete Analysis
           </div>
 
           <button
             type="button"
             onClick={onClose}
+            aria-label="Close dialog"
             style={{
               background: "transparent",
               border: "none",
@@ -59,7 +117,7 @@ export default function LearnMoreModal({ open, onClose }) {
               cursor: "pointer",
             }}
           >
-            <FiX size={20} />
+            <FiX size={20} aria-hidden="true" />
           </button>
         </div>
 
