@@ -26,7 +26,7 @@ export default function RateLimitBanner() {
           <Icon size={13} color={crit ? 'var(--red)' : 'var(--accent)'} />
           API RATE LIMIT: <strong style={{ marginLeft: 2 }}>{rateLimit.remaining} / {rateLimit.limit}</strong> <span className="rate-limit-remaining-label">REQUESTS REMAINING</span>
         </span>
-        {!pat && (
+        {(!pat || !rateLimit.remaining || rateLimit.remaining.toLocaleTimeString() == 0) && (
           <button
             type="button"
             className="rate-limit-pat"
