@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef } from 'react'
-import { fetchOrg, fetchRepos, fetchContributors, fetchIssues, fetchRateLimit, fetchPulls } from '../services/github'
+import { fetchOrg, fetchRepos, fetchContributors, fetchIssues, fetchRateLimit, fetchPulls, validatePat } from '../services/github'
 import { buildAnalyticalModel, getTopRepositories } from '../services/analytics'
 import { saveAnalysis, loadAnalysis } from '../services/cache'
 
@@ -135,28 +135,47 @@ export function AppProvider({ children }) {
     }
     return false
   }, [pat])
+
+  // Single gate for persisting a PAT — Settings page and the PAT modal both
+  // go through here, so the token gets checked against GitHub before it ever
+  // reaches state or localStorage and callers only deal with the result.
+  // Returns { valid, error?, rate?, cancelled? }:
+  //   cancelled — a newer save or delete superseded this request; callers
+  //               should not show feedback for it.
   const savePat = useCallback(async token => {
     const requestId = ++patRequestId.current
+    const trimmed = typeof token === 'string' ? token.trim() : ''
 
-    setPat(token)
-
-    if (token) {
-      localStorage.setItem('oe_pat', token)
-
-      const rl = await fetchRateLimit(token)
-
-      // A newer save or delete started while this request was in flight.
-      if (requestId !== patRequestId.current) return
-
-      if (rl) {
-        setRateLimit(rl)
-        localStorage.setItem('oe_rate_limit', JSON.stringify(rl))
-      }
-    } else {
+    if (!trimmed) {
+      // Delete: clear synchronously. The ID bump above is what cancels any
+      // save still validating, so a late result can't restore the token.
+      setPat('')
       localStorage.removeItem('oe_pat')
       localStorage.removeItem('oe_rate_limit')
       setRateLimit(null)
+      return { valid: true }
     }
+
+    const res = await validatePat(trimmed)
+
+    // A newer save or delete started while this request was in flight.
+    if (requestId !== patRequestId.current) {
+      return { valid: false, cancelled: true }
+    }
+
+    if (!res.valid) return res
+
+    setPat(trimmed)
+    localStorage.setItem('oe_pat', trimmed)
+
+    // validatePat already hit /rate_limit, so its response doubles as the
+    // fresh quota snapshot — no second request needed.
+    if (res.rate) {
+      setRateLimit(res.rate)
+      localStorage.setItem('oe_rate_limit', JSON.stringify(res.rate))
+    }
+
+    return { valid: true }
   }, [])
 
   // Multi-org explore

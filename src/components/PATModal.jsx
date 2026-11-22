@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { FiEye, FiEyeOff, FiSave, FiTrash2, FiX, FiAlertTriangle, FiLoader } from "react-icons/fi";
 import { useApp } from "../context/AppContext";
-import { validatePat } from "../services/github";
 
 export default function PATModal({ open, onClose }) {
   const { pat, savePat } = useApp();
@@ -11,19 +10,13 @@ export default function PATModal({ open, onClose }) {
   const [validating, setValidating] = useState(false);
   const [error, setError] = useState("");
   const isSaved = Boolean(pat && draft.trim() === pat);
-  const activeValidationId = useRef(0);
 
   useEffect(() => {
     if (open) {
       setDraft(pat);
       setError("");
       setValidating(false);
-    } else {
-      activeValidationId.current += 1;
     }
-    return () => {
-      activeValidationId.current += 1;
-    };
   }, [open, pat]);
 
   useEffect(() => {
@@ -54,44 +47,31 @@ export default function PATModal({ open, onClose }) {
   if (!open) return null;
 
   const handleClose = () => {
-    activeValidationId.current += 1;
-    setValidating(false);
     onClose();
   };
 
-  // Validate token with GitHub API before persisting to storage
+  // savePat validates the token with GitHub before persisting; this handler
+  // only reflects the result it returns.
   const handleSave = async () => {
     const trimmed = draft.trim();
-    if (!trimmed || validating) return;
-
-    if (isSaved) return;
-
-    activeValidationId.current += 1;
-    const currentValidationId = activeValidationId.current;
+    if (!trimmed || validating || isSaved) return;
 
     setValidating(true);
     setError("");
 
-    const res = await validatePat(trimmed);
+    const res = await savePat(trimmed);
 
-    // Bail out if user deleted token, closed modal, or submitted again
-    if (currentValidationId !== activeValidationId.current) {
-      return;
-    }
+    setValidating(false);
+
+    // Superseded by a delete or a newer save — no feedback to show.
+    if (res.cancelled) return;
 
     if (!res.valid) {
       setError(res.error || "Invalid token");
-      setValidating(false);
-      return;
     }
-
-    await savePat(trimmed);
-    setValidating(false);
   };
 
   const handleDelete = () => {
-    activeValidationId.current += 1;
-    setValidating(false);
     savePat("");
     setDraft("");
     setError("");

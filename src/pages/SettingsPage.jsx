@@ -19,30 +19,22 @@ export default function SettingsPage() {
 
   const handleSave = async () => {
     const token = draft.trim();
-    if (!token) return;
+    if (!token || isValidating) return;
 
     setIsValidating(true);
     setTokenError('');
 
-    try {
-      const response = await fetch('https://api.github.com/rate_limit', {
-        headers: {
-          Accept: 'application/vnd.github.v3+json',
-          Authorization: `token ${token}`
-        }
-      });
+    // savePat validates the token with GitHub before persisting; this handler
+    // only reflects the result it returns.
+    const res = await savePat(token);
 
-      if (!response.ok) {
-        setTokenError('Invalid Personal Access Token');
-        setIsValidating(false);
-        return;
-      }
+    setIsValidating(false);
 
-      savePat(token);
-    } catch (err) {
-      setTokenError('Network error verifying token');
-    } finally {
-      setIsValidating(false);
+    // Superseded by a delete or a newer save — no feedback to show.
+    if (res.cancelled) return;
+
+    if (!res.valid) {
+      setTokenError(res.error || 'Invalid Personal Access Token');
     }
   }
 
