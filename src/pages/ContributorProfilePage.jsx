@@ -257,6 +257,8 @@ export default function ContributorProfilePage() {
         if (err.name === 'AbortError') return
         if (err.message === 'RATE_LIMIT') {
           setError('GitHub API search rate limit reached. Please wait a minute or configure a PAT in Settings.')
+        } else if (err.message === 'HTTP_422') {
+          setError('GitHub could not retrieve this contributor\'s activity. Their GitHub activity may be private or unavailable.')
         } else {
           setError(`Failed to fetch contributor details: ${err.message}`)
         }
