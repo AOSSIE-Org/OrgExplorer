@@ -29,7 +29,10 @@ export default function AnalyticsPage() {
   const [selectedRepo, setSelectedRepo] = useState('All')
   const [selectedRepoForAM, setSelectedRepoForAM] = useState("All Repositories");
   const [orgFilter, setOrgFilter] = useState('All Organizations')
-  const allOrgs = issuesData?[...new Set((Object.keys(issuesData)).map(k=>k.split('/')[0]))]:[...new Set((Object.keys(pullsData)).map(k=>k.split('/')[0]))];//array of all orgs
+  const allOrgs = [...new Set([
+    ...Object.keys(issuesData || {}),
+    ...Object.keys(pullsData || {}),
+  ].map(key => key.split('/')[0]))]
   const handleOrgChange = e => {
     setOrgFilter(e.target.value)
     setSelectedRepoForAM("All Repositories");
