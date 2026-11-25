@@ -168,6 +168,36 @@ export async function fetchContributors(org, repo, pat) {
   return all
 }
 
+export async function fetchCommits(contributors, org, repo, pat) {
+  // One paginated pass over the repo's commit history instead of one request
+  // per contributor: the list endpoint already carries each commit's author
+  // and date, so a single (cached) stream derives every contributor's most
+  // recent commit — N requests collapse to <= maxPages.
+  const byLogin = new Map(contributors.map(c => [c.login, c]))
+  const pending = new Set(byLogin.keys())
+  contributors.forEach(c => { c.lastActive = null })
+  const maxPages = pat ? 10 : 1
+  for (let page = 1; page <= maxPages && pending.size; page++) {
+    const url = `https://api.github.com/repos/${org}/${repo}/commits?per_page=100&page=${page}`
+    let data
+    try {
+      data = await fetchWithCache(url, pat)
+    } catch (error) {
+      console.error(`Failed to fetch commits for ${org}/${repo}:`, error)
+      break
+    }
+    // Commits are newest-first, so the first date seen per author is their latest.
+    for (const commit of data) {
+      const login = commit.author?.login
+      if (login && pending.has(login)) {
+        byLogin.get(login).lastActive = commit.commit?.committer?.date?.slice(0, 10) ?? null
+        pending.delete(login)
+      }
+    }
+    if (data.length < 100) break
+  }
+}
+
 export async function fetchIssues(org, repo, pat) {
   const all = []
   const maxPages = pat ? 10 : 1
