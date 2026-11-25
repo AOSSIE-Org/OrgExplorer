@@ -175,4 +175,3 @@ describe('computeActivityClassification with missing or invalid pushed_at', () =
     expect(computeActivityClassification({ pushed_at: 'not-a-date' })).toBe('Hibernating')
   })
 })
-

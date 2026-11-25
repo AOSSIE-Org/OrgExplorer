@@ -43,7 +43,17 @@ const getStatus = ratio => {
 }
 
 export default function GovernancePage() {
-  const { orgs, model, issuesData, runAudit, govLoading, auditComplete, loading, runGovernanceAnalysis, staleRepoStats } = useApp()
+  const {
+  orgs,
+  model,
+  issuesData,
+  runAudit,
+  govLoading,
+  auditComplete,
+  loading,
+  runGovernanceAnalysis,
+  staleRepoStats,
+} = useApp();
   const [tab, setTab] = useState('dead')
   const [orgFilter, setOrgFilter] = useState('All Organizations')
   const [search, setSearch] = useState('')
@@ -282,12 +292,44 @@ export default function GovernancePage() {
       />
 
       {/* Summary stat cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 24 }}>
-        <StatBox label="Dead Issues" value={counts.dead} sub="OPEN 90+ DAYS" color="var(--red)" />
-        <StatBox label="Stale Issues Ratio" value={`${staleIssuesRatioOfOrg(orgFilter).toFixed(2)}%`} sub={`of ${issuesOfOrg.length} total issues`} color={` ${getStatus(staleIssuesRatioOfOrg(orgFilter)).color}`} />
-        <StatBox label="Zombie PRs" value={counts.zombie} sub="PENDING 90+ DAYS" color="var(--amber)" />
-        <StatBox label="No License" value={counts.license} sub="COMPLIANCE MISSING" color="var(--text2)" />
-      </div>
+<div
+  className="governance-summary-grid"
+  style={{
+    display: "grid",
+    gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+    gap: 12,
+    marginBottom: 24,
+  }}
+>
+  <StatBox
+    label="Dead Issues"
+    value={counts.dead}
+    sub="OPEN 90+ DAYS"
+    color="var(--red)"
+  />
+
+  <StatBox
+    label="Stale Issues Ratio"
+    value={`${staleIssuesRatioOfOrg(orgFilter).toFixed(2)}%`}
+    sub={`of ${issuesOfOrg.length} total issues`}
+    color={getStatus(staleIssuesRatioOfOrg(orgFilter)).color}
+  />
+
+  <StatBox
+    label="Zombie PRs"
+    value={counts.zombie}
+    sub="PENDING 90+ DAYS"
+    color="var(--amber)"
+  />
+
+  <StatBox
+    label="No License"
+    value={counts.license}
+    sub="COMPLIANCE MISSING"
+    color="var(--text2)"
+  />
+</div>
+
 
       {/* Issue Resolution Rate */}
       <div style={{ ...C.card, marginBottom: 20 }}>
