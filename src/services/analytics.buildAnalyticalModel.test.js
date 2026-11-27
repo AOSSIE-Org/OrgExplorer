@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildAnalyticalModel } from './analytics'
+import { buildAnalyticalModel, filterContributorsByOrg } from './analytics'
 
 function makeRepo(name, overrides = {}) {
   return {
@@ -161,5 +161,33 @@ describe('buildAnalyticalModel', () => {
     expect(result.allRepos).toEqual([])
     expect(result.totalRepos).toEqual([])
     expect(result.contributors).toEqual([])
+  })
+})
+
+describe('filterContributorsByOrg', () => {
+  it('recalculates contributor metrics for the selected organization', () => {
+
+    const orgARepo = makeRepo('repo-a', { pushed_at: '2026-01-10T00:00:00Z' })
+    const orgBRepo = makeRepo('repo-b', { pushed_at: '2026-02-10T00:00:00Z' })
+
+    const result = buildAnalyticalModel(
+      [{ login: 'org-a' }, { login: 'org-b' }],
+      { 'org-a': [orgARepo], 'org-b': [orgBRepo] },
+      {
+        'org-a/repo-a': [{ login: 'alice', avatar_url: '', contributions: 10 }],
+        'org-b/repo-b': [{ login: 'alice', avatar_url: '', contributions: 20 }],
+      },
+      { 'org-a': [orgARepo], 'org-b': [orgBRepo] }
+    )
+
+    const filtered = filterContributorsByOrg(result.contributors, 'org-a')
+
+    expect(filtered).toHaveLength(1)
+    expect(filtered[0].totalContribs).toBe(10)
+    expect(filtered[0].repos).toHaveLength(1)
+    expect(filtered[0].orgs).toEqual(['org-a'])
+    expect(filtered[0].lastActive).toBe('2026-01-10T00:00:00Z')
+    expect(filtered[0].isConnector).toBe(false)
+    expect(filtered[0].isCrossOrg).toBe(false)
   })
 })

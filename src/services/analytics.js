@@ -77,7 +77,7 @@ export function buildAnalyticalModel(orgs, reposPerOrg, contribsPerRepo, totalRe
         }
         const entry = contributorMap[c.login]
         entry.totalContribs += c.contributions
-        entry.repos.push({ name: repo.name, org: org.login, count: c.contributions })
+        entry.repos.push({ name: repo.name, org: org.login, count: c.contributions, pushedAt: repo.pushed_at })
         entry.orgs.add(org.login)
         if (!entry.lastActive || repo.pushed_at > entry.lastActive) {
           entry.lastActive = repo.pushed_at
@@ -99,6 +99,40 @@ export function buildAnalyticalModel(orgs, reposPerOrg, contribsPerRepo, totalRe
 
   // Graph is constructed here and persisted through cache layers
   return { allRepos, contributors, totalRepos }
+}
+
+// Recalculate contributor metrics within a selected organization.
+export function filterContributorsByOrg(contributors = [], selectedOrg = 'all') {
+  if (selectedOrg === 'all') return contributors
+
+  return contributors
+    .map(contributor => {
+      const repos = contributor.repos.filter(repo => repo.org === selectedOrg)
+      if (repos.length === 0) return null
+
+      const orgs = [...new Set(repos.map(repo => repo.org))]
+      const lastActive = repos.reduce(
+        (latest, repo) => !latest || (repo.pushedAt && repo.pushedAt > latest)
+          ? repo.pushedAt
+          : latest,
+        null
+      )
+
+      return {
+        ...contributor,
+        repos,
+        orgs,
+        totalContribs: repos.reduce((sum, repo) => sum + (Number(repo.count) || 0), 0),
+        lastActive,
+        isConnector: repos.length >= 3,
+        isCrossOrg: orgs.length > 1,
+        freshness: lastActive
+          ? Math.max(0, 100 - (Date.now() - new Date(lastActive)) / 86_400_000)
+          : 0,
+      }
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.totalContribs - a.totalContribs)
 }
 
 // Time-Series Bucketing
