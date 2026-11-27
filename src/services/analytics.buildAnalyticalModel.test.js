@@ -188,6 +188,29 @@ describe('filterContributorsByOrg', () => {
     expect(filtered[0].orgs).toEqual(['org-a'])
     expect(filtered[0].lastActive).toBe('2026-01-10T00:00:00Z')
     expect(filtered[0].isConnector).toBe(false)
-    expect(filtered[0].isCrossOrg).toBe(false)
+    expect(filtered[0].isCrossOrg).toBe(true)
+  })
+
+  it('preserves activity metrics for cached repositories without pushedAt', () => {
+    const contributor = {
+      login: 'alice',
+      repos: [
+        { name: 'repo-a', org: 'org-a', count: 10 },
+        { name: 'repo-b', org: 'org-b', count: 20 },
+      ],
+      orgs: ['org-a', 'org-b'],
+      totalContribs: 30,
+      lastActive: '2026-02-10T00:00:00Z',
+      freshness: 75,
+      isConnector: false,
+      isCrossOrg: true,
+    }
+
+    const filtered = filterContributorsByOrg([contributor], 'org-a')
+
+    expect(filtered[0].lastActive).toBe(contributor.lastActive)
+    expect(filtered[0].freshness).toBe(75)
+    expect(filtered[0].isCrossOrg).toBe(true)
+    expect(filtered[0].totalContribs).toBe(10)
   })
 })

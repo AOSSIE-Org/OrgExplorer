@@ -111,12 +111,15 @@ export function filterContributorsByOrg(contributors = [], selectedOrg = 'all') 
       if (repos.length === 0) return null
 
       const orgs = [...new Set(repos.map(repo => repo.org))]
-      const lastActive = repos.reduce(
-        (latest, repo) => !latest || (repo.pushedAt && repo.pushedAt > latest)
-          ? repo.pushedAt
-          : latest,
-        null
-      )
+      const timestamps = repos.map(repo => repo.pushedAt).filter(Boolean)
+      const lastActive = timestamps.length
+        ? timestamps.reduce((latest, timestamp) =>
+            !latest || timestamp > latest ? timestamp : latest, null)
+        : contributor.lastActive
+
+      const freshness = timestamps.length
+        ? Math.max(0, 100 - (Date.now() - new Date(lastActive)) / 86_400_000)
+        : contributor.freshness
 
       return {
         ...contributor,
@@ -125,16 +128,13 @@ export function filterContributorsByOrg(contributors = [], selectedOrg = 'all') 
         totalContribs: repos.reduce((sum, repo) => sum + (Number(repo.count) || 0), 0),
         lastActive,
         isConnector: repos.length >= 3,
-        isCrossOrg: orgs.length > 1,
-        freshness: lastActive
-          ? Math.max(0, 100 - (Date.now() - new Date(lastActive)) / 86_400_000)
-          : 0,
+        isCrossOrg: contributor.isCrossOrg,
+        freshness,
       }
     })
     .filter(Boolean)
     .sort((a, b) => b.totalContribs - a.totalContribs)
 }
-
 // Time-Series Bucketing
 // Parses created_at, closed_at, merged_at into weekly/monthly bins
 export function buildTimeSeries(issues = [], granularity = 'monthly') {
