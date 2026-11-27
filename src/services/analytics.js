@@ -77,7 +77,7 @@ export function buildAnalyticalModel(orgs, reposPerOrg, contribsPerRepo, totalRe
         }
         const entry = contributorMap[c.login]
         entry.totalContribs += c.contributions
-        entry.repos.push({ name: repo.name, org: org.login, count: c.contributions })
+        entry.repos.push({ name: repo.name, org: org.login, count: c.contributions, pushedAt: repo.pushed_at })
         entry.orgs.add(org.login)
         if (!entry.lastActive || repo.pushed_at > entry.lastActive) {
           entry.lastActive = repo.pushed_at
@@ -101,6 +101,40 @@ export function buildAnalyticalModel(orgs, reposPerOrg, contribsPerRepo, totalRe
   return { allRepos, contributors, totalRepos }
 }
 
+// Recalculate contributor metrics within a selected organization.
+export function filterContributorsByOrg(contributors = [], selectedOrg = 'all') {
+  if (selectedOrg === 'all') return contributors
+
+  return contributors
+    .map(contributor => {
+      const repos = contributor.repos.filter(repo => repo.org === selectedOrg)
+      if (repos.length === 0) return null
+
+      const orgs = [...new Set(repos.map(repo => repo.org))]
+      const timestamps = repos.map(repo => repo.pushedAt).filter(Boolean)
+      const lastActive = timestamps.length
+        ? timestamps.reduce((latest, timestamp) =>
+            !latest || timestamp > latest ? timestamp : latest, null)
+        : contributor.lastActive
+
+      const freshness = timestamps.length
+        ? Math.max(0, 100 - (Date.now() - new Date(lastActive)) / 86_400_000)
+        : contributor.freshness
+
+      return {
+        ...contributor,
+        repos,
+        orgs,
+        totalContribs: repos.reduce((sum, repo) => sum + (Number(repo.count) || 0), 0),
+        lastActive,
+        isConnector: repos.length >= 3,
+        isCrossOrg: contributor.isCrossOrg,
+        freshness,
+      }
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.totalContribs - a.totalContribs)
+}
 // Time-Series Bucketing
 // Parses created_at, closed_at, merged_at into weekly/monthly bins
 export function buildTimeSeries(issues = [], granularity = 'monthly') {

@@ -3,7 +3,7 @@ import { FiDatabase, FiDownload, FiExternalLink } from 'react-icons/fi'
 import { useApp } from '../context/AppContext'
 import { C, SortTh, PageTitle, LoadMore } from '../components/UI'
 import { useSortedData } from '../hooks/useSortedData'
-import { computeBusFactor, exportContributorsCSV } from '../services/analytics'
+import { computeBusFactor, exportContributorsCSV, filterContributorsByOrg } from '../services/analytics'
 import { useNavigate, Link } from 'react-router-dom'
 import EmptyStateCard from '../components/EmptyStateCard'
 import { AiOutlineInfoCircle } from "react-icons/ai";
@@ -56,15 +56,10 @@ export default function ContributorsPage() {
 
 
 
-  const scopedContributors = useMemo(() => {
-    if (selectedOrg === 'all') {
-      return contributors
-    }
-
-    return contributors.filter(contributor =>
-      contributor.orgs.includes(selectedOrg)
-    )
-  }, [contributors, selectedOrg])
+  const scopedContributors = useMemo(
+    () => filterContributorsByOrg(contributors, selectedOrg),
+    [contributors, selectedOrg]
+  )
 
   const busFactor = useMemo(
     () => computeBusFactor(scopedContributors),
